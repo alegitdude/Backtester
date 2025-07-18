@@ -5,6 +5,8 @@
 #include <charconv>
 #include <ctime>
 #include <chrono>
+#include <memory>
+#include <cmath>
 
 enum DataInterval{
     MBO,
@@ -47,6 +49,7 @@ struct OHLCBar {
     
 }; 
 
+/// For OHLCV data
 class DataLoader{
     private:
         static int64_t nanosToSeconds(int64_t nanos){
@@ -100,7 +103,6 @@ class DataLoader{
             while (fgets(line, sizeof(line), file)) {       
                 OHLCBar bar;
                 char ts_event[64];
-            
                 // Skip rtype, publisher_id, instrument_id
                 if (sscanf(line, "%63[^,],%*d,%*d,%*d,%lf,%lf,%lf,%lf,%lf",
                         ts_event,
@@ -108,13 +110,12 @@ class DataLoader{
                         &bar.high,
                         &bar.low,
                         &bar.close,
-                        &bar.volume) == 6) 
-                    {
+                        &bar.volume) == 6) {
                     
                         bar.timestamp = parseDbIsoFormat(ts_event);
                         bars.push_back(bar);
                     }
-                
+               
             }   
 
             fclose(file);
@@ -145,10 +146,82 @@ std::string GetCSVTestEnvVar () {
     return "";
 }
 
-int main(int, char**){
-    std::cout << "Hello, from Backtester!\n";
-    DataLoader dataLoader;
-    DataInterval seconds = DataInterval::Seconds;
-    dataLoader.loadCsv(GetCSVTestEnvVar(), seconds);
-    return 0;
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+
+
+int main(int argc, char* argv[]) {
+
+    ///  Argument Parsing & Initial Setup 
+    
+    ///  Initialize Logger 
+
+    ///  Configuration Loading 
+
+    ///  Component Initialization 
+
+    ///  Create central EventQueue
+
+    /// Initialize Data Reader(s) and possibly DataReaderManager?
+
+    /// Initialize Market State Manager
+
+    /// Initialize Portfolio Manager
+
+    /// Initialize Report Generator
+
+    /// Initialize Execution Handler
+
+    /// Initialize Strategy Manager and specific Strategy
+
+
+    /// Populate Initial Events (Pre-warm the queue) 
+    // Read the first event from each data source and add to the EventQueue
+    // (This is handled internally by DataReaderManager's interaction with EventQueue)
+    // Logger::info("Populating initial events from data sources...")
+    // data_reader_manager.populate_initial_events(event_queue) // This method reads one event from each reader and pushes to event_queue
+
+    //  Main Backtest Loop 
+    // Logger::info("Starting backtest loop...")
+    // current_time_ns = config.start_time
+
+    // WHILE NOT event_queue.is_empty() AND event_queue.top_event().timestamp <= config.end_time DO
+    
+      /// Event Dispatching 
+   
+
+    ///    END IF
+         // End Event Dispatching
+
+        // After processing, try to load next event from the source that provided the just-processed event
+        // This ensures the data_reader_manager always tries to keep its internal buffers topped up.
+        //data_reader_manager.try_load_next_event_for_source(event_queue, current_event.source_symbol_id)
+
+       
+    ///  End Backtest Loop
+
+    ///  Logger::info("Backtest loop finished.")
+
+    ///  Final Reporting & Cleanup 
+
+    // // Clean up dynamically allocated objects (if not using smart pointers everywhere)
+    // DELETE event_queue
+    // DELETE data_reader_manager
+    // DELETE market_state_manager
+    // DELETE portfolio_manager
+    // DELETE report_generator
+    // DELETE execution_handler
+    // DELETE strategy_manager
+    // DELETE strategy // Specific strategy instance
+
+    // Logger::info("Backtester shutting down.")
+    return 0; 
+    // Success
 }
+
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+
