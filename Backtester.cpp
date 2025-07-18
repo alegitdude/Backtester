@@ -146,12 +146,42 @@ std::string GetCSVTestEnvVar () {
     return "";
 }
 
+void printHelp() {
+    std::cout << "Here are the required arguments for running a backtest" << std::endl;
+    std::cout << "--MboFilePath" << std::endl;
+    std::cout << "--ResultsFilePath" << std::endl;
+    std::cout << "--Strategy" << std::endl;
+    std::cout << "Here are the optional arguments for running a backtest" << std::endl;
+}
+
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 
 
 int main(int argc, char* argv[]) {
+    std::cout << "Backtester Started" << std::endl;
+    std::cout << argc << std::endl;
+    if(argc < 2){
+        std::cout << "Please include all arguments to run backtester" << std::endl;
+        printHelp();
+        return 0;
+    }
+
+    for (int i = 1; i < argc; ++i) { // Start from 1 to skip program name
+        std::string arg = argv[i];
+
+        if (arg == "--help" || arg == "-h") {
+            printHelp();
+            return 0; // Exit after displaying help
+        } else {
+            if (true) {
+                // some logic for the two file paths
+            } else {
+               // finish parsing arguments
+            }
+        }
+    }
 
     ///  Argument Parsing & Initial Setup 
     

@@ -11,7 +11,8 @@ include(FetchContent)
        GIT_TAG HEAD
    )
    FetchContent_MakeAvailable(databento)
-add_executable(Backtester main.cpp)
+   
+add_executable(Backtester Backtester.cpp)
 
 target_link_libraries(Backtester PRIVATE databento::databento)
 
