@@ -26,7 +26,6 @@ class CsvZstReader { // reader.open -> reader.readline
 
     public:
     CsvZstReader() : dstream_(nullptr), output_pos_(0), output_size_(0), eof_reached_(false) {
-
         input_buffer_.resize(input_buf_size);
         output_buffer_.resize(output_buf_size);
     }

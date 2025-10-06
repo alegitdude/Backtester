@@ -7,6 +7,9 @@
 #include <chrono>
 #include <memory>
 #include <cmath>
+#include <filesystem>
+#include "OrderBook.cpp"
+#include "EventQueue.cpp"
 
 enum DataInterval{
     MBO,
@@ -149,21 +152,22 @@ std::string GetCSVTestEnvVar () {
 void printHelp() {
     std::cout << "Here are the required arguments for running a backtest" << std::endl;
     std::cout << "--MboFilePath" << std::endl;
-    std::cout << "--ResultsFilePath" << std::endl;
+    std::cout << "--ResultsFolderPath" << std::endl;
     std::cout << "--Strategy" << std::endl;
     std::cout << "Here are the optional arguments for running a backtest" << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////
+/////////////////////////////MARK: MAIN 
 ////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-
 
 int main(int argc, char* argv[]) {
+    const int maxArgs = 5;
     std::cout << "Backtester Started" << std::endl;
-    std::cout << argc << std::endl;
-    if(argc < 2){
-        std::cout << "Please include all arguments to run backtester" << std::endl;
+    std::filesystem::path mboPath, resultsPath;
+
+    if(argc < 2 || argc > maxArgs){
+        std::cout << "Please include the correct number of arguments to run backtester" << std::endl;
         printHelp();
         return 0;
     }
@@ -173,18 +177,35 @@ int main(int argc, char* argv[]) {
 
         if (arg == "--help" || arg == "-h") {
             printHelp();
-            return 0; // Exit after displaying help
-        } else {
-            if (true) {
-                // some logic for the two file paths
-            } else {
-               // finish parsing arguments
+            return 0; 
+
+        if(i == 1){ //MboFilePath
+            if(!std::filesystem::exists(arg)){
+                std::cout << "Mbo file path does not exist!" << std::endl;
+                std::cout << arg << std::endl;
+                return 0;
             }
+            mboPath = std::filesystem::path(arg);
+            if(mboPath.extension() != "csv" || mboPath.extension() != "dbn"){
+                std::cout << "Mbo File has wrong file extension!" << std::endl;
+                std::cout << arg << std::endl;
+                return 0;
+            }
+
+        }
+
+        if(i == 2){
+            if(!std::filesystem::exists(arg)){
+                std::cout << "Results folder path does not exist!" << std::endl;
+                std::cout << arg << std::endl;
+                return 0;
+            }
+            resultsPath = std::filesystem::path(arg);
         }
     }
 
     ///  Argument Parsing & Initial Setup 
-    
+   
     ///  Initialize Logger 
 
     ///  Configuration Loading 
@@ -192,11 +213,11 @@ int main(int argc, char* argv[]) {
     ///  Component Initialization 
 
     ///  Create central EventQueue
-
+    //EventQueue* eventQueue = new EventQueue();
     /// Initialize Data Reader(s) and possibly DataReaderManager?
 
     /// Initialize Market State Manager
-
+    OrderBook* marketOrderBook = new OrderBook();
     /// Initialize Portfolio Manager
 
     /// Initialize Report Generator
@@ -236,18 +257,13 @@ int main(int argc, char* argv[]) {
     ///  Final Reporting & Cleanup 
 
     // // Clean up dynamically allocated objects (if not using smart pointers everywhere)
-    // DELETE event_queue
-    // DELETE data_reader_manager
-    // DELETE market_state_manager
-    // DELETE portfolio_manager
-    // DELETE report_generator
-    // DELETE execution_handler
-    // DELETE strategy_manager
-    // DELETE strategy // Specific strategy instance
+   
 
     // Logger::info("Backtester shutting down.")
     return 0; 
     // Success
+}
+
 }
 
 ////////////////////////////////////////////////////////////////////////

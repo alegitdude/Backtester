@@ -3,6 +3,7 @@ project(Backtester VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
    FetchContent_Declare(
@@ -15,4 +16,3 @@ include(FetchContent)
 add_executable(Backtester Backtester.cpp)
 
 target_link_libraries(Backtester PRIVATE databento::databento)
-
