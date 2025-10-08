@@ -69,7 +69,7 @@ class MarketByOrderEvent : Event {
  public:
     MarketByOrderEvent(
         uint64_t ts_recv, 
-        EventType type, // From Event base
+        EventType type,
         uint64_t ts_event, 
         uint16_t publisher_id, 
         uint32_t instrument_id,
@@ -156,93 +156,95 @@ class StrategySignalEvent : Event {
 public:
     std::string symbol;
     SignalType signal_type; // e.g., BUY_SIGNAL, SELL_SIGNAL, Maybe? HEDGE_SIGNAL
-    // double suggested_price; // Optional, for limit orders
+    double suggested_price; // Optional, for limit orders
     // long suggested_quantity; // Optional
 
-    StrategySignalEvent(long long ts, const std::string& sym,  double price = 0.0, long qty = 0)
-        : Event(ts, EventType::kStrategySignal), symbol(sym), signal_type(st) {}
+    StrategySignalEvent(long long ts, const std::string& sym, SignalType s_t, double price)
+        : Event(ts, EventType::kStrategySignal), symbol(sym), signal_type(s_t), suggested_price(price) {}
 };
 
 class StrategyOrderEvent : Event {
-public:
+ public:
     std::string symbol;
     OrderType order_type; // Add, Modify, Cancel, Fill, Rejection
+    OrderSide side;
     double price;
     long quantity;
     uint64_t order_id;
     std::string strategy_id;
-    EventType event_type;
 
-    StrategyOrderEvent(long long ts, const std::string& sym, SignalType st, double price = 0.0, long qty = 0)
-        : Event(ts, event_type), symbol(sym), order_type(st) {}
+    StrategyOrderEvent(long long ts,  EventType e_t, const std::string& symbol, OrderType ot, 
+        OrderSide side, double price, long qty, uint64_t id, std::string st_id)
+        : Event(ts, e_t), symbol(symbol), order_type(ot), side(side), price(price), quantity(qty),
+        order_id(id), strategy_id(st_id){}
 };
 
 //////////////////////////////////////////////////////////////
 ///////////// MARK: Backtester Classes
 //////////////////////////////////////////////////////////////
- kBacktestControlStart,
-    kBacktestControlEndOfDay,
-    kBacktestControlEndOfBacktest,
-    kBacktestControlSnapshot
+    // kBacktestControlStart,
+    // kBacktestControlEndOfDay,
+    // kBacktestControlEndOfBacktest,
+    // kBacktestControlSnapshot
 
 //////////////////////////////////////////////////////////////
 ///////////// MARK: Event Queue 
 //////////////////////////////////////////////////////////////
 
+struct EventComparator {
+    bool operator()(const std::unique_ptr<Event>& a, const std::unique_ptr<Event>& b) const {
+        // Primary sort: timestamp (ascending)
+        if(a->get_timestamp() != b->get_timestamp()) {
+            return a->get_timestamp() > b->get_timestamp(); // For MIN-heap, "greater" means lower priority
+        }        
+        // MarketExecuted > MarketCancel > MarketAdd > YourFill > YourOrder > Signal ????
+        return a->get_type() > b->get_type(); // lower enum ID comes first
+    }
+};
 
 class EventQueue {
-private:
-    // The underlying priority queue storing unique pointers to Events
-    // std::vector as the underlying container for the heap
-    // EventComparator ensures min-heap behavior based on timestamp (and then type)
-    std::priority_queue<std::unique_ptr<Event>, std::vector<std::unique_ptr<Event>>, EventComparator> pq;
-
-public:
-    // Constructor
+ public:
     EventQueue() {}
 
-    // Destructor (std::unique_ptr handles memory of contained events)
     ~EventQueue() {}
 
-    // Takes std::unique_ptr to take ownership of the event object
     void push_event(std::unique_ptr<Event> event_ptr) {
         if(event_ptr != nullptr){
-            pq.push(std::move(event_ptr)); // Use std::move to transfer ownership
+            pq_.push(std::move(event_ptr)); 
         }
     }
 
     bool is_empty() const {
-        return pq.empty();
+        return pq_.empty();
     }
 
-    // Get a reference to the top event (without removing)
-    // Returns a const reference to avoid modification of the event while in queue
-    CONST Event& top_event() CONST {
-        // You might want to add a check for pq.empty() here and throw an exception
-        RETURN *pq.top();
+    const Event& top_event() const {
+        if(pq_.empty()) {
+        //throw std::runtime_error("Attempted to pop from empty EventQueue"?
+            return std::unique_ptr<Event>{};        
+        }        
+        return *pq_.top();
     }
 
-    // Remove and return the top event
-    // Returns std::unique_ptr to transfer ownership to the caller
     std::unique_ptr<Event> pop_top_event() {
-        IF pq.empty() THEN
-            // Handle error: queue is empty, can't pop
-            // e.g., throw std::runtime_error("Attempted to pop from empty EventQueue");
-            RETURN nullptr;
-        END IF
-        std::unique_ptr<Event> top_event_ptr = std::move(pq.top()); // Get and move ownership
-        pq.pop(); // Remove from queue
-        RETURN top_event_ptr;
+        if(pq_.empty()) {
+             //throw std::runtime_error("Attempted to pop from empty EventQueue"?
+            return std::unique_ptr<Event>{}; 
+        }
+        std::unique_ptr<Event> top_event_ptr = std::move(pq_.top()); // Get and move ownership
+        pq_.pop(); 
+        return top_event_ptr;
     }
 
-    // Get the current size of the queue
-    SIZE_T size() CONST {
-        return pq.size();
+    size_t size() const {
+        return pq_.size();
     }
 
     // Clear all events from the queue (for resetting)
     void clear() {
-        // While pq.pop() would work, this might be faster to clear the underlying vector
-        pq = std::priority_queue<std::unique_ptr<Event>, std::vector<std::unique_ptr<Event>>, EventComparator>();
+        pq_ = std::priority_queue<std::unique_ptr<Event>, std::vector<std::unique_ptr<Event>>, EventComparator>();
     }
+
+ private:
+    std::priority_queue<std::unique_ptr<Event>, std::vector<std::unique_ptr<Event>>, EventComparator> pq_;
 };
