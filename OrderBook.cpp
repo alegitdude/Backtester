@@ -1,10 +1,11 @@
-#include <iostream>
-#include <string>
-#include "OrderBook.h"
 #include <databento/record.hpp>
 #include <databento/dbn.hpp>
 #include <databento/enums.hpp>
-#include <databento/pretty.hpp>         
+#include <databento/pretty.hpp>  
+#include <iostream>
+#include <string>
+#include "OrderBook.h"
+       
 
 using namespace databento;
 

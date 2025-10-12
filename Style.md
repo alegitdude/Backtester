@@ -1,4 +1,71 @@
 From Google's CppGuide
+    - Class Format:
+
+    Sections in public, protected and private order, each indented one space.
+
+    The basic format for a class definition (lacking the comments, see Class Comments for a discussion of what comments are needed) is:
+
+    class MyClass : public OtherClass {
+     public:      // Note the 1 space indent!
+      MyClass();  // Regular 2 space indent.
+      explicit MyClass(int var);
+      ~MyClass() {}
+
+      void SomeFunction();
+      void SomeFunctionThatDoesNothing() {
+      }
+
+      void set_some_var(int var) { some_var_ = var; }
+      int some_var() const { return some_var_; }
+
+     private:
+      bool SomeInternalFunction();
+
+      int some_var_;
+      int some_other_var_;
+    };
+
+    Things to note:
+
+        Any base class name should be on the same line as the subclass name, subject to the 80-column limit.
+        The public:, protected:, and private: keywords should be indented one space.
+        Except for the first instance, these keywords should be preceded by a blank line. This rule is optional in small classes.
+        Do not leave a blank line after these keywords.
+        The public section should be first, followed by the protected and finally the private section.
+        See Declaration Order for rules on ordering declarations within each of these sections.
+
+    Constructor Initializer Lists
+
+    Constructor initializer lists can be all on one line or with subsequent lines indented four spaces.
+
+    The acceptable formats for initializer lists are:
+
+    // When everything fits on one line:
+    MyClass::MyClass(int var) : some_var_(var) {
+    DoSomething();
+    }
+
+    // If the signature and initializer list are not all on one line,
+    // you must wrap before the colon and indent 4 spaces:
+    MyClass::MyClass(int var)
+        : some_var_(var), some_other_var_(var + 1) {
+    DoSomething();
+    }
+
+    // When the list spans multiple lines, put each member on its own line
+    // and align them:
+    MyClass::MyClass(int var)
+        : some_var_(var),             // 4 space indent
+        some_other_var_(var + 1) {  // lined up
+    DoSomething();
+    }
+
+    // As with any other code block, the close curly can be on the same
+    // line as the open curly, if it fits.
+    MyClass::MyClass(int var)
+        : some_var_(var) {}
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 
     - Declaring Order:
         Group similar declarations together, placing public parts earlier.

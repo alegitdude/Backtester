@@ -1,3 +1,6 @@
+#include "EventQueue.cpp"
+#include "OrderBook.cpp"
+#include <nlohmann/json.hpp>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -8,8 +11,7 @@
 #include <memory>
 #include <cmath>
 #include <filesystem>
-#include "OrderBook.cpp"
-#include "EventQueue.cpp"
+
 
 enum DataInterval{
     MBO,
@@ -165,9 +167,11 @@ int main(int argc, char* argv[]) {
     const int maxArgs = 5;
     std::cout << "Backtester Started" << std::endl;
     std::filesystem::path mboPath, resultsPath;
+    std::string correct_args_out = R"(Please include the correct number of 
+    arguments to run backtester)";
 
     if(argc < 2 || argc > maxArgs){
-        std::cout << "Please include the correct number of arguments to run backtester" << std::endl;
+        std::cout << correct_args_out << std::endl;
         printHelp();
         return 0;
     }

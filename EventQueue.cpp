@@ -48,16 +48,16 @@ enum SignalType {
 
 class Event {
 public:
-    Event(long long ts, EventType t) : timestamp_ns(ts), type(t) {}
+    Event(long long ts, EventType t) : timestamp_ns_(ts), type_(t) {}
 
     virtual ~Event() {}
     
-    long long get_timestamp() const { return timestamp_ns; }
-    EventType get_type() const { return type; }
+    long long get_timestamp() const { return timestamp_ns_; }
+    EventType get_type() const { return type_; }
 
 protected: 
-    long long timestamp_ns; 
-    EventType type;         
+    long long timestamp_ns_; 
+    EventType type_;         
 
 };
 
@@ -81,19 +81,18 @@ class MarketByOrderEvent : Event {
         uint8_t flags, 
         int32_t ts_in_delta, 
         uint32_t sequence
-    )
-    : Event(ts_recv, type), // Use ts_recv as the primary timestamp for Event base
-      ts_event_(ts_event), 
-      publisher_id_(publisher_id), 
-      instrument_id_(instrument_id),
-      action_(action), 
-      side_char_(side_char), 
-      raw_price_(raw_price), 
-      size_(size),
-      order_id_(order_id), 
-      flags_(flags), 
-      ts_in_delta_(ts_in_delta), 
-      sequence_(sequence)
+    ) : Event(ts_recv, type), // ts_recv as primary timestamp for Event 
+        ts_event_(ts_event), 
+        publisher_id_(publisher_id), 
+        instrument_id_(instrument_id),
+        action_(action), 
+        side_char_(side_char), 
+        raw_price_(raw_price), 
+        size_(size),
+        order_id_(order_id), 
+        flags_(flags), 
+        ts_in_delta_(ts_in_delta), 
+        sequence_(sequence)
     {
         price_double_ = static_cast<double>(raw_price) * 1e-9; // Convert to double
         side_ = convert_char_to_OrderSide(side_char); // Helper function/enum conversion
@@ -136,7 +135,7 @@ class MarketByOrderEvent : Event {
     int32_t ts_in_delta_;    // Matching-engine-sending timestamp relative to ts_recv
     uint32_t sequence_;      // Sequence number
 
-    // Derived/Converted properties for easier use in backtester
+    // Derived/Converted properties 
     std::string symbol_str_;   // Derived from instrument_id via symbology service
     double price_double_;      // Converted raw_price to double
     OrderSide side_;           // Converted side_char to your internal OrderSide enum
@@ -153,30 +152,68 @@ class MarketByOrderEvent : Event {
 //////////////////////////////////////////////////////////////
 
 class StrategySignalEvent : Event {
-public:
-    std::string symbol;
-    SignalType signal_type; // e.g., BUY_SIGNAL, SELL_SIGNAL, Maybe? HEDGE_SIGNAL
-    double suggested_price; // Optional, for limit orders
-    // long suggested_quantity; // Optional
+ public:
+    StrategySignalEvent(
+        long long ts, 
+        const std::string& sym, 
+        SignalType s_t, 
+        double price
+    ) : Event(ts, EventType::kStrategySignal), 
+        symbol_(sym), 
+        signal_type_(s_t), 
+        suggested_price_(price) {}
+    
+    ~StrategySignalEvent() {}    
 
-    StrategySignalEvent(long long ts, const std::string& sym, SignalType s_t, double price)
-        : Event(ts, EventType::kStrategySignal), symbol(sym), signal_type(s_t), suggested_price(price) {}
+    std::string get_symbol() const { return symbol_; }
+    SignalType get_signal_type() const { return signal_type_ ;}
+
+ private:
+    std::string symbol_;
+    SignalType signal_type_; // BUY, SELL, Maybe? HEDGE?
+    double suggested_price_; // Optional, for limit orders
+     // long suggested_quantity; // Optional
 };
 
 class StrategyOrderEvent : Event {
  public:
-    std::string symbol;
-    OrderType order_type; // Add, Modify, Cancel, Fill, Rejection
-    OrderSide side;
-    double price;
-    long quantity;
-    uint64_t order_id;
-    std::string strategy_id;
+    StrategyOrderEvent(
+        long long ts,  
+        EventType e_t, 
+        const std::string& symbol, 
+        OrderType ot, 
+        OrderSide side, 
+        double price, 
+        long qty, 
+        uint64_t id, 
+        std::string st_id
+    ) : Event(ts, e_t), 
+        symbol_(symbol), 
+        order_type_(ot), 
+        side_(side),
+        price_(price), 
+        quantity_(qty),
+        order_id_(id),
+        strategy_id_(st_id){}
+    
+    ~StrategyOrderEvent() {}
 
-    StrategyOrderEvent(long long ts,  EventType e_t, const std::string& symbol, OrderType ot, 
-        OrderSide side, double price, long qty, uint64_t id, std::string st_id)
-        : Event(ts, e_t), symbol(symbol), order_type(ot), side(side), price(price), quantity(qty),
-        order_id(id), strategy_id(st_id){}
+    std::string get_symbol() { return symbol_; }
+    OrderType get_order_type() { return order_type_; }
+    OrderSide get_side() { return side_; }
+    double get_price() { return price_; }
+    long get_quantity() { return quantity_; }
+    uint64_t get_order_id() { return order_id_; }
+    std::string get_strategy_id() { return strategy_id_; }
+
+ private:
+    std::string symbol_;
+    OrderType order_type_; // Add, Modify, Cancel, Fill, Rejection
+    OrderSide side_;
+    double price_;
+    long quantity_;
+    uint64_t order_id_;
+    std::string strategy_id_;
 };
 
 //////////////////////////////////////////////////////////////
@@ -192,13 +229,15 @@ class StrategyOrderEvent : Event {
 //////////////////////////////////////////////////////////////
 
 struct EventComparator {
-    bool operator()(const std::unique_ptr<Event>& a, const std::unique_ptr<Event>& b) const {
+    bool operator()(
+        const std::unique_ptr<Event>& a, 
+        const std::unique_ptr<Event>& b) const {
         // Primary sort: timestamp (ascending)
         if(a->get_timestamp() != b->get_timestamp()) {
             return a->get_timestamp() > b->get_timestamp(); // For MIN-heap, "greater" means lower priority
         }        
-        // MarketExecuted > MarketCancel > MarketAdd > YourFill > YourOrder > Signal ????
-        return a->get_type() > b->get_type(); // lower enum ID comes first
+        // Market -> Strategy -> Backtest
+        return a->get_type() > b->get_type(); 
     }
 };
 
@@ -210,7 +249,8 @@ class EventQueue {
 
     void push_event(std::unique_ptr<Event> event_ptr) {
         if(event_ptr != nullptr){
-            pq_.push(std::move(event_ptr)); 
+            pq_.push_back(std::move(event_ptr)); 
+            std::push_heap(pq_.begin(), pq_.end(), comparator_);
         }
     }
 
@@ -220,19 +260,18 @@ class EventQueue {
 
     const Event& top_event() const {
         if(pq_.empty()) {
-        //throw std::runtime_error("Attempted to pop from empty EventQueue"?
-            return std::unique_ptr<Event>{};        
+            throw std::out_of_range("Attempted to grab top event of empty quque");     
         }        
-        return *pq_.top();
+        return *pq_.front();
     }
 
     std::unique_ptr<Event> pop_top_event() {
         if(pq_.empty()) {
-             //throw std::runtime_error("Attempted to pop from empty EventQueue"?
             return std::unique_ptr<Event>{}; 
         }
-        std::unique_ptr<Event> top_event_ptr = std::move(pq_.top()); // Get and move ownership
-        pq_.pop(); 
+        std::pop_heap(pq_.begin(), pq_.end(), EventComparator{});
+        std::unique_ptr<Event> top_event_ptr = std::move(pq_.back()); 
+        pq_.pop_back(); 
         return top_event_ptr;
     }
 
@@ -242,9 +281,10 @@ class EventQueue {
 
     // Clear all events from the queue (for resetting)
     void clear() {
-        pq_ = std::priority_queue<std::unique_ptr<Event>, std::vector<std::unique_ptr<Event>>, EventComparator>();
+        pq_ = std::vector<std::unique_ptr<Event>>();
     }
 
  private:
-    std::priority_queue<std::unique_ptr<Event>, std::vector<std::unique_ptr<Event>>, EventComparator> pq_;
+    std::vector<std::unique_ptr<Event>> pq_;
+    EventComparator comparator_;
 };
