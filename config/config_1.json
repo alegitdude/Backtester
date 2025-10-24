@@ -11,8 +11,8 @@
 		"start_time" : "afulldate",
 		"end_time" : "afulldate",
 		"symbol" : "someSymbol",
-		"data_format" : "csv"
-
+		"data_format" : "csv",
+		"log_file_path" : "C:\\some_path"
 		
 	}
 }

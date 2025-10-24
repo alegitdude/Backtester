@@ -34,6 +34,27 @@ public:
         return PriceLevel{};
     }
 
+    std::vector<BidAskPair> GetSnapshot(std::size_t level_count = 1) const {
+        std::vector<BidAskPair> res;
+        for (size_t i = 0; i < level_count; ++i) {
+            BidAskPair ba_pair{kUndefPrice, kUndefPrice, 0, 0, 0, 0};
+            auto bid = GetBidLevel(i);
+            if (bid) {
+                ba_pair.bid_px = bid.price;
+                ba_pair.bid_sz = bid.size;
+                ba_pair.bid_ct = bid.count;
+            }
+            auto ask = GetAskLevel(i);
+            if (ask) {
+                ba_pair.ask_px = ask.price;
+                ba_pair.ask_sz = ask.size;
+                ba_pair.ask_ct = ask.count;
+            }
+            res.emplace_back(ba_pair);
+        }
+        return res;
+  }
+
     void Apply(const MboMsg &mbo) {
         switch (mbo.action) {
             case Action::Clear: {
@@ -116,7 +137,7 @@ private:
     }
     }
 
-    LevelOrders &GetLevel(Side side, int64_t price) {
+    LevelOrders& GetLevel(Side side, int64_t price) {
         SideLevels &levels = GetSideLevels(side);
         auto level_it = levels.find(price);
         if (level_it == levels.end()) {

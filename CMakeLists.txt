@@ -17,9 +17,15 @@ FetchContent_Declare(
   URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
 )
 
-FetchContent_MakeAvailable(databento json)
-  
-add_executable(Backtester Backtester.cpp)
+FetchContent_Declare(
+  spdlog
+  GIT_REPOSITORY https://github.com/gabime/spdlog.git
+  GIT_TAG        v1.14.1 # Recommended to use a specific version tag
+)
 
-target_link_libraries(Backtester PRIVATE databento::databento nlohmann_json::nlohmann_json)
+FetchContent_MakeAvailable(databento json spdlog)
+  
+add_executable(Backtester main.cpp)
+
+target_link_libraries(Backtester PRIVATE databento::databento nlohmann_json::nlohmann_json spdlog)
 

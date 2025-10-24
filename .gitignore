@@ -1,5 +1,5 @@
 build/
 .vscode/
-main
 .env
 Backtester
+cmake-build-debug/

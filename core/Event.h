@@ -1,23 +1,23 @@
+#pragma once
 #include <iostream>
-#include <queue>
 #include <memory>
 
 enum EventType {
-    kMarketOrderAdd,
+    kMarketOrderAdd, // 0
     KMarketOrderExecuted,
     kMarketOrderCancel,
     kMarketOrderModify,
     kMarketTrade,
     kMarketHeartbeat, 
 
-    kStrategySignal, // Sent to Order/Execution Management System type class 
+    kStrategySignal, // 6
     kStrategyOrderSubmit,  
     kStrategyOrderCancel,
     kStrategyOrderModify,
     kStrategyOrderFill,  
     KStrategyOrderRejection, 
 
-    kBacktestControlStart,
+    kBacktestControlStart, // 12
     kBacktestControlEndOfDay,
     kBacktestControlEndOfBacktest,
     kBacktestControlSnapshot
@@ -223,68 +223,3 @@ class StrategyOrderEvent : Event {
     // kBacktestControlEndOfDay,
     // kBacktestControlEndOfBacktest,
     // kBacktestControlSnapshot
-
-//////////////////////////////////////////////////////////////
-///////////// MARK: Event Queue 
-//////////////////////////////////////////////////////////////
-
-struct EventComparator {
-    bool operator()(
-        const std::unique_ptr<Event>& a, 
-        const std::unique_ptr<Event>& b) const {
-        // Primary sort: timestamp (ascending)
-        if(a->get_timestamp() != b->get_timestamp()) {
-            return a->get_timestamp() > b->get_timestamp(); // For MIN-heap, "greater" means lower priority
-        }        
-        // Market -> Strategy -> Backtest
-        return a->get_type() > b->get_type(); 
-    }
-};
-
-class EventQueue {
- public:
-    EventQueue() {}
-
-    ~EventQueue() {}
-
-    void push_event(std::unique_ptr<Event> event_ptr) {
-        if(event_ptr != nullptr){
-            pq_.push_back(std::move(event_ptr)); 
-            std::push_heap(pq_.begin(), pq_.end(), comparator_);
-        }
-    }
-
-    bool is_empty() const {
-        return pq_.empty();
-    }
-
-    const Event& top_event() const {
-        if(pq_.empty()) {
-            throw std::out_of_range("Attempted to grab top event of empty quque");     
-        }        
-        return *pq_.front();
-    }
-
-    std::unique_ptr<Event> pop_top_event() {
-        if(pq_.empty()) {
-            return std::unique_ptr<Event>{}; 
-        }
-        std::pop_heap(pq_.begin(), pq_.end(), EventComparator{});
-        std::unique_ptr<Event> top_event_ptr = std::move(pq_.back()); 
-        pq_.pop_back(); 
-        return top_event_ptr;
-    }
-
-    size_t size() const {
-        return pq_.size();
-    }
-
-    // Clear all events from the queue (for resetting)
-    void clear() {
-        pq_ = std::vector<std::unique_ptr<Event>>();
-    }
-
- private:
-    std::vector<std::unique_ptr<Event>> pq_;
-    EventComparator comparator_;
-};

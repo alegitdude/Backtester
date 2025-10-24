@@ -1,6 +1,14 @@
-#include "EventQueue.cpp"
-#include "OrderBook.cpp"
+#include "core/EventQueue.cpp"
+#include "market_state/MarketStateManager.h"
+#include "strategy/StrategyManager.h"
+#include "data_ingestion/DataReaderManager.h"
+#include "execution/ExecutionHandler.h"
+#include "portfolio/PortfolioManager.h"
+#include "reporting/ReportGenerator.h"
+#include "core/Backtester.h"
 #include <nlohmann/json.hpp>
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -21,15 +29,6 @@ enum DataInterval{
     Days
 };
 
-struct Position {
-    double entryPrice;
-    long entryTime;
-    int quantity;
-
-    double UnrealizedPnL(double currentPrice){
-        return quantity * (currentPrice - entryPrice);
-    }
-};
 
 struct Trade {
     double entryPrice, exitPrice;
@@ -55,6 +54,13 @@ struct OHLCBar {
 }; 
 
 /// For OHLCV data
+
+struct OHLCBar {
+    int64_t timestamp;
+    uint32_t instrumentId;
+    double open, high, low, close, volume;
+}; 
+
 class DataLoader{
     private:
         static int64_t nanosToSeconds(int64_t nanos){
@@ -127,9 +133,29 @@ class DataLoader{
             return bars;     
         };
     };
+    
+struct Config {
+    string data_format;
+    string 
+    "end_time": "afulldate",
+    int execution_latency = 500000;
+    int initial_cash = 100000;
+    string log_file_path:
+    string report_output_dir;
+    "start_time": "afulldate",
+    string strategy_name = "defaultStrat",
+    "strategy_params": {
+        "some_param": "5"
+    },
+    "symbol": "someSymbol"
+};
 
-std::string GetCSVTestEnvVar () {
-     std::ifstream file(".env");
+std::string GetEnvVarConfigPath () {
+    namespace fs = std::filesystem;
+    fs::path current_dir = fs::current_path();
+    fs::path parent_dir = current_dir.parent_path();
+    fs::path env = ".env";
+    std::ifstream file(parent_dir / env);
 
     if (!file.is_open()) {
         std::cerr << "Error: Could not open environment variable file:";
@@ -142,7 +168,7 @@ std::string GetCSVTestEnvVar () {
         if (equalsPos != std::string::npos) {
             std::string key = line.substr(0, equalsPos - 1);
             std::string value = line.substr(equalsPos + 2);
-            if(key == "PATH_TO_QQQ_OHLCV_CSV"){
+            if(key == "PATH_TO_CONFIG"){
                 return value;
             }
         }
@@ -150,6 +176,22 @@ std::string GetCSVTestEnvVar () {
     file.close();
     return "";
 }
+
+namespace PrintHelper {
+    inline void BacktestStart(){
+        std::cout << "Backtester Program Started" << std::endl;
+    };
+    inline void CantOpenConfig(){
+        std::cout << "Could not open config, check path" << std::endl;
+    };
+    inline void BadFilePath(){
+        std::cout << "Could not open file, check path" << std::endl;
+    };
+    inline void WrongArgNums(){
+        std::cout << R"(Please include the correct number of 
+                        arguments to run backtester)" << std::endl;
+    };
+};
 
 void printHelp() {
     std::cout << "Here are the required arguments for running a backtest" << std::endl;
@@ -159,119 +201,104 @@ void printHelp() {
     std::cout << "Here are the optional arguments for running a backtest" << std::endl;
 }
 
-////////////////////////////////////////////////////////////////////////
-/////////////////////////////MARK: MAIN 
-////////////////////////////////////////////////////////////////////////
+void setup_logging() {
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("simulation.log", true);
+    auto logger = std::make_shared<spdlog::logger>("main_logger", file_sink);
+    spdlog::set_default_logger(logger);
+    spdlog::set_level(spdlog::level::info);
+    spdlog::flush_on(spdlog::level::info);
+}
+
 
 int main(int argc, char* argv[]) {
-    const int maxArgs = 5;
-    std::cout << "Backtester Started" << std::endl;
-    std::filesystem::path mboPath, resultsPath;
-    std::string correct_args_out = R"(Please include the correct number of 
-    arguments to run backtester)";
+	const int maxArgs = 3;
+    PrintHelper::BacktestStart();
 
-    if(argc < 2 || argc > maxArgs){
-        std::cout << correct_args_out << std::endl;
-        printHelp();
-        return 0;
-    }
+    // if(argc < 2 || argc > maxArgs){
+    //     PrintHelper::WrongArgNums();
+    //     printHelp();
+    //     return 0;
+    // }
 
-    for (int i = 1; i < argc; ++i) { // Start from 1 to skip program name
-        std::string arg = argv[i];
+    // std::filesystem::path config_path;
+    // for (int i = 1; i < argc; ++i) { // Start from 1 to skip program name
+    //     std::string arg = argv[i];
 
-        if (arg == "--help" || arg == "-h") {
-            printHelp();
-            return 0; 
-
-        if(i == 1){ //MboFilePath
-            if(!std::filesystem::exists(arg)){
-                std::cout << "Mbo file path does not exist!" << std::endl;
-                std::cout << arg << std::endl;
-                return 0;
-            }
-            mboPath = std::filesystem::path(arg);
-            if(mboPath.extension() != "csv" || mboPath.extension() != "dbn"){
-                std::cout << "Mbo File has wrong file extension!" << std::endl;
-                std::cout << arg << std::endl;
-                return 0;
-            }
-
-        }
-
-        if(i == 2){
-            if(!std::filesystem::exists(arg)){
-                std::cout << "Results folder path does not exist!" << std::endl;
-                std::cout << arg << std::endl;
-                return 0;
-            }
-            resultsPath = std::filesystem::path(arg);
-        }
-    }
+    //     if (arg == "--help" || arg == "-h") {
+    //         printHelp();
+    //         return 0; 
+    //     }
+    //     if(i == 1){ //ConfigFilePath
+    //         if(!std::filesystem::exists(arg)){
+    //             std::cout << "Config file path does not exist!" << std::endl;
+    //             std::cout << arg << std::endl;
+    //             return 0;
+    //         }
+    //         config_path = std::filesystem::path(arg);
+    //         // if(mboPath.extension() != "csv" || mboPath.extension() != "dbn"){
+    //         //     std::cout << "Mbo File has wrong file extension!" << std::endl;
+    //         //     std::cout << arg << std::endl;
+    //         //     return 0;
+    //         // }
+    //     }
+    // }
 
     ///  Argument Parsing & Initial Setup 
-   
+    std::string config_path_string = GetEnvVarConfigPath();
+    auto config_abs_path = std::filesystem::path(config_path_string); //// FOR TESTING ONLY
+    
+    using json = nlohmann::json;
+
+    if (std::filesystem::exists(config_abs_path)) {
+        std::cout << "The file '" << config_abs_path << "' exists." << std::endl;
+    } else {
+        std::cout << "The file '" << config_abs_path << "' does not exist." << std::endl;
+    }
+    std::ifstream f(config_abs_path);
+    if (!f.is_open()) {
+        PrintHelper::BadFilePath();
+        return 1;
+    }
+
+    json data = json::parse(f);
+    std::cout << data.dump(4) << std::endl;
+
+    
     ///  Initialize Logger 
-
+    setup_logging();
+    spdlog::info("Logger Initialized");
     ///  Configuration Loading 
-
+    spdlog::info("Loading Confgiuration File");
     ///  Component Initialization 
 
     ///  Create central EventQueue
-    //EventQueue* eventQueue = new EventQueue();
+    EventQueue event_queue;
     /// Initialize Data Reader(s) and possibly DataReaderManager?
-
+	DataReaderManager data_reader_manager(event_queue);
     /// Initialize Market State Manager
-    OrderBook* marketOrderBook = new OrderBook();
+    MarketStateManager market_state_manager;
     /// Initialize Portfolio Manager
-
+	PortfolioManager portfolio_manager(10000);
     /// Initialize Report Generator
-
+	ReportGenerator report_generator;
     /// Initialize Execution Handler
-
+	ExecutionHandler execution_handler;
     /// Initialize Strategy Manager and specific Strategy
-
-
+    StrategyManager strategy_manager;
+    // Initialize Backtester
+    
+		 
     /// Populate Initial Events (Pre-warm the queue) 
     // Read the first event from each data source and add to the EventQueue
-    // (This is handled internally by DataReaderManager's interaction with EventQueue)
-    // Logger::info("Populating initial events from data sources...")
-    // data_reader_manager.populate_initial_events(event_queue) // This method reads one event from each reader and pushes to event_queue
+    spdlog::info("Populating initial events from data sources...");
+    //data_reader_manager.populate_initial_events(event_queue); // This method reads one event from each reader and pushes to event_queue
 
-    //  Main Backtest Loop 
-    // Logger::info("Starting backtest loop...")
-    // current_time_ns = config.start_time
-
-    // WHILE NOT event_queue.is_empty() AND event_queue.top_event().timestamp <= config.end_time DO
+    // Initialize Backtester class
+    Backtester backtester(event_queue, data_reader_manager, market_state_manager,
+                          portfolio_manager, report_generator, execution_handler,
+                          strategy_manager);
     
-      /// Event Dispatching 
-   
-
-    ///    END IF
-         // End Event Dispatching
-
-        // After processing, try to load next event from the source that provided the just-processed event
-        // This ensures the data_reader_manager always tries to keep its internal buffers topped up.
-        //data_reader_manager.try_load_next_event_for_source(event_queue, current_event.source_symbol_id)
-
-       
-    ///  End Backtest Loop
-
-    ///  Logger::info("Backtest loop finished.")
-
-    ///  Final Reporting & Cleanup 
-
-    // // Clean up dynamically allocated objects (if not using smart pointers everywhere)
-   
-
-    // Logger::info("Backtester shutting down.")
-    return 0; 
-    // Success
+    return 0;
 }
 
-}
-
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
 
