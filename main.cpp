@@ -45,14 +45,6 @@ struct DataBentoOHCLV1sRow{
 
 };
 
-
-struct OHLCBar {
-    int64_t timestamp;
-    uint32_t instrumentId;
-    double open, high, low, close, volume;
-    
-}; 
-
 /// For OHLCV data
 
 struct OHLCBar {
@@ -134,21 +126,21 @@ class DataLoader{
         };
     };
     
-struct Config {
-    string data_format;
-    string 
-    "end_time": "afulldate",
-    int execution_latency = 500000;
-    int initial_cash = 100000;
-    string log_file_path:
-    string report_output_dir;
-    "start_time": "afulldate",
-    string strategy_name = "defaultStrat",
-    "strategy_params": {
-        "some_param": "5"
-    },
-    "symbol": "someSymbol"
-};
+// struct Config {
+//     string data_format;
+//     string 
+//     "end_time": "afulldate",
+//     int execution_latency = 500000;
+//     int initial_cash = 100000;
+//     string log_file_path:
+//     string report_output_dir;
+//     "start_time": "afulldate",
+//     string strategy_name = "defaultStrat",
+//     "strategy_params": {
+//         "some_param": "5"
+//     },
+//     "symbol": "someSymbol"
+// };
 
 std::string GetEnvVarConfigPath () {
     namespace fs = std::filesystem;
