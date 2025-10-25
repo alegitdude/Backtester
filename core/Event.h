@@ -19,8 +19,8 @@ enum EventType {
 
     kBacktestControlStart, // 12
     kBacktestControlEndOfDay,
-    kBacktestControlEndOfBacktest,
-    kBacktestControlSnapshot
+    kBacktestControlSnapshot,
+    kBacktestControlEndOfBacktest
 };
 
 enum OrderSide {

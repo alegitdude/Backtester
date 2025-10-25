@@ -6,7 +6,8 @@
 #include "portfolio/PortfolioManager.h"
 #include "reporting/ReportGenerator.h"
 #include "core/Backtester.h"
-#include <nlohmann/json.hpp>
+#include "core/ConfigParser.h"
+#include "core/Types.h"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include <iostream>
@@ -19,39 +20,6 @@
 #include <memory>
 #include <cmath>
 #include <filesystem>
-
-
-enum DataInterval{
-    MBO,
-    Seconds,
-    Minutes,
-    Hours,
-    Days
-};
-
-
-struct Trade {
-    double entryPrice, exitPrice;
-    long entryTime, exitTime;
-    int quantity;
-};
-
-struct DataBentoOHCLV1sRow{
-    std::string tsEvent;
-    int rtype;
-    int publisherId;
-    int instrumentId;
-
-
-};
-
-/// For OHLCV data
-
-struct OHLCBar {
-    int64_t timestamp;
-    uint32_t instrumentId;
-    double open, high, low, close, volume;
-}; 
 
 class DataLoader{
     private:
@@ -126,21 +94,7 @@ class DataLoader{
         };
     };
     
-// struct Config {
-//     string data_format;
-//     string 
-//     "end_time": "afulldate",
-//     int execution_latency = 500000;
-//     int initial_cash = 100000;
-//     string log_file_path:
-//     string report_output_dir;
-//     "start_time": "afulldate",
-//     string strategy_name = "defaultStrat",
-//     "strategy_params": {
-//         "some_param": "5"
-//     },
-//     "symbol": "someSymbol"
-// };
+
 
 std::string GetEnvVarConfigPath () {
     namespace fs = std::filesystem;
@@ -234,28 +188,11 @@ int main(int argc, char* argv[]) {
     //         // }
     //     }
     // }
-
+    
     ///  Argument Parsing & Initial Setup 
     std::string config_path_string = GetEnvVarConfigPath();
-    auto config_abs_path = std::filesystem::path(config_path_string); //// FOR TESTING ONLY
-    
-    using json = nlohmann::json;
-
-    if (std::filesystem::exists(config_abs_path)) {
-        std::cout << "The file '" << config_abs_path << "' exists." << std::endl;
-    } else {
-        std::cout << "The file '" << config_abs_path << "' does not exist." << std::endl;
-    }
-    std::ifstream f(config_abs_path);
-    if (!f.is_open()) {
-        PrintHelper::BadFilePath();
-        return 1;
-    }
-
-    json data = json::parse(f);
-    std::cout << data.dump(4) << std::endl;
-
-    
+    Config config = ConfigParser::ParseConfigToObj(config_path_string);
+   
     ///  Initialize Logger 
     setup_logging();
     spdlog::info("Logger Initialized");

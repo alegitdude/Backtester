@@ -1,5 +1,5 @@
 From Google's CppGuide
-    - Class Format:
+    <!-- #region -->  Class Format:
 
     Sections in public, protected and private order, each indented one space.
 
@@ -67,7 +67,7 @@ From Google's CppGuide
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    - Declaring Order:
+    <!-- #region -->  Declaring Order:
         Group similar declarations together, placing public parts earlier.
 
         A class definition should usually start with a public: section, followed by protected:, then private:. Omit sections that would be empty.
@@ -85,7 +85,7 @@ From Google's CppGuide
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    - Function Names:
+     <!-- #region --> Function Names:
         Regular functions have mixed case; accessors and mutators may be named like variables.
 
         Ordinarily, functions should start with a capital letter and have a capital letter for each new word.
@@ -97,7 +97,7 @@ From Google's CppGuide
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    - Variable Names
+    <!-- #region -->  Variable Names
 
     The names of variables (including function parameters) and data members are snake_case (all lowercase, with underscores between words). Data members of classes (but not structs) additionally have trailing underscores. For instance: a_local_variable, a_struct_data_member, a_class_data_member_.
 
@@ -139,7 +139,7 @@ From Google's CppGuide
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
     
-    - Constant Names:
+    <!-- #region -->  Constant Names:
 
         Variables declared constexpr or const, and whose value is fixed for the duration of the program, are named with a leading "k" followed by mixed case. Underscores can be used as separators in the rare cases where capitalization cannot be used for separation. For example:
 
@@ -158,7 +158,7 @@ From Google's CppGuide
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    - Enumerator Names
+    <!-- #region -->  Enumerator Names
 
         Enumerators (for both scoped and unscoped enums) should be named like constants, not like macros. That is, use kEnumName not ENUM_NAME.
 
@@ -176,8 +176,77 @@ From Google's CppGuide
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
+<!-- #region -->   Function Declarations and Definitions
+    Return type on the same line as function name, parameters on the same line if they fit. Wrap parameter lists which do not fit on a single line as you would wrap arguments in a function call.
 
-    - Inheritance
+    Functions look like this:
+
+    ReturnType ClassName::FunctionName(Type par_name1, Type par_name2) {
+    DoSomething();
+    ...
+    }
+    If you have too much text to fit on one line:
+
+    ReturnType ClassName::ReallyLongFunctionName(Type par_name1, Type par_name2,
+                                                Type par_name3) {
+    DoSomething();
+    ...
+    }
+    or if you cannot fit even the first parameter:
+
+    ReturnType LongClassName::ReallyReallyReallyLongFunctionName(
+        Type par_name1,  // 4 space indent
+        Type par_name2,
+        Type par_name3) {
+    DoSomething();  // 2 space indent
+    ...
+    }
+    Some points to note:
+
+    Choose good parameter names.
+    A parameter name may be omitted only if the parameter is not used in the function's definition.
+    If you cannot fit the return type and the function name on a single line, break between them.
+    If you break after the return type of a function declaration or definition, do not indent.
+    The open parenthesis is always on the same line as the function name.
+    There is never a space between the function name and the open parenthesis.
+    There is never a space between the parentheses and the parameters.
+    The open curly brace is always on the end of the last line of the function declaration, not the start of the next line.
+    The close curly brace is either on the last line by itself or on the same line as the open curly brace.
+    There should be a space between the close parenthesis and the open curly brace.
+    All parameters should be aligned if possible.
+    Default indentation is 2 spaces.
+    Wrapped parameters have a 4 space indent.
+    Unused parameters that are obvious from context may omit the name:
+
+    class Foo {
+    public:
+    Foo(const Foo&) = delete;
+    Foo& operator=(const Foo&) = delete;
+    };
+    Unused parameters that might not be obvious should comment out the variable name in the function definition:
+
+    class Shape {
+    public:
+    virtual void Rotate(double radians) = 0;
+    };
+
+    class Circle : public Shape {
+    public:
+    void Rotate(double radians) override;
+    };
+
+    void Circle::Rotate(double /*radians*/) {}
+    // Bad - if someone wants to implement later, it's not clear what the
+    // variable means.
+    void Circle::Rotate(double) {}
+    Attributes, and macros that expand to attributes, appear at the very beginning of the function declaration or definition, before the return type:
+
+    ABSL_ATTRIBUTE_NOINLINE void ExpensiveFunction();
+    [[nodiscard]] bool IsOk();
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+    <!-- #region -->  Inheritance
 
         Composition is often more appropriate than inheritance. When using inheritance, make it public.
 
@@ -202,7 +271,7 @@ From Google's CppGuide
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    - Ownership and Smart Pointers
+    <!-- #region -->  Ownership Smart Pointers
 
         Prefer to have single, fixed owners for dynamically allocated objects. Prefer to transfer ownership with smart pointers.
 

@@ -11,7 +11,7 @@ bool DataReaderManager::register_and_init_streams(
        
         std::unique_ptr<CsvZstReader> reader = std::make_unique<CsvZstReader>();
         if(!reader->open(path)){
-            std::string failure = "Failed to open reader for: ";
+            std::string failure = "Failed to open reader for: " + symbol;
             spdlog::error("Failed to open reader for: " + symbol + "at " + path);
             return false;
         }     

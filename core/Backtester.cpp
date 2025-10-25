@@ -44,10 +44,8 @@ int Backtester:: RunLoop() {
 
         }
        
-        if(eventType >= EventType::kBacktestControlStart){
-            // Example: Daily PnL snapshot
-            report_generator.generate_daily_report(current_time_ns, 
-                portfolio_manager.get_current_pnl())            
+        if(eventType >= EventType::kBacktestControlEndOfBacktest){
+            break;  
         }
            
           // load next event from the source that provided the just-processed event
@@ -56,13 +54,15 @@ int Backtester:: RunLoop() {
     }
       
 
-    ///  Logger::info("Backtest loop finished.")
+    spdlog::info("Backtest loop finished.");
 
     ///  Final Reporting & Cleanup 
+    report_generator.generate_daily_report(current_time_ns); 
+    portfolio_manager.get_current_pnl();  
 
-    // Logger::info("Backtester shutting down.")
+    spdlog::info("Backtester shutting down.");
+
     return 0; 
-    // Success
 }
 
 

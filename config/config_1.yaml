@@ -1,0 +1,13 @@
+initial_cash : 100000
+execution_latency : 500000
+report_output_dir : a_file_path
+strategy_name : some_strat
+strategy_params" : {
+    some_param" : "5"
+}
+
+start_time : afulldate
+end_time : afulldate
+symbol : someSymbol
+data_format : csv
+log_file_path : C:\\some_path
