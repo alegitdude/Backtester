@@ -2,7 +2,7 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 
-Config ConfigParser::ParseConfigToObj(std::string config_path){
+const Config ConfigParser::ParseConfigToObj(std::string config_path){
 	auto config_abs_path = std::filesystem::path(config_path); 
 	
 	using json = nlohmann::json;
@@ -22,7 +22,7 @@ Config ConfigParser::ParseConfigToObj(std::string config_path){
 	json data = json::parse(f);
   //std::cout << data.dump(4) << std::endl;  /// For testing 
   
-  Config config;
+    Config config;
 	config.data_format = data["data_format"];
 	config.end_time = data["end_time"];
 	config.execution_latency = data["execution_latency"];

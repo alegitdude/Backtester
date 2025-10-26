@@ -11,15 +11,10 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include <iostream>
-#include <fstream>
 #include <vector>
 #include <string>
 #include <charconv>
-#include <ctime>
-#include <chrono>
 #include <memory>
-#include <cmath>
-#include <filesystem>
 
 class DataLoader{
     private:
@@ -192,7 +187,6 @@ int main(int argc, char* argv[]) {
     ///  Argument Parsing & Initial Setup 
     std::string config_path_string = GetEnvVarConfigPath();
     Config config = ConfigParser::ParseConfigToObj(config_path_string);
-   
     ///  Initialize Logger 
     setup_logging();
     spdlog::info("Logger Initialized");
