@@ -23,9 +23,19 @@ FetchContent_Declare(
   GIT_TAG        v1.14.1 # Recommended to use a specific version tag
 )
 
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG release-1.12.1
+)
+FetchContent_MakeAvailable(googletest)
+
 FetchContent_MakeAvailable(databento json spdlog)
   
 add_executable(Backtester main.cpp)
+
+add_executable(my_tests test/tests.cpp)
+target_link_libraries(my_tests GTest::gtest_main)
 
 target_link_libraries(Backtester PRIVATE databento::databento nlohmann_json::nlohmann_json spdlog)
 
