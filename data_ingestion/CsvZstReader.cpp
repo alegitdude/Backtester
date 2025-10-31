@@ -14,6 +14,11 @@ CsvZstReader::~CsvZstReader() {
 }
 
 bool CsvZstReader::open(const std::string& filename) {
+    // Reset state variables
+    output_pos_ = 0;
+    output_size_ = 0;
+    eof_reached_ = false;
+
     // Binary required for compressed data)
     file_.open(filename, std::ios::binary);
 

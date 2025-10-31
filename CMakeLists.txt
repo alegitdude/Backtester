@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10.0)
 project(Backtester VERSION 0.1.0 LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -28,14 +28,15 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/google/googletest.git
   GIT_TAG release-1.12.1
 )
+
 FetchContent_MakeAvailable(googletest)
 
 FetchContent_MakeAvailable(databento json spdlog)
   
-add_executable(Backtester main.cpp)
+add_executable(Backtester main.cpp data_ingestion/CsvZstReader.cpp)
+add_executable(tests test/data_ingestion/CsvZstReader_test.cpp data_ingestion/CsvZstReader.cpp)
 
-add_executable(my_tests test/tests.cpp)
-target_link_libraries(my_tests GTest::gtest_main)
 
+target_link_libraries(tests GTest::gtest_main zstd)
 target_link_libraries(Backtester PRIVATE databento::databento nlohmann_json::nlohmann_json spdlog)
 

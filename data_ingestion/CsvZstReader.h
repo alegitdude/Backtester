@@ -17,6 +17,8 @@ class CsvZstReader { // reader.open -> reader.readline
         						 output_buffer_.resize(output_buf_size);
     }
     
+    ~CsvZstReader();
+
     bool open(const std::string& filename);
     
     void close();
