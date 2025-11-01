@@ -3,7 +3,7 @@
 #include <memory>
 
 struct Config {
-    std::string data_format;  //csv, csv.zst
+    //std::string data_format;  //csv, csv.zst
     std::string start_time; //Expected: YYYY-MM-DD HH:MM:SS[.nnnnnnnnn]
     std::string end_time;  //Expected: YYYY-MM-DD HH:MM:SS[.nnnnnnnnn]
     int execution_latency = 500000;
@@ -15,6 +15,8 @@ struct Config {
     //     "some_param": "5"
     // },
     std::string traded_symbol;
+    std::vector<std::pair<std::string, std::string>> data_symbs_and_paths;
+
 };
 
 enum DataInterval{

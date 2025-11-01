@@ -22,7 +22,7 @@ bool DataReaderManager::register_and_init_streams(
         if(!load_next_event_for_symbol(symbol)) 
              spdlog::warn("Symbol " + symbol + " has no events.");
     }
-          
+    std::cout << "Data readers initialized" << std::endl;;      
     return true;
 }
 
@@ -39,7 +39,11 @@ bool DataReaderManager::register_and_init_streams(
 // // Internal Helper to Read and Push ONE Event
 // // ----------------------------------------------------------------------
 
-// BOOL DataReaderManager::load_next_event_for_symbol(CONST std::string& symbol) {
+bool DataReaderManager::load_next_event_for_symbol(const std::string& symbol){
+    return true;
+};
+
+// bool DataReaderManager::load_next_event_for_symbol(CONST std::string& symbol) {
 //     IF readers_.find(symbol) IS readers_.end() THEN
 //         // Reader was already closed or not registered
 //         RETURN FALSE;

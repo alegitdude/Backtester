@@ -211,13 +211,10 @@ int main(int argc, char* argv[]) {
 	ExecutionHandler execution_handler;
     /// Initialize Strategy Manager and specific Strategy
     StrategyManager strategy_manager;
-    // Initialize Backtester
     
-		 
-    /// Populate Initial Events (Pre-warm the queue) 
     // Read the first event from each data source and add to the EventQueue
     spdlog::info("Populating initial events from data sources...");
-    //data_reader_manager.populate_initial_events(event_queue); // This method reads one event from each reader and pushes to event_queue
+    data_reader_manager.register_and_init_streams(config.data_symbs_and_paths); // This method reads one event from each reader and pushes to event_queue
 
     // Initialize Backtester class
     Backtester backtester(event_queue, data_reader_manager, market_state_manager,
@@ -249,8 +246,8 @@ namespace ConfigParser {
 		json data = json::parse(f);
 		//std::cout << data.dump(4) << std::endl;  /// For testing 
 		
-			Config config;
-		config.data_format = data["data_format"];
+	    Config config;
+		//config.data_format = data["data_format"];
 		config.end_time = data["end_time"];
 		config.execution_latency = data["execution_latency"];
 		config.initial_cash = data["initial_cash"];
@@ -259,7 +256,8 @@ namespace ConfigParser {
 		config.start_time = data["start_time"];
 		config.strategy_name = data["strategy_name"];
 		config.traded_symbol = data["traded_symbol"];	
-
+        config.data_symbs_and_paths = data["data_symbs_and_paths"];
+        
 		return config;
   }
 }

@@ -33,7 +33,10 @@ FetchContent_MakeAvailable(googletest)
 
 FetchContent_MakeAvailable(databento json spdlog)
   
-add_executable(Backtester main.cpp data_ingestion/CsvZstReader.cpp)
+add_executable(Backtester main.cpp 
+data_ingestion/CsvZstReader.cpp 
+data_ingestion/DataReaderManager.cpp)
+
 add_executable(tests test/data_ingestion/CsvZstReader_test.cpp data_ingestion/CsvZstReader.cpp)
 
 
