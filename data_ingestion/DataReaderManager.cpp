@@ -1,16 +1,19 @@
 #include "DataReaderManager.h"
 #include "spdlog/spdlog.h"
+#include <filesystem>
 // #include "core/EventQueue.h" // Full definition needed here
 
 bool DataReaderManager::register_and_init_streams(
     const std::vector<std::pair<std::string, std::string>>& file_paths) {
-
+  
     for(std::pair<std::string, std::string> file_path : file_paths){
         std::string symbol = file_path.first;       
-        std::string path = file_path.second; 
-       
+        std::string path = file_path.second;      
+     
         std::unique_ptr<CsvZstReader> reader = std::make_unique<CsvZstReader>();
         if(!reader->open(path)){
+            std::cout << "Made it here error" + path<< std::endl;
+
             std::string failure = "Failed to open reader for: " + symbol;
             spdlog::error("Failed to open reader for: " + symbol + "at " + path);
             return false;
@@ -22,6 +25,7 @@ bool DataReaderManager::register_and_init_streams(
         if(!load_next_event_for_symbol(symbol)) 
              spdlog::warn("Symbol " + symbol + " has no events.");
     }
+
     std::cout << "Data readers initialized" << std::endl;;      
     return true;
 }

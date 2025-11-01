@@ -215,7 +215,7 @@ int main(int argc, char* argv[]) {
     // Read the first event from each data source and add to the EventQueue
     spdlog::info("Populating initial events from data sources...");
     data_reader_manager.register_and_init_streams(config.data_symbs_and_paths); // This method reads one event from each reader and pushes to event_queue
-
+    
     // Initialize Backtester class
     Backtester backtester(event_queue, data_reader_manager, market_state_manager,
                           portfolio_manager, report_generator, execution_handler,

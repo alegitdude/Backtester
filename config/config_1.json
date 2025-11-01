@@ -15,6 +15,6 @@
 		"traded_symbol" : "some_symbol",
 
 		"data_symbs_and_paths" : [
-			["ES", "test/test_data/futures_mbo.csv.zst"]
+			["ES", "../test/test_data/futures_mbo.csv.zst"]
 		]
 }
