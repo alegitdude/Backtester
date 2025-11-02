@@ -1,6 +1,7 @@
 #pragma once
 #include "../core/Event.h"
 #include "CsvZstReader.h"
+#include "../core/Types.h"
 #include <unordered_map>
 #include <string>
 #include <memory>
@@ -11,17 +12,21 @@ class DataReaderManager {
  public:
     DataReaderManager(EventQueue& queue) : event_queue_(queue) {}
 
-    bool register_and_init_streams(const std::vector<std::pair<std::string, std::string>>& file_paths);
+    bool register_and_init_streams(const std::vector<DataSourceConfig>& file_paths);
 
     // Method called by the Backtester loop after consuming an event.
     bool refill_event_queue_for_symbol(const std::string& symbol);
 
  private:
-    std::unordered_map<std::string, std::unique_ptr<CsvZstReader>> readers_;
+    std::unordered_map<std::string, DataStream> readers_;
     EventQueue& event_queue_;
+    
+    std::unique_ptr<MarketByOrderEvent> parse_mbo_line_to_event(
+        const std::string& symbol, 
+        const std::string& line
+    );
 
-    // Private helper to convert a raw CSV line into a MarketRecordEvent object
-    std::unique_ptr<Event> parse_line_to_event(
+    std::unique_ptr<Event> parse_ohlcv_line_to_event(
         const std::string& symbol, 
         const std::string& line
     );

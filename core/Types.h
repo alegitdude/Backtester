@@ -2,6 +2,22 @@
 #include <iostream>
 #include <memory>
 
+enum class DataFormat {
+    MBO,
+    OHLCV
+};
+
+struct DataStream {
+    std::unique_ptr<CsvZstReader> reader;
+    DataFormat format;
+};
+
+struct DataSourceConfig {
+    std::string symbol;
+    std::string filepath;
+    DataFormat format;
+};
+
 struct Config {
     //std::string data_format;  //csv, csv.zst
     std::string start_time; //Expected: YYYY-MM-DD HH:MM:SS[.nnnnnnnnn]
@@ -15,11 +31,12 @@ struct Config {
     //     "some_param": "5"
     // },
     std::string traded_symbol;
-    std::vector<std::pair<std::string, std::string>> data_symbs_and_paths;
+    // symbol, filepath, format
+    std::vector<DataSourceConfig> data_streams;
 
 };
 
-enum DataInterval{
+enum class DataInterval{
     MBO,
     Seconds,
     Minutes,

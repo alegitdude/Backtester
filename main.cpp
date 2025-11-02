@@ -214,7 +214,7 @@ int main(int argc, char* argv[]) {
     
     // Read the first event from each data source and add to the EventQueue
     spdlog::info("Populating initial events from data sources...");
-    data_reader_manager.register_and_init_streams(config.data_symbs_and_paths); // This method reads one event from each reader and pushes to event_queue
+    data_reader_manager.register_and_init_streams(config.data_streams); // This method reads one event from each reader and pushes to event_queue
     
     // Initialize Backtester class
     Backtester backtester(event_queue, data_reader_manager, market_state_manager,
@@ -226,6 +226,11 @@ int main(int argc, char* argv[]) {
 
 
 namespace ConfigParser {
+    DataFormat stringToDataFormat(const std::string& str) {
+    if (str == "MBO") return DataFormat::MBO;
+    if (str == "OHLCV") return DataFormat::OHLCV;
+    throw std::invalid_argument("Invalid format: " + str);
+}
   const Config ParseConfigToObj(std::string& config_path){
 		auto config_abs_path = std::filesystem::path(config_path); 
 		
@@ -256,8 +261,15 @@ namespace ConfigParser {
 		config.start_time = data["start_time"];
 		config.strategy_name = data["strategy_name"];
 		config.traded_symbol = data["traded_symbol"];	
-        config.data_symbs_and_paths = data["data_symbs_and_paths"];
-        
+        for (const auto& item : data["data_streams"]) {
+            DataSourceConfig data_config;
+            data_config.symbol = item["symbol"];
+            data_config.filepath = item["filepath"];
+            data_config.format = stringToDataFormat(item["format"]); 
+            config.data_streams.push_back(data_config);
+        };
 		return config;
   }
 }
+
+

@@ -14,7 +14,7 @@
 		"log_file_path" : "C:\\some_path",
 		"traded_symbol" : "some_symbol",
 
-		"data_symbs_and_paths" : [
-			["ES", "../test/test_data/futures_mbo.csv.zst"]
+		"data_streams" : [
+			["ES", "../test/test_data/futures_mbo.csv.zst", "MBO"]
 		]
 }
