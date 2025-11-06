@@ -1,7 +1,10 @@
 #include "Backtester.h"
 #include "spdlog/spdlog.h"
+#include "Types.h"
 
-int Backtester:: RunLoop() {
+namespace backtester {
+    
+int Backtester::RunLoop(AppConfig& config) {
    
     spdlog::info("Starting backtest loop...");
     long long current_time_ns = config.start_time;
@@ -72,3 +75,4 @@ int Backtester:: RunLoop() {
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 
+}

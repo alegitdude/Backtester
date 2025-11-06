@@ -2,6 +2,8 @@
 #include "Event.h"
 #include <queue>
 
+namespace backtester {
+
 struct EventComparator {
     bool operator()(
         const std::unique_ptr<Event>& a, 
@@ -38,3 +40,5 @@ class EventQueue {
     std::vector<std::unique_ptr<Event>> pq_;
     EventComparator comparator_;
 };
+
+}

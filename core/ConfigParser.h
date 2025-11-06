@@ -2,6 +2,8 @@
 #include "Types.h"
 #include <filesystem>
 
-namespace ConfigParser {
-  const Config ParseConfigToObj(std::string& config_path);  
+namespace backtester {
+  AppConfig ParseConfigToObj(std::string& config_path); 
+
+  DataFormat StringToDataFormat(const std::string& str); 
 };

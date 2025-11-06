@@ -7,17 +7,20 @@ enum EventType {
     KMarketOrderExecuted,
     kMarketOrderCancel,
     kMarketOrderModify,
+    kMarketOrderClear,
     kMarketTrade,
+    kMarketFill,
+    kMarketNone,
     kMarketHeartbeat, 
 
-    kStrategySignal, // 6
+    kStrategySignal, // 9
     kStrategyOrderSubmit,  
     kStrategyOrderCancel,
     kStrategyOrderModify,
     kStrategyOrderFill,  
     KStrategyOrderRejection, 
 
-    kBacktestControlStart, // 12
+    kBacktestControlStart, // 15
     kBacktestControlEndOfDay,
     kBacktestControlSnapshot,
     kBacktestControlEndOfBacktest
@@ -46,11 +49,11 @@ enum SignalType {
 ///////////// MARK: Base Event Class
 //////////////////////////////////////////////////////////////
 
-class Event {
+struct Event {
 public:
     Event(long long ts, EventType t) : timestamp_ns_(ts), type_(t) {}
 
-    virtual ~Event() {}
+    virtual ~Event() = default;
     
     long long get_timestamp() const { return timestamp_ns_; }
     EventType get_type() const { return type_; }
@@ -62,90 +65,86 @@ protected:
 };
 
 //////////////////////////////////////////////////////////////
-///////////// MARK: MBO Class
+///////////// MARK: MBO Event Class
 //////////////////////////////////////////////////////////////
 
-class MarketByOrderEvent : Event {
+struct MarketByOrderEvent : Event {
  public:
     MarketByOrderEvent(
         uint64_t ts_recv, 
-        EventType type,
+        EventType type, // action
         uint64_t ts_event, 
         uint16_t publisher_id, 
         uint32_t instrument_id,
-        char action, 
-        char side_char, 
-        int64_t raw_price, 
+        OrderSide side, 
+        double price, // converted
         uint32_t size,
         uint64_t order_id, 
         uint8_t flags, 
         int32_t ts_in_delta, 
-        uint32_t sequence
+        uint32_t sequence,
+        std::string symbol
     ) : Event(ts_recv, type), // ts_recv as primary timestamp for Event 
-        ts_event_(ts_event), 
-        publisher_id_(publisher_id), 
-        instrument_id_(instrument_id),
-        action_(action), 
-        side_char_(side_char), 
-        raw_price_(raw_price), 
-        size_(size),
-        order_id_(order_id), 
-        flags_(flags), 
-        ts_in_delta_(ts_in_delta), 
-        sequence_(sequence)
-    {
-        price_double_ = static_cast<double>(raw_price) * 1e-9; // Convert to double
-        side_ = convert_char_to_OrderSide(side_char); // Helper function/enum conversion
-        // symbol_str will need to be populated externally, e.g., via a lookup table
-        // or passed in during parsing if you resolved instrument_id to a symbol
-    }
+        ts_event(ts_event), 
+        publisher_id(publisher_id), 
+        instrument_id(instrument_id),
+        side(side), 
+        price(price), 
+        size(size),
+        order_id(order_id), 
+        flags(flags), 
+        ts_in_delta(ts_in_delta), 
+        sequence(sequence),
+        symbol(symbol) {}
 
-    virtual ~MarketByOrderEvent() {}
+    virtual ~MarketByOrderEvent() = default;
 
-    uint64_t get_ts_event() const { return ts_event_; }
-    uint16_t get_publisher_id() const { return publisher_id_; }
-    uint32_t get_instrument_id() const { return instrument_id_; }
-    char get_action_char() const { return action_; } // Get raw char if needed
-    char get_side_char() const { return side_char_; } // Get raw char if needed
-    int64_t get_raw_price() const { return raw_price_; }
-    uint32_t get_size() const { return size_; }
-    uint64_t get_order_id() const { return order_id_; }
-    uint8_t get_flags() const { return flags_; }
-    int32_t get_ts_in_delta() const { return ts_in_delta_; }
-    uint32_t get_sequence() const { return sequence_; }
+    uint64_t ts_event;      // Capture-server-received timestamp
+    uint16_t publisher_id;  // Databento publisher ID
+    uint32_t instrument_id; // Numeric instrument ID (Databento's ID for the asset)
+    OrderSide side;         // raw char converted
+    double price;           // The order price as converted from 1e-9 units
+    uint32_t size;          // The order quantity
+    uint64_t order_id;      // The order ID assigned by the venue
+    uint8_t flags;          // Bit field for event characteristics
+    int32_t ts_in_delta;    // Matching-engine-sending timestamp relative to ts_recv
+    uint32_t sequence;      // Sequence number
+    std::string symbol;
 
-    // Getters for converted/derived properties
-    const std::string& get_symbol() const { return symbol_str_; } // Needs to be set
-    double get_price() const { return price_double_; }
-    OrderSide get_side() const { return side_; } // Your internal enum
-
-    // Method to set the resolved symbol string
-    void set_symbol_str(const std::string& sym) { symbol_str_ = sym; }
-
- private:
-    uint64_t ts_event_;      // Capture-server-received timestamp
-    uint16_t publisher_id_;  // Datab_ento publisher ID
-    uint32_t instrument_id_; // Numeric instrument ID (Databento's ID for the asset)
-    char action_;            // The raw action character from DBN (e.g., 'A', 'C', 'M', 'T', 'F')
-    char side_char_;        // The raw side character from DBN (e.g., 'B', 'A', 'N')
-    int64_t raw_price_;      // The order price as 1e-9 units
-    uint32_t size_;          // The order quantity
-    uint64_t order_id_;      // The order ID assigned by the venue
-    uint8_t flags_;          // Bit field for event characteristics
-    int32_t ts_in_delta_;    // Matching-engine-sending timestamp relative to ts_recv
-    uint32_t sequence_;      // Sequence number
-
-    // Derived/Converted properties 
-    std::string symbol_str_;   // Derived from instrument_id via symbology service
-    double price_double_;      // Converted raw_price to double
-    OrderSide side_;           // Converted side_char to your internal OrderSide enum
-
-    OrderSide convert_char_to_OrderSide(char s_char) const {
-        if (s_char == 'A') return OrderSide::kAsk; 
-        if (s_char == 'B') return OrderSide::kBid;  
-        return OrderSide::kNone; 
-    }
 };
+
+//////////////////////////////////////////////////////////////
+///////////// MARK: OHLCV Event Class
+//////////////////////////////////////////////////////////////
+
+// class OhlcvEvent : Event {
+//  public:
+//   OhlcvEvent(
+//     uint64_t ts_event, 	 // number of nanoseconds since the UNIX epoch.
+//     uint8_t rtype, 	 	// 32 (OHLCV-1s), 33 (OHLCV-1m), 34 (OHLCV-1h), or 35 (OHLCV-1d). 
+//     uint16_t publisher_id ,	 	
+//     uint32_t instrument_id, 	 	
+//     int64_t open, 	 	//The open price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. See Prices.
+//     uint64_t high, 	 	
+//     uint64_t low, 	 	
+//     uint64_t close, 	 	
+//     uint64_t volume, 	
+//     ) : Event(ts_event, )
+//  private: 
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //////////////////////////////////////////////////////////////
 ///////////// MARK: Strategy Classes

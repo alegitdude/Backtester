@@ -9,12 +9,14 @@
 
 		"start_time" : "afulldate",
 		"end_time" : "afulldate",
-		"symbol" : "someSymbol",
-		"data_format" : "csv",
 		"log_file_path" : "C:\\some_path",
 		"traded_symbol" : "some_symbol",
 
 		"data_streams" : [
-			["ES", "../test/test_data/futures_mbo.csv.zst", "MBO"]
+			{
+				"Symbol" : "ES", 
+				"file_path" : "../test/test_data/futures_mbo.csv.zst", 
+				"event_type" : "MBO"
+			}
 		]
 }

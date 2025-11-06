@@ -5,7 +5,8 @@
 #include <iostream>
 #include <string>
 #include "OrderBook.h"
-       
+
+namespace backtester {
 
 using namespace databento;
 
@@ -254,3 +255,5 @@ private:
         }
     }
 };
+
+}

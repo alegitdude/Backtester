@@ -1,7 +1,11 @@
 #pragma once
+#include "../../../data_ingestion/CsvZstReader.h"
 #include <iostream>
 #include <memory>
+#include <vector>
 
+namespace backtester {
+    
 enum class DataFormat {
     MBO,
     OHLCV
@@ -18,10 +22,10 @@ struct DataSourceConfig {
     DataFormat format;
 };
 
-struct Config {
+struct AppConfig {
     //std::string data_format;  //csv, csv.zst
-    std::string start_time; //Expected: YYYY-MM-DD HH:MM:SS[.nnnnnnnnn]
-    std::string end_time;  //Expected: YYYY-MM-DD HH:MM:SS[.nnnnnnnnn]
+    long long start_time; //Expected: YYYY-MM-DD HH:MM:SS[.nnnnnnnnn]
+    long long end_time;  //Expected: YYYY-MM-DD HH:MM:SS[.nnnnnnnnn]
     int execution_latency = 500000;
     int initial_cash = 100000;
     std::string log_file_path;
@@ -65,3 +69,5 @@ struct OHLCBar {
     uint32_t instrumentId;
     double open, high, low, close, volume;
 }; 
+
+}

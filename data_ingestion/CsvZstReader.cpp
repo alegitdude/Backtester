@@ -8,6 +8,7 @@
 #include <string>
 #include <zstd.h>
 
+namespace backtester {
     
 CsvZstReader::~CsvZstReader() {
     close();
@@ -19,7 +20,7 @@ bool CsvZstReader::open(const std::string& filename) {
     output_size_ = 0;
     eof_reached_ = false;
 
-    // Binary required for compressed data)
+    // Binary required for compressed data
     file_.open(filename, std::ios::binary);
 
     if (!file_.is_open()) return false;
@@ -31,6 +32,7 @@ bool CsvZstReader::open(const std::string& filename) {
     // Initialize the decompression stream and check for errors
     return ZSTD_initDStream(dstream_) != ZSTD_isError(ZSTD_initDStream(dstream_));
 }
+
 void CsvZstReader::close() {
     // Close file if it's open
     if (file_.is_open()) file_.close();
@@ -126,3 +128,4 @@ bool CsvZstReader::fillBuffer() {
 // Decompress into output buffer
 //     
 // Continue scanning for newlines
+}

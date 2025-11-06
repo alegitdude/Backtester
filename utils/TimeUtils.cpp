@@ -2,7 +2,11 @@
 #include <iostream>
 #include <stdexcept>
 
-std::string TimeUtils::EpochToString(uint64_t epoch_nanos, const std::string& timezone = "UTC") {
+namespace backtester {
+
+namespace time {
+
+std::string EpochToString(uint64_t epoch_nanos, const std::string& timezone = "UTC") {
 	uint64_t epoch_seconds = epoch_nanos / 1000000000ULL;
 	uint32_t nanos = epoch_nanos % 1000000000ULL;
 
@@ -31,7 +35,7 @@ std::string TimeUtils::EpochToString(uint64_t epoch_nanos, const std::string& ti
 	return oss.str();
 };
 
-uint64_t TimeUtils::StringToEpoch(const std::string& time_str, const std::string& timezone) {
+long long StringToEpoch(const std::string& time_str, const std::string& timezone) {
     int year, month, day, hour, minute, second;
     uint32_t nanoseconds = 0;
     
@@ -65,7 +69,7 @@ uint64_t TimeUtils::StringToEpoch(const std::string& time_str, const std::string
     return epoch_nanos;
 }
 
-int TimeUtils::GetTimezoneOffset(const std::string& timezone) {
+int GetTimezoneOffset(const std::string& timezone) {
     // Common timezone offsets (simplified - in production use a library like date.h)
     if (timezone == "UTC" || timezone == "GMT") {
         return 0;
@@ -89,7 +93,7 @@ int TimeUtils::GetTimezoneOffset(const std::string& timezone) {
     }
 }
 
-bool TimeUtils::ParseTimeString(const std::string& time_str,
+bool ParseTimeString(const std::string& time_str,
                                 int& year, int& month, int& day,
                                 int& hour, int& minute, int& second,
                                 uint32_t& nanoseconds) {
@@ -141,4 +145,7 @@ bool TimeUtils::ParseTimeString(const std::string& time_str,
     }
     
     return true;
+}
+
+}
 }

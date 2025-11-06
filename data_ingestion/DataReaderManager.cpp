@@ -1,10 +1,13 @@
 #include "DataReaderManager.h"
 #include "../core/Types.h"
 #include "spdlog/spdlog.h"
-#include "core/EventQueue.h" 
+#include "../core/EventQueue.h" 
 #include <filesystem>
+#include <charconv>
 
-bool DataReaderManager::register_and_init_streams(
+namespace backtester{
+
+bool DataReaderManager::RegisterAndInitStreams(
     const std::vector<DataSourceConfig>& data_sources) {
   
     for(DataSourceConfig source : data_sources){
@@ -24,18 +27,28 @@ bool DataReaderManager::register_and_init_streams(
         std::unique_ptr<CsvZstReader> reader = std::make_unique<CsvZstReader>();
 
         if(!reader->open(path)){
-            std::cout << "Made it here error" + path<< std::endl;
-
             std::string failure = "Failed to open reader for: " + symbol;
-            spdlog::error("Failed to open reader for: " + symbol + "at " + path);
+            std::cerr << failure << std::endl;
+            spdlog::error(failure + "at " + path);
             return false;
-        }     
+        }   
+
+        // Verify Header
+        std::string header_line;
+        reader->readLine(header_line);
+
+        if(header_line != kExpectedMboHeader){
+            std::string failure = "Incorrect header format for " + symbol;
+            std::cerr << failure << std::endl;
+            spdlog::error(failure + "at " + path);
+            return false;
+        }
 
         // 3. Store the active reader
         readers_[symbol] = {std::move(reader), source.format};
 
         // 4. Load the very first event to start the queue
-        if(!load_next_event_for_symbol(symbol)) 
+        if(!LoadNextEventForSymbol(symbol)) 
              spdlog::warn("Symbol " + symbol + " has no events.");
     }
 
@@ -43,7 +56,7 @@ bool DataReaderManager::register_and_init_streams(
     return true;
 }
 
-bool DataReaderManager::load_next_event_for_symbol(const std::string& symbol){
+bool DataReaderManager::LoadNextEventForSymbol(const std::string& symbol) {
     if(readers_.find(symbol) == readers_.end()){
         return false;  // Reader was already closed or not registered
     }       
@@ -51,24 +64,23 @@ bool DataReaderManager::load_next_event_for_symbol(const std::string& symbol){
     CsvZstReader& reader = *readers_[symbol].reader;
     std::string raw_line;
 
-    // 1. Read the next line from the CSV/ZST stream
     if(!reader.readLine(raw_line)){
         spdlog::info("End of data for symbol: " + symbol);
         // clean up resources??
         // readers_.erase(symbol); 
     }
-    // 2. Parse and Convert the line into a C++ Event object
+
     std::unique_ptr<MarketByOrderEvent> event_ptr;
+
     if(readers_[symbol].format == DataFormat::MBO){
-        event_ptr = parse_mbo_line_to_event(symbol, raw_line);
-    } else if (readers_[symbol].format == DataFormat::OHLCV){
-        event_ptr = parse_ohlcv_line_to_event(symbol, raw_line);
+       event_ptr = ParseMboLineToEvent(symbol, raw_line);
+    // } else if (readers_[symbol].format == DataFormat::OHLCV){
+    //     event_ptr = ParseOhlcvLineToEvent(symbol, raw_line);
     } else {
-        throw std::runtime_error("Invalid data format " +  readers_[symbol].format);
+        throw std::runtime_error("Invalid data format ");
     }
 
     if(event_ptr != nullptr){
-        // 3. Push the new event into the central Priority Queue
         event_queue_.push_event(std::move(event_ptr));
         return true;
     }
@@ -76,6 +88,171 @@ bool DataReaderManager::load_next_event_for_symbol(const std::string& symbol){
     return false;
 };
 
+std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
+    const std::string& symbol, 
+    const std::string& line ) {
+
+    std::string_view current_view(line);
+    size_t pos = 0;
+
+    uint64_t ts_recv, ts_event, order_id;
+    uint32_t instrument_id, size, sequence;
+    uint16_t publisher_id; 
+    EventType action;
+    OrderSide side;
+    uint8_t flags;
+    int32_t ts_in_delta; 
+    double price;
+
+    for (int i = 1; i <= 14; ++i) { 
+        std::string_view token = GetNextToken(pos, current_view);
+
+        switch (i) {
+            case 1: // ts_recv (uint64_t)
+                if (token.empty()) throw std::runtime_error("Field 1 empty.");
+                std::from_chars(token.data(), token.data() + token.size(), ts_recv);
+                break;
+
+            case 2: // ts_event (uint64_t)
+                if (token.empty()) throw std::runtime_error("Field 2 empty.");
+                std::from_chars(token.data(), token.data() + token.size(), ts_event);
+                break;
+                
+            case 3: // rtype (uint16_t)
+                break;
+
+            case 4: // publisher_id (uint16_t)
+                if (token.empty()) throw std::runtime_error("Field 4 empty.");
+                std::from_chars(token.data(), token.data() + token.size(), publisher_id);
+                break;
+
+            case 5: // instrument_id (uint32_t)
+                if (token.empty()) throw std::runtime_error("Field 5 empty.");
+                std::from_chars(token.data(), token.data() + token.size(), instrument_id);
+                break;
+                
+            case 6: // action (char)
+                if (token.size() != 1) throw std::runtime_error("Field 6 malformed.");
+                action = ActionToEventTyp(token[0]);
+                break;
+                
+            case 7: // side (char)
+                if (token.size() != 1) throw std::runtime_error("Field 7 malformed.");
+                side = CharToOrderSide(token[0]);
+                break;
+
+            case 8: // price (int64_t)
+                if (token.empty()) throw std::runtime_error("Field 8 empty.");
+                uint32_t raw_price;
+                std::from_chars(token.data(), token.data() + token.size(), raw_price);
+                price = static_cast<double>(raw_price) * 1e-9;
+                break;
+
+            case 9: // size (uint32_t)
+                if (token.empty()) throw std::runtime_error("Field 9 empty.");
+                std::from_chars(token.data(), token.data() + token.size(), size);
+                break;
+
+            case 10: // channel_id (uint32_t)
+                break;
+
+            case 11: // order_id (uint64_t)
+                if (token.empty()) throw std::runtime_error("Field 11 empty.");
+                std::from_chars(token.data(), token.data() + token.size(), order_id);
+                break;
+            
+            case 12: // flags (uint8_t)
+                if (token.empty()) throw std::runtime_error("Field 12 empty.");
+                std::from_chars(token.data(), token.data() + token.size(), flags);
+                break;
+
+            case 13: // ts_in_delta (int32_t)
+                if (token.empty()) throw std::runtime_error("Field 13 empty.");
+                std::from_chars(token.data(), token.data() + token.size(), ts_in_delta);
+                break;
+
+            case 14: // sequence (uint32_t)
+                if (token.empty()) throw std::runtime_error("Field 14 empty.");
+                std::from_chars(token.data(), token.data() + token.size(), sequence);
+                break;
+
+            default:
+                // Should never happen if loop count is correct
+                throw std::runtime_error("Unexpected field index.");
+        }
+    } 
+
+    std::unique_ptr<MarketByOrderEvent> event_ptr = 
+        std::make_unique<MarketByOrderEvent>(
+            ts_recv, 
+            action,
+            ts_event, 
+            publisher_id,
+            instrument_id,
+            side,
+            price,
+            size,
+            order_id,
+            flags,
+            ts_in_delta,
+            sequence,
+            symbol
+        );
+
+    return event_ptr;
+};
+
+std::string_view DataReaderManager::GetNextToken(size_t& start_pos, std::string_view& current_view) {
+    size_t delim_pos = current_view.find(',', start_pos);
+    std::string_view token;
+
+    if (delim_pos == std::string_view::npos) {
+        // Last token in the line
+        token = current_view.substr(start_pos);
+        start_pos = current_view.size(); // Advance position to the end
+    } else {
+        // Found a token
+        token = current_view.substr(start_pos, delim_pos - start_pos);
+        start_pos = delim_pos + 1; // Advance past the comma
+    }
+    return token;
+};
+
+OrderSide DataReaderManager::CharToOrderSide(char side) {
+    if(side == 'A'){
+        return OrderSide::kAsk;
+    }
+    if(side == 'B'){
+        return OrderSide::kBid;
+    }
+    else {
+        return OrderSide::kNone;
+    }    
+}
+
+EventType DataReaderManager::ActionToEventTyp(char act) {
+    if(act == 'A'){
+        return EventType::kMarketOrderAdd;
+    }
+    if(act == 'M'){
+        return EventType::kMarketOrderModify;
+    }
+    if(act == 'C'){
+        return EventType::kMarketOrderCancel;
+    }
+    if(act == 'R'){
+        return EventType::kMarketOrderClear;
+    }
+    if(act == 'T'){
+        return EventType::kMarketTrade;
+    }
+    if(act == 'F'){
+        return EventType::kMarketFill;
+    }
+    else {
+        return EventType::kMarketNone;
+    }
+}
 // std::unique_ptr<Event> DataReaderManager::parse_line_to_event(
 //     const std::string& symbol, 
 //     const std::string& line
@@ -102,3 +279,16 @@ bool DataReaderManager::load_next_event_for_symbol(const std::string& symbol){
 
 //     return event_ptr;
 // }
+
+}
+
+// Input line: "1672531200000000000,1672531200000000000,1,1234567,A,..."
+// std::string_view current_view(line);
+// size_t pos = 0;
+// size_t delim_pos = std::string_view::npos;
+// std::string_view token;
+
+
+
+// Now 'pos' is positioned at the start of the 6th field (side_char)
+// ... continue parsing the rest of the fields using the same pattern

@@ -3,6 +3,8 @@
 #include <queue>
 #include <memory>
 
+namespace backtester {
+
 void EventQueue::push_event(std::unique_ptr<Event> event_ptr) {
     if(event_ptr != nullptr){
         pq_.push_back(std::move(event_ptr)); 
@@ -38,4 +40,6 @@ size_t EventQueue::size() const {
 // Clear all events from the queue (for resetting)
 void EventQueue::clear() {
     pq_ = std::vector<std::unique_ptr<Event>>();
+}
+
 }

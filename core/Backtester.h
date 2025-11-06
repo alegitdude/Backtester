@@ -5,6 +5,9 @@
 #include "../reporting/ReportGenerator.h"
 #include "../execution/ExecutionHandler.h"
 #include "../strategy/StrategyManager.h"
+#include "Types.h"
+
+namespace backtester {
 
 class Backtester {
  public:
@@ -16,7 +19,7 @@ class Backtester {
 							 report_generator_(rg), execution_handler_(eh), 
 							 strategy_manager_(sm) {}
 
-    int RunLoop();
+    int RunLoop(AppConfig& config);
 
  private:
     EventQueue& event_queue_;
@@ -27,3 +30,5 @@ class Backtester {
 		ExecutionHandler& execution_handler_;
 		StrategyManager& strategy_manager_;
 	};
+
+}

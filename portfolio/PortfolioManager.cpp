@@ -1,5 +1,7 @@
 #include <vector>
 
+namespace backtester {
+
 void PortfolioManager::process_fill(const FillEvent& fill) {
     // Find or create the position for the symbol
     Position& pos = positions[fill.symbol];
@@ -87,4 +89,6 @@ PRIVATE VOID apply_sell_fill(Position& pos, CONST FillEvent& fill) {
         pos.average_entry_price = 0.0;
     // If partial sell, AEP remains the same (FIFO/LIFO requires more complexity)
     END IF
+}
+
 }

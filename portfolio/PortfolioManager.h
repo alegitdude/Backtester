@@ -5,6 +5,8 @@
 #include <iostream>
 #include <unordered_map>
 
+namespace backtester {
+
 struct TradeRecord {
     int an_int;
 };
@@ -30,3 +32,5 @@ class PortfolioManager {
     // History of trades for reporting
     std::vector<TradeRecord> trade_history_;
 };
+
+}

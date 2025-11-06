@@ -9,6 +9,8 @@
 #include <string>
 #include <zstd.h>
 
+namespace backtester {
+
 class CsvZstReader { // reader.open -> reader.readline
  public:
     CsvZstReader() : dstream_(nullptr), output_pos_(0), output_size_(0), 
@@ -43,3 +45,5 @@ class CsvZstReader { // reader.open -> reader.readline
     // Reads compressed data from file and decompresses it into output buffer
     bool fillBuffer(); 
 };
+
+}

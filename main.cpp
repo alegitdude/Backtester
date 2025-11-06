@@ -1,13 +1,13 @@
-#include "core/EventQueue.cpp"
+//#include "core/EventQueue.cpp"
 #include "core/Backtester.h"
 #include "core/ConfigParser.h"
 #include "core/Types.h"
 #include "market_state/MarketStateManager.h"
 #include "strategy/StrategyManager.h"
-#include "data_ingestion/DataReaderManager.h"
 #include "execution/ExecutionHandler.h"
 #include "portfolio/PortfolioManager.h"
 #include "reporting/ReportGenerator.h"
+#include "core/ConfigParser.h"
 #include <nlohmann/json.hpp>
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
@@ -18,81 +18,7 @@
 #include <memory>
 #include <fstream>
 
-class DataLoader{
-    private:
-        static int64_t nanosToSeconds(int64_t nanos){
-            return nanos / 1'000'000'000;
-        };
-
-    public:
-        static int64_t parseDbIsoFormat(const char* str){
-            // Assumed format of 2025-06-25T08:00:10.000000000Z --DB has same format for every OHLCV
-            //                   YYYY-MM-DDTHH:MM:SS.sssz
-
-            // Convert all datetime str values to ints
-            int year = (str[0] - '0') * 1000 + (str[1] - '0') * 100 + 
-               (str[2] - '0') * 10 + (str[3] - '0');
-            int month = (str[5] - '0') * 10 + (str[6] - '0');
-            int day = (str[8] - '0') * 10 + (str[9] - '0');
-            int hour = (str[11] - '0') * 10 + (str[12] - '0');
-            int minute = (str[14] - '0') * 10 + (str[15] - '0');
-            int second = (str[17] - '0') * 10 + (str[18] - '0');
-
-            // Convert to tm struct
-            std::tm tm = {};
-            tm.tm_year = year - 1900;  // tm_year is years since 1900
-            tm.tm_mon = month - 1;      // tm_mon is 0-11
-            tm.tm_mday = day;
-            tm.tm_hour = hour;
-            tm.tm_min = minute;
-            tm.tm_sec = second;
-
-            return timegm(&tm); 
-        }
-
-        static std::vector<OHLCBar> loadCsv(const std::string& filePath, DataInterval& interval){
-            //Try to open the file
-            FILE* file = fopen(filePath.c_str(), "r");
-            //Check if the filepath is real and openable + opened
-            if (!file){
-                throw std::runtime_error("Failed to open file at:" + filePath);
-            }
-
-            //Declare return object
-            std::vector<OHLCBar> bars;
-            //Pre allocate the amount of time in the bars
-            //Seconds for one day 234000, TODO generalize later
-            bars.reserve(234000);
-
-            //Skip headers
-            char line[512];
-            fgets(line, sizeof(line), file);  // Skip header
-        
-            while (fgets(line, sizeof(line), file)) {       
-                OHLCBar bar;
-                char ts_event[64];
-                // Skip rtype, publisher_id, instrument_id
-                if (sscanf(line, "%63[^,],%*d,%*d,%*d,%lf,%lf,%lf,%lf,%lf",
-                        ts_event,
-                        &bar.open,
-                        &bar.high,
-                        &bar.low,
-                        &bar.close,
-                        &bar.volume) == 6) {
-                    
-                        bar.timestamp = parseDbIsoFormat(ts_event);
-                        bars.push_back(bar);
-                    }
-               
-            }   
-
-            fclose(file);
-            return bars;     
-        };
-    };
     
-
-
 std::string GetEnvVarConfigPath () {
     namespace fs = std::filesystem;
     fs::path current_dir = fs::current_path();
@@ -188,8 +114,7 @@ int main(int argc, char* argv[]) {
     
     ///  Argument Parsing & Initial Setup 
     std::string config_path_string = GetEnvVarConfigPath();
-    Config config = ConfigParser::ParseConfigToObj(config_path_string);
-    
+    const backtester::AppConfig config = backtester::ParseConfigToObj(config_path_string);
     ///  Initialize Logger 
     setup_logging();
     spdlog::info("Logger Initialized");
@@ -198,26 +123,26 @@ int main(int argc, char* argv[]) {
     ///  Component Initialization 
 
     ///  Create central EventQueue
-    EventQueue event_queue;
+    backtester::EventQueue event_queue;
     /// Initialize Data Reader(s) and possibly DataReaderManager?
-	DataReaderManager data_reader_manager(event_queue);
+	backtester::DataReaderManager data_reader_manager(event_queue);
     /// Initialize Market State Manager
-    MarketStateManager market_state_manager;
+    backtester::MarketStateManager market_state_manager;
     /// Initialize Portfolio Manager
-	PortfolioManager portfolio_manager(10000);
+	backtester::PortfolioManager portfolio_manager(10000);
     /// Initialize Report Generator
-	ReportGenerator report_generator;
+	backtester::ReportGenerator report_generator;
     /// Initialize Execution Handler
-	ExecutionHandler execution_handler;
+	backtester::ExecutionHandler execution_handler;
     /// Initialize Strategy Manager and specific Strategy
-    StrategyManager strategy_manager;
+    backtester::StrategyManager strategy_manager;
     
     // Read the first event from each data source and add to the EventQueue
     spdlog::info("Populating initial events from data sources...");
-    data_reader_manager.register_and_init_streams(config.data_streams); // This method reads one event from each reader and pushes to event_queue
+    data_reader_manager.RegisterAndInitStreams(config.data_streams);
     
     // Initialize Backtester class
-    Backtester backtester(event_queue, data_reader_manager, market_state_manager,
+    backtester::Backtester backtester(event_queue, data_reader_manager, market_state_manager,
                           portfolio_manager, report_generator, execution_handler,
                           strategy_manager);
     
@@ -225,51 +150,5 @@ int main(int argc, char* argv[]) {
 }
 
 
-namespace ConfigParser {
-    DataFormat stringToDataFormat(const std::string& str) {
-    if (str == "MBO") return DataFormat::MBO;
-    if (str == "OHLCV") return DataFormat::OHLCV;
-    throw std::invalid_argument("Invalid format: " + str);
-}
-  const Config ParseConfigToObj(std::string& config_path){
-		auto config_abs_path = std::filesystem::path(config_path); 
-		
-		using json = nlohmann::json;
-
-		if (std::filesystem::exists(config_abs_path)) {
-				std::cout << "The file '" << config_abs_path << "' exists." << std::endl;
-		} else {
-				std::cout << "The file '" << config_abs_path << "' does not exist." << std::endl;
-				throw std::runtime_error("Config file not found at: " + config_path);
-		}
-
-		std::ifstream f(config_abs_path);
-		if (!f.is_open()) {
-			throw std::runtime_error("Config file does not open: ");
-		}
-
-		json data = json::parse(f);
-		//std::cout << data.dump(4) << std::endl;  /// For testing 
-		
-	    Config config;
-		//config.data_format = data["data_format"];
-		config.end_time = data["end_time"];
-		config.execution_latency = data["execution_latency"];
-		config.initial_cash = data["initial_cash"];
-		config.log_file_path = data["log_file_path"];
-		config.report_output_dir = data["report_output_dir"];
-		config.start_time = data["start_time"];
-		config.strategy_name = data["strategy_name"];
-		config.traded_symbol = data["traded_symbol"];	
-        for (const auto& item : data["data_streams"]) {
-            DataSourceConfig data_config;
-            data_config.symbol = item["symbol"];
-            data_config.filepath = item["filepath"];
-            data_config.format = stringToDataFormat(item["format"]); 
-            config.data_streams.push_back(data_config);
-        };
-		return config;
-  }
-}
 
 
