@@ -11,6 +11,9 @@
 #include <charconv>
 #include <memory>
 #include <fstream>
+
+namespace backtester {
+
 class CsvZstReaderTest : public ::testing::Test {
  protected:
 //   void SetUp() override {
@@ -271,4 +274,6 @@ TEST_F(CsvZstReaderTest, ReadRealMBOFile) {
         lines++;  // Need to increment inside the loop
     }
     EXPECT_EQ(lines, 21);  // Known sample size
+}
+
 }

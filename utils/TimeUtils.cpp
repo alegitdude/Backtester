@@ -35,7 +35,7 @@ std::string EpochToString(uint64_t epoch_nanos, const std::string& timezone = "U
 	return oss.str();
 };
 
-long long StringToEpoch(const std::string& time_str, const std::string& timezone) {
+long long StringToEpoch(const std::string& time_str, const std::string& timezone = "UTC") {
     int year, month, day, hour, minute, second;
     uint32_t nanoseconds = 0;
     

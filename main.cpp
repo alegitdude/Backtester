@@ -113,7 +113,8 @@ int main(int argc, char* argv[]) {
     // }
     
     ///  Argument Parsing & Initial Setup 
-    std::string config_path_string = GetEnvVarConfigPath();
+    //std::string config_path_string = GetEnvVarConfigPath();
+    std::string config_path_string = "../config/config_1.json";
     const backtester::AppConfig config = backtester::ParseConfigToObj(config_path_string);
     ///  Initialize Logger 
     setup_logging();
