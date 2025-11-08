@@ -6,6 +6,8 @@ namespace backtester {
 
 namespace time {
 
+// MARK: EpochToString
+
 std::string EpochToString(uint64_t epoch_nanos, const std::string& timezone = "UTC") {
 	uint64_t epoch_seconds = epoch_nanos / 1000000000ULL;
 	uint32_t nanos = epoch_nanos % 1000000000ULL;
@@ -35,39 +37,33 @@ std::string EpochToString(uint64_t epoch_nanos, const std::string& timezone = "U
 	return oss.str();
 };
 
-long long StringToEpoch(const std::string& time_str, const std::string& timezone = "UTC") {
-    int year, month, day, hour, minute, second;
-    uint32_t nanoseconds = 0;
-    
-    // Parse the time string
-    if (!ParseTimeString(time_str, year, month, day, hour, minute, second, nanoseconds)) {
-        throw std::invalid_argument("Invalid time format. Expected: YYYY-MM-DD HH:MM:SS[.nnnnnnnnn]");
+// MARK: Parse Iso To Unix
+
+uint64_t ParseIsoToUnix(std::string str) {
+    const char* s = str.c_str();
+  //2022-01-03T00:00:00.000000000Z
+  //012345678901234567890123456789
+    struct tm t = {0};
+    t.tm_year = fast_atoi_4(s) - 1900; // tm_year is years since 1900
+    t.tm_mon  = fast_atoi_2(s + 5) - 1; // tm_mon is 0-11
+    t.tm_mday = fast_atoi_2(s + 8);
+    t.tm_hour = fast_atoi_2(s + 11);
+    t.tm_min  = fast_atoi_2(s + 14);
+    t.tm_sec  = fast_atoi_2(s + 17);
+    t.tm_isdst = 0; // Not in daylight saving time 
+
+    time_t epoch_seconds = timegm(&t);
+
+    const char* p_nanos = s + 20; 
+    uint32_t nanos = 0;
+
+    for (int i = 0; i < 9; ++i) {
+        nanos = nanos * 10 + (p_nanos[i] - '0');
     }
-    
-    // Create tm struct
-    struct tm tm_info = {};
-    tm_info.tm_year = year - 1900;
-    tm_info.tm_mon = month - 1;
-    tm_info.tm_mday = day;
-    tm_info.tm_hour = hour;
-    tm_info.tm_min = minute;
-    tm_info.tm_sec = second;
-    
-    // Convert to epoch seconds (treat as UTC)
-    time_t epoch_seconds = timegm(&tm_info);
-    if (epoch_seconds == -1) {
-        throw std::runtime_error("Failed to convert time to epoch");
-    }
-    
-    // Apply timezone offset (subtract because we're converting FROM local TO UTC)
-    int tz_offset = GetTimezoneOffset(timezone);
-    epoch_seconds -= tz_offset;
-    
-    // Convert to nanoseconds and add nanosecond component
-    uint64_t epoch_nanos = static_cast<uint64_t>(epoch_seconds) * 1000000000ULL + nanoseconds;
-    
-    return epoch_nanos;
+    return static_cast<uint64_t>(epoch_seconds) * 1'000'000'000ULL + nanos;
 }
+
+// MARK: Get Timezone offset
 
 int GetTimezoneOffset(const std::string& timezone) {
     // Common timezone offsets (simplified - in production use a library like date.h)
@@ -92,60 +88,5 @@ int GetTimezoneOffset(const std::string& timezone) {
         return 0;
     }
 }
-
-bool ParseTimeString(const std::string& time_str,
-                                int& year, int& month, int& day,
-                                int& hour, int& minute, int& second,
-                                uint32_t& nanoseconds) {
-    // Expected formats:
-    // "YYYY-MM-DD HH:MM:SS"
-    // "YYYY-MM-DD HH:MM:SS.nnnnnnnnn"
-    
-    std::istringstream iss(time_str);
-    char dash1, dash2, space, colon1, colon2, dot;
-    
-    // Parse date part
-    iss >> year >> dash1 >> month >> dash2 >> day;
-    if (dash1 != '-' || dash2 != '-') {
-        return false;
-    }
-    
-    // Parse time part
-    iss >> space >> hour >> colon1 >> minute >> colon2 >> second;
-    if (space != ' ' || colon1 != ':' || colon2 != ':') {
-        return false;
-    }
-    
-    // Try to parse nanoseconds (optional)
-    if (iss >> dot) {
-        if (dot != '.') {
-            return false;
-        }
-        
-        std::string nanos_str;
-        iss >> nanos_str;
-        
-        // Pad or truncate to 9 digits
-        if (nanos_str.length() > 9) {
-            nanos_str = nanos_str.substr(0, 9);
-        } else {
-            nanos_str.append(9 - nanos_str.length(), '0');
-        }
-        
-        nanoseconds = std::stoul(nanos_str);
-    } else {
-        nanoseconds = 0;
-    }
-    
-    // Basic validation
-    if (year < 1970 || month < 1 || month > 12 || day < 1 || day > 31 ||
-        hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || 
-				second > 59) {
-          return false;
-    }
-    
-    return true;
-}
-
 }
 }

@@ -7,6 +7,8 @@
 
 namespace backtester{
 
+// MARK: Register&InitSteams
+
 bool DataReaderManager::RegisterAndInitStreams(
     const std::vector<DataSourceConfig>& data_sources) {
   
@@ -45,7 +47,7 @@ bool DataReaderManager::RegisterAndInitStreams(
         }
 
         // 3. Store the active reader
-        readers_[symbol] = {std::move(reader), source.schema, source.ts_format};
+        readers_[symbol] = {std::move(reader), source};
 
         // 4. Load the very first event to start the queue
         if(!LoadNextEventForSymbol(symbol)) 
@@ -56,13 +58,15 @@ bool DataReaderManager::RegisterAndInitStreams(
     return true;
 }
 
+// MARK: LoadNextEventForSymbol
+
 bool DataReaderManager::LoadNextEventForSymbol(const std::string& symbol) {
     if(readers_.find(symbol) == readers_.end()){
         return false;  // Reader was already closed or not registered
     }       
 
     CsvZstReader& reader = *readers_[symbol].reader;
-    TmStampFormat ts_type = readers_[symbol].ts_type;
+    TmStampFormat ts_type = readers_[symbol].config.ts_format;
     std::string raw_line;
 
     if(!reader.readLine(raw_line)){
@@ -73,7 +77,7 @@ bool DataReaderManager::LoadNextEventForSymbol(const std::string& symbol) {
 
     std::unique_ptr<MarketByOrderEvent> event_ptr;
 
-    if(readers_[symbol].schema == DataSchema::MBO){
+    if(readers_[symbol].config.schema == DataSchema::MBO){
        event_ptr = ParseMboLineToEvent(symbol, raw_line, ts_type);
     // } else if (readers_[symbol].schema == DataSchema::OHLCV){ // TODO
     //     event_ptr = ParseOhlcvLineToEvent(symbol, raw_line);
@@ -88,6 +92,8 @@ bool DataReaderManager::LoadNextEventForSymbol(const std::string& symbol) {
   
     return false;
 };
+
+// MARK:  ParseMboLineToEvent
 
 std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
     const std::string& symbol, 
@@ -144,6 +150,7 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
                 break;
 
             case 8: // price (int64_t)
+                if(action == EventType::kMarketOrderClear) break;
                 if (token.empty()) throw std::runtime_error("Field 8 empty.");
                 uint32_t raw_price;
                 std::from_chars(token.data(), token.data() + token.size(), raw_price);
@@ -207,7 +214,10 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
     return event_ptr;
 };
 
-std::string_view DataReaderManager::GetNextToken(size_t& start_pos, std::string_view& current_view) {
+// MARK: Get Next Token
+
+std::string_view DataReaderManager::GetNextToken(size_t& start_pos, 
+                                               std::string_view& current_view) {
     size_t delim_pos = current_view.find(',', start_pos);
     std::string_view token;
 
@@ -222,76 +232,6 @@ std::string_view DataReaderManager::GetNextToken(size_t& start_pos, std::string_
     }
     return token;
 };
-
-inline OrderSide DataReaderManager::CharToOrderSide(char side) {
-    if(side == 'A'){
-        return OrderSide::kAsk;
-    }
-    if(side == 'B'){
-        return OrderSide::kBid;
-    }
-    else {
-        return OrderSide::kNone;
-    }    
-}
-
-EventType DataReaderManager::ActionToEventTyp(char act) {
-    if(act == 'A'){
-        return EventType::kMarketOrderAdd;
-    }
-    if(act == 'M'){
-        return EventType::kMarketOrderModify;
-    }
-    if(act == 'C'){
-        return EventType::kMarketOrderCancel;
-    }
-    if(act == 'R'){
-        return EventType::kMarketOrderClear;
-    }
-    if(act == 'T'){
-        return EventType::kMarketTrade;
-    }
-    if(act == 'F'){
-        return EventType::kMarketFill;
-    }
-    else {
-        return EventType::kMarketNone;
-    }
-}
-
-inline int fast_atoi_2(const char* s) {
-    return (s[0] - '0') * 10 + (s[1] - '0');
-}
-
-inline int fast_atoi_4(const char* s) {
-    return (s[0] - '0') * 1000 +
-           (s[1] - '0') * 100  +
-           (s[2] - '0') * 10   +
-           (s[3] - '0');
-}
-
-uint64_t DataReaderManager::ParseIsoToUnix(std::string str) {
-    const char* s = str.c_str();
-
-    struct tm t = {0};
-    t.tm_year = fast_atoi_4(s) - 1900; // tm_year is years since 1900
-    t.tm_mon  = fast_atoi_2(s + 5) - 1; // tm_mon is 0-11
-    t.tm_mday = fast_atoi_2(s + 8);
-    t.tm_hour = fast_atoi_2(s + 11);
-    t.tm_min  = fast_atoi_2(s + 14);
-    t.tm_sec  = fast_atoi_2(s + 17);
-    t.tm_isdst = 0; // Not in daylight saving time 
-
-    time_t epoch_seconds = timegm(&t);
-
-    const char* p_nanos = s + 20; 
-    uint32_t nanos = 0;
-
-    for (int i = 0; i < 9; ++i) {
-        nanos = nanos * 10 + (p_nanos[i] - '0');
-    }
-    return static_cast<uint64_t>(epoch_seconds) * 1'000'000'000ULL + nanos;
-}
 
 // std::unique_ptr<Event> DataReaderManager::parse_line_to_event(
 //     const std::string& symbol, 
@@ -321,14 +261,3 @@ uint64_t DataReaderManager::ParseIsoToUnix(std::string str) {
 // }
 
 }
-
-// Input line: "1672531200000000000,1672531200000000000,1,1234567,A,..."
-// std::string_view current_view(line);
-// size_t pos = 0;
-// size_t delim_pos = std::string_view::npos;
-// std::string_view token;
-
-
-
-// Now 'pos' is positioned at the start of the 6th field (side_char)
-// ... continue parsing the rest of the fields using the same pattern

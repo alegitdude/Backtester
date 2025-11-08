@@ -32,12 +32,6 @@ enum class TmStampFormat {
     ISO
 };
 
-struct DataStream {
-    std::unique_ptr<CsvZstReader> reader;
-    DataSchema schema;
-    TmStampFormat ts_type;
-};
-
 struct DataSourceConfig {
     std::string symbol;
     std::string filepath;
@@ -48,10 +42,14 @@ struct DataSourceConfig {
     TmStampFormat ts_format;
 };
 
+struct DataStream {
+    std::unique_ptr<CsvZstReader> reader;
+    DataSourceConfig config;
+};
+
 struct AppConfig {
-    //std::string data_format;  //csv, csv.zst
-    long long start_time; //Expected: YYYY-MM-DD HH:MM:SS[.nnnnnnnnn]
-    long long end_time;  //Expected: YYYY-MM-DD HH:MM:SS[.nnnnnnnnn]
+    long long start_time; //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
+    long long end_time;  //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
     int execution_latency = 500000;
     int initial_cash = 100000;
     std::string log_file_path;

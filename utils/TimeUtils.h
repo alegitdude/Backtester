@@ -13,14 +13,20 @@ namespace time {
 std::string EpochToString(uint64_t epoch_nanos, 
 		                               const std::string& time_zone);
 
-long long StringToEpoch(const std::string& time_str, 
-		                            const std::string& timezone);
-
 int GetTimezoneOffset(const std::string& timezone);
 
-bool ParseTimeString(
-		const std::string& time_str, int& year, int& month, int& day,
-    int& hour, int& minute, int& second, uint32_t& nanoseconds);
+uint64_t ParseIsoToUnix(std::string str);
+
+inline int fast_atoi_2(const char* s) {
+return (s[0] - '0') * 10 + (s[1] - '0');
+}
+
+inline int fast_atoi_4(const char* s) {
+    return (s[0] - '0') * 1000 +
+           (s[1] - '0') * 100  +
+           (s[2] - '0') * 10   +
+           (s[3] - '0');
+}
 
 }
 }

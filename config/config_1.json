@@ -7,19 +7,19 @@
 			"some_param" : "5"
 		},
 
-		"start_time" : "afulldate",
-		"end_time" : "afulldate",
-		"log_file_path" : "C:\\some_path",
+		"start_time" : "2022-01-03T00:24:44.606235524Z",
+		"end_time" : "2022-01-03T00:30:48.299185940Z",
+		"log_folder_path" : "../logs",
 		"traded_symbol" : "some_symbol",
 
 		"data_streams" : [
 			{
 				"symbol" : "ES", 
-				"file_path" : "../test/test_data/futures_mbo.csv.zst", 
+				"filepath" : "../test/test_data/futures_mbo.csv.zst", 
 				"encoding" : "CSV",
 				"schema" : "MBO",
 				"compression" : "ZSTD",
-				"price_format" : "Decimal",
+				"price_format" : "decimal",
 				"timestamp_format" : "iso"			
 			}
 		]
