@@ -45,7 +45,7 @@ bool DataReaderManager::RegisterAndInitStreams(
         }
 
         // 3. Store the active reader
-        readers_[symbol] = {std::move(reader), source.format};
+        readers_[symbol] = {std::move(reader), source.schema, source.ts_format};
 
         // 4. Load the very first event to start the queue
         if(!LoadNextEventForSymbol(symbol)) 
@@ -62,22 +62,23 @@ bool DataReaderManager::LoadNextEventForSymbol(const std::string& symbol) {
     }       
 
     CsvZstReader& reader = *readers_[symbol].reader;
+    TmStampFormat ts_type = readers_[symbol].ts_type;
     std::string raw_line;
 
     if(!reader.readLine(raw_line)){
         spdlog::info("End of data for symbol: " + symbol);
-        // clean up resources??
+        // clean up resources?? TODO reader.close()
         // readers_.erase(symbol); 
     }
 
     std::unique_ptr<MarketByOrderEvent> event_ptr;
 
-    if(readers_[symbol].format == DataFormat::MBO){
-       event_ptr = ParseMboLineToEvent(symbol, raw_line);
-    // } else if (readers_[symbol].format == DataFormat::OHLCV){
+    if(readers_[symbol].schema == DataSchema::MBO){
+       event_ptr = ParseMboLineToEvent(symbol, raw_line, ts_type);
+    // } else if (readers_[symbol].schema == DataSchema::OHLCV){ // TODO
     //     event_ptr = ParseOhlcvLineToEvent(symbol, raw_line);
     } else {
-        throw std::runtime_error("Invalid data format ");
+        throw std::runtime_error("Invalid data schema ");
     }
 
     if(event_ptr != nullptr){
@@ -90,7 +91,8 @@ bool DataReaderManager::LoadNextEventForSymbol(const std::string& symbol) {
 
 std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
     const std::string& symbol, 
-    const std::string& line ) {
+    const std::string& line,
+    const TmStampFormat& ts_type ) {
 
     std::string_view current_view(line);
     size_t pos = 0;
@@ -109,7 +111,7 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
 
         switch (i) {
             case 1: // ts_recv (uint64_t)
-                if (token.empty()) throw std::runtime_error("Field 1 empty.");
+                if (token.empty()) throw std::runtime_error("Field 1 empty."); /////// TODO iso or unix conditional
                 std::from_chars(token.data(), token.data() + token.size(), ts_recv);
                 break;
 
@@ -176,6 +178,9 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
                 std::from_chars(token.data(), token.data() + token.size(), sequence);
                 break;
 
+            case 15: // potentially symbol added
+                break;
+
             default:
                 // Should never happen if loop count is correct
                 throw std::runtime_error("Unexpected field index.");
@@ -218,7 +223,7 @@ std::string_view DataReaderManager::GetNextToken(size_t& start_pos, std::string_
     return token;
 };
 
-OrderSide DataReaderManager::CharToOrderSide(char side) {
+inline OrderSide DataReaderManager::CharToOrderSide(char side) {
     if(side == 'A'){
         return OrderSide::kAsk;
     }
@@ -253,6 +258,41 @@ EventType DataReaderManager::ActionToEventTyp(char act) {
         return EventType::kMarketNone;
     }
 }
+
+inline int fast_atoi_2(const char* s) {
+    return (s[0] - '0') * 10 + (s[1] - '0');
+}
+
+inline int fast_atoi_4(const char* s) {
+    return (s[0] - '0') * 1000 +
+           (s[1] - '0') * 100  +
+           (s[2] - '0') * 10   +
+           (s[3] - '0');
+}
+
+uint64_t DataReaderManager::ParseIsoToUnix(std::string str) {
+    const char* s = str.c_str();
+
+    struct tm t = {0};
+    t.tm_year = fast_atoi_4(s) - 1900; // tm_year is years since 1900
+    t.tm_mon  = fast_atoi_2(s + 5) - 1; // tm_mon is 0-11
+    t.tm_mday = fast_atoi_2(s + 8);
+    t.tm_hour = fast_atoi_2(s + 11);
+    t.tm_min  = fast_atoi_2(s + 14);
+    t.tm_sec  = fast_atoi_2(s + 17);
+    t.tm_isdst = 0; // Not in daylight saving time 
+
+    time_t epoch_seconds = timegm(&t);
+
+    const char* p_nanos = s + 20; 
+    uint32_t nanos = 0;
+
+    for (int i = 0; i < 9; ++i) {
+        nanos = nanos * 10 + (p_nanos[i] - '0');
+    }
+    return static_cast<uint64_t>(epoch_seconds) * 1'000'000'000ULL + nanos;
+}
+
 // std::unique_ptr<Event> DataReaderManager::parse_line_to_event(
 //     const std::string& symbol, 
 //     const std::string& line

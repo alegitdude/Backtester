@@ -6,20 +6,46 @@
 
 namespace backtester {
     
-enum class DataFormat {
+enum class DataSchema {
     MBO,
     OHLCV
 };
 
+enum class Encoding {
+    DBN,
+    CSV,
+    JSON
+};
+
+enum class Compression {
+    ZSTD,
+    NONE
+};
+
+enum class PriceFormat {
+    FIXPNTINT,
+    DECIMAL
+};
+
+enum class TmStampFormat {
+    UNIX,
+    ISO
+};
+
 struct DataStream {
     std::unique_ptr<CsvZstReader> reader;
-    DataFormat format;
+    DataSchema schema;
+    TmStampFormat ts_type;
 };
 
 struct DataSourceConfig {
     std::string symbol;
     std::string filepath;
-    DataFormat format;
+    DataSchema schema;
+    Encoding encoding;
+    Compression compression;
+    PriceFormat price_format;
+    TmStampFormat ts_format;
 };
 
 struct AppConfig {
@@ -35,7 +61,7 @@ struct AppConfig {
     //     "some_param": "5"
     // },
     std::string traded_symbol;
-    // symbol, filepath, format
+    // symbol, filepath, schema
     std::vector<DataSourceConfig> data_streams;
 
 };

@@ -14,9 +14,13 @@
 
 		"data_streams" : [
 			{
-				"Symbol" : "ES", 
+				"symbol" : "ES", 
 				"file_path" : "../test/test_data/futures_mbo.csv.zst", 
-				"event_type" : "MBO"
+				"encoding" : "CSV",
+				"schema" : "MBO",
+				"compression" : "ZSTD",
+				"price_format" : "Decimal",
+				"timestamp_format" : "iso"			
 			}
 		]
 }

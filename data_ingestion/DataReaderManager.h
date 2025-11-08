@@ -24,8 +24,12 @@ class DataReaderManager {
     
     std::unique_ptr<MarketByOrderEvent> ParseMboLineToEvent(
         const std::string& symbol, 
-        const std::string& line
+        const std::string& line,
+        const TmStampFormat& ts_type
     );
+
+    uint64_t ParseIsoToUnix(std::string str);
+
     std::string_view GetNextToken(size_t& start_pos, std::string_view& current_view);
 
     OrderSide CharToOrderSide(char side);
