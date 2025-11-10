@@ -19,7 +19,7 @@ class Backtester {
 							 report_generator_(rg), execution_handler_(eh), 
 							 strategy_manager_(sm) {}
 
-    int RunLoop(AppConfig& config);
+    int RunLoop(const AppConfig& config);
 
  private:
     EventQueue& event_queue_;
@@ -30,5 +30,15 @@ class Backtester {
 		ExecutionHandler& execution_handler_;
 		StrategyManager& strategy_manager_;
 	};
+
+	inline bool isMarketEvent(EventType type) {
+    return type >= kMarketOrderAdd && type <= kMarketHeartbeat;
+	}
+	inline bool isStrategyEvent(EventType type) {
+		return type >= kStrategySignal && type <= KStrategyOrderRejection;
+	}
+	inline bool isControlEvent(EventType type) {
+		return type >= kBacktestControlStart && type <= kBacktestControlEndOfBacktest;
+	}
 
 }

@@ -147,6 +147,8 @@ int main(int argc, char* argv[]) {
                           portfolio_manager, report_generator, execution_handler,
                           strategy_manager);
     
+    backtester.RunLoop(config);
+    
     return 0;
 }
 

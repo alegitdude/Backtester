@@ -4,7 +4,7 @@ namespace backtester {
 
 MarketStateManager::MarketStateManager() {}
 
-void MarketStateManager::process_market_event(std::unique_ptr<Event>&  event){
+void MarketStateManager::process_market_event(const MarketByOrderEvent* event){
 	return;
 }
 

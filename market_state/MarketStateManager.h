@@ -8,7 +8,7 @@ class MarketStateManager{
  public:
 	MarketStateManager() {};
 
-    void process_market_event(std::unique_ptr<Event>& event) {};
+    void process_market_event(const MarketByOrderEvent* event) {};
     void get_OB_snapshot() {};
 };
 
