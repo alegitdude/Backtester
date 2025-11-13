@@ -51,17 +51,12 @@ enum SignalType {
 
 struct Event {
 public:
-    Event(long long ts, EventType t) : timestamp_ns_(ts), type_(t) {}
+    Event(long long ts, EventType t) : timestamp(ts), type(t) {}
 
     virtual ~Event() = default;
-    
-    long long get_timestamp() const { return timestamp_ns_; }
-    EventType get_type() const { return type_; }
-
-protected: 
-    long long timestamp_ns_; 
-    EventType type_;         
-
+   
+    long long timestamp; 
+    EventType type;         
 };
 
 //////////////////////////////////////////////////////////////

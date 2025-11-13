@@ -9,11 +9,11 @@ struct EventComparator {
         const std::unique_ptr<Event>& a, 
         const std::unique_ptr<Event>& b) const {
         // Primary sort: timestamp (ascending)
-        if(a->get_timestamp() != b->get_timestamp()) {
-            return a->get_timestamp() < b->get_timestamp(); // For MIN-heap, "greater" means lower priority
+        if(a->timestamp != b->timestamp) {
+            return a->timestamp < b->timestamp; // For MIN-heap, "greater" means lower priority
         }        
         // Market -> Strategy -> Backtest
-        return a->get_type() < b->get_type(); 
+        return a->type < b->type; 
     }
 };
 

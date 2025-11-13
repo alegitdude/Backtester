@@ -3,7 +3,7 @@
 #include "Types.h"
 
 namespace backtester {
-    
+
 int Backtester::RunLoop(const AppConfig& config) {
    
     spdlog::info("Starting backtest loop...");
@@ -20,12 +20,11 @@ int Backtester::RunLoop(const AppConfig& config) {
             const MarketByOrderEvent* market_event = 
             static_cast<const MarketByOrderEvent*>(current_event.get());
 
-            market_state_manager_.process_market_event(market_event);
+            market_state_manager_.OnMarketEvent(market_event);
 
             // strategy_manager_.on_market_event(current_event, 
             //     market_state_manager_.get_OB_snapshot());
 
-            // // After market update, check if any pending strategy orders can be filled
             // execution_handler_.check_pending_strategy_orders_for_fills(
             //     market_state_manager.get_OB_snapshot());
             
