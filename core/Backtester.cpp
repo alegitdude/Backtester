@@ -10,17 +10,17 @@ int Backtester::RunLoop(const AppConfig& config) {
     long long current_time = config.start_time;
 
     while(!event_queue_.is_empty() && 
-           event_queue_.top_event().get_timestamp() <= config.end_time){     
+           event_queue_.top_event().timestamp <= config.end_time){     
        
         auto current_event = event_queue_.pop_top_event(); 
-        uint64_t current_time = current_event->get_timestamp();
-        EventType eventType = current_event->get_type();
+        uint64_t current_time = current_event->timestamp;
+        EventType eventType = current_event->type;
 
         if (isMarketEvent(eventType)) {
             const MarketByOrderEvent* market_event = 
             static_cast<const MarketByOrderEvent*>(current_event.get());
 
-            market_state_manager_.OnMarketEvent(market_event);
+            market_state_manager_.OnMarketEvent(*market_event);
 
             // strategy_manager_.on_market_event(current_event, 
             //     market_state_manager_.get_OB_snapshot());

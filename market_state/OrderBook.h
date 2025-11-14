@@ -24,23 +24,26 @@ class OrderBook {
     uint32_t GetQueuePos(uint64_t order_id);
 
     std::vector<BidAskPair> GetSnapshot(std::size_t level_count = 1) const ;
-
+    void OnEvent(const MarketByOrderEvent& mbo) {Apply(mbo);};
     void Apply(const MarketByOrderEvent& mbo);
 
 private:
-    /// Level orders -> SideLevels -> bids or offers: map of price with vector or mbo msgs
+    ///Level orders -> SideLevels -> bids or offers: map of price with vector or mbo msgs
     using LevelOrders = std::vector<MarketByOrderEvent>;
     using SideLevels = std::map<int64_t, LevelOrders>;
 
     SideLevels offers_;
     SideLevels bids_;
-   
+
+    struct PriceAndSide {
+        int64_t price;
+        OrderSide side;
+    };
     using Orders = std::unordered_map<uint64_t, PriceAndSide>;
 
     Orders orders_by_id_;
 
     const uint8_t F_TOB = 64; // The numerical value for F_TOB
-
     inline bool IsTOB(uint8_t flags_value) {
         return (flags_value & F_TOB) != 0;
     }   
@@ -48,13 +51,6 @@ private:
     /////////////////////////////////////////////////////////
     /////////////////// Methods /////////////////////////////
     /////////////////////////////////////////////////////////
-
-    inline std::string PriceToString(int64_t price) {
-      std::ostringstream oss;
-      oss << price;
-      std::string str_number = oss.str();
-      return str_number;
-    }
 
     inline LevelOrders &GetOrInsertLevel(OrderSide side, int64_t price) {
         SideLevels &levels = GetSideLevels(side);

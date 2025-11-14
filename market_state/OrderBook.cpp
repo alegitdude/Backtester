@@ -5,6 +5,17 @@
 #include "../core/Event.h"
 
 namespace backtester {
+/*  LevelOrders = std::vector<MarketByOrderEvent>; vector of orders
+    SideLevels = std::map<int64_t, LevelOrders>; price , all the orders
+    PriceLevel = price, size, count
+
+    SideLevels offers_; all the offers prices and orders
+    SideLevels bids_; all the bids prices and orders 
+    */
+///////////////////////////////////////////////////////////////////
+/////////////////////////// Getters ///////////////////////////////
+///////////////////////////////////////////////////////////////////
+// MARK: Getters
 
 PriceLevel OrderBook::GetBidLevel(std::size_t idx = 0) const {
     if (bids_.size() > idx) {
@@ -34,12 +45,12 @@ PriceLevel OrderBook::GetBidLevelByPx(int64_t px) const {
     return GetPriceLevel(px, level_it->second);
 }
 
-PriceLevel OrderBook::GetAskLevelByPx(int64_t px) const {
-    auto level_it = offers_.find(px);
+PriceLevel OrderBook::GetAskLevelByPx(int64_t price) const {
+    auto level_it = offers_.find(price);
     if (level_it == offers_.end()) {
-        throw std::invalid_argument{"No ask level at " + std::to_string(px)};
+        throw std::invalid_argument{"No ask level at " + std::to_string(price)};
     }
-    return GetPriceLevel(px, level_it->second);
+    return GetPriceLevel(price, level_it->second);
 }
 
 const MarketByOrderEvent& OrderBook::GetOrder(uint64_t order_id) {
@@ -68,7 +79,7 @@ uint32_t OrderBook::GetQueuePos(uint64_t order_id) {
     }
     return prior_size;
 }
-
+//// TODO THIS SHOULD BE WHOLE BOOK 
 std::vector<BidAskPair> OrderBook::GetSnapshot(std::size_t level_count = 1) const {
     std::vector<BidAskPair> res;
     for (size_t i = 0; i < level_count; ++i) {
@@ -89,6 +100,8 @@ std::vector<BidAskPair> OrderBook::GetSnapshot(std::size_t level_count = 1) cons
     }
     return res;
 }
+
+// MARK: Apply
 
 void OrderBook::Apply(const MarketByOrderEvent& mbo) {
     switch (mbo.type) {
@@ -119,67 +132,55 @@ void OrderBook::Apply(const MarketByOrderEvent& mbo) {
         }
     }
 }
-///////////
-  using LevelOrders = std::vector<MarketByOrderEvent>;
-  struct PriceAndSide {
-    int64_t price;
-    OrderSide side;
-  };
-  using Orders = std::unordered_map<uint64_t, PriceAndSide>;
-  using SideLevels = std::map<int64_t, LevelOrders>;
+/////////// Private
 
-  PriceLevel OrderBook::GetPriceLevel(int64_t price, const LevelOrders level) {
-    PriceLevel res{price};
-    // only using pure mbo messages so should not encounter TOB flag
-    for (const auto& order : level) {
-      //if (!IsTOB(order.flags)) {
-      ++res.count;
-      //}
-      res.size += order.size;
-    }
-    return res;
-  }
+//using Orders = std::unordered_map<uint64_t, PriceAndSide>;
 
-  LevelOrders::iterator OrderBook::GetLevelOrder(LevelOrders& level,
-                                             uint64_t order_id) {
-    auto order_it = std::find_if(level.begin(), level.end(),
-                                 [order_id](const MarketByOrderEvent& order) {
-                                   return order.order_id == order_id;
-                                 });
-    if (order_it == level.end()) {
-      throw std::invalid_argument{"No order with ID " + std::to_string(order_id)};
-    }
-    return order_it;
+PriceLevel OrderBook::GetPriceLevel(int64_t price, const LevelOrders level) {
+  PriceLevel res{price};
+  // only using pure mbo messages so should not encounter TOB flag
+  for (const auto& order : level) {
+    //if (!IsTOB(order.flags)) {
+    ++res.count;
+    //}
+    res.size += order.size;
   }
+  return res;
+}
 
-   LevelOrders& OrderBook::GetLevel(OrderSide side, int64_t price) {
-    SideLevels& levels = GetSideLevels(side);
-    auto level_it = levels.find(price);
-    if (level_it == levels.end()) {
-      throw std::invalid_argument{
-          std::string{"Received event for unknown level "} +
-          std::to_string(side) + " " + PriceToString(price)};
-    }
-    return level_it->second;
-  }
+using LevelOrders = std::vector<MarketByOrderEvent>;
 
-  LevelOrders& OrderBook::GetOrInsertLevel(OrderSide side, int64_t price) {
-    SideLevels& levels = GetSideLevels(side);
-    return levels[price];
+LevelOrders::iterator OrderBook::GetLevelOrder(LevelOrders& level,
+                                            uint64_t order_id) {
+  auto order_it = std::find_if(level.begin(), level.end(),
+                                [order_id](const MarketByOrderEvent& order) {
+                                  return order.order_id == order_id;
+                                });
+  if (order_it == level.end()) {
+    throw std::invalid_argument{"No order with ID " + std::to_string(order_id)};
   }
+  return order_it;
+}
 
-  void OrderBook::RemoveLevel(OrderSide side, int64_t price) {
-    SideLevels& levels = GetSideLevels(side);
-    levels.erase(price);
+LevelOrders& OrderBook::GetLevel(OrderSide side, int64_t price) {
+  SideLevels& levels = GetSideLevels(side);
+  auto level_it = levels.find(price);
+  if (level_it == levels.end()) {
+    throw std::invalid_argument{
+        std::string{"Received event for unknown level "} +
+        std::to_string(side) + " " + std::to_string(price)};
   }
-    ///////////////////////////////////////////////////////////////////
-    //////////////////// OrderBook Operations /////////////////////////
-    ///////////////////////////////////////////////////////////////////
-  void OrderBook::Clear() {
-    orders_by_id_.clear();
-    offers_.clear();
-    bids_.clear();
-  }
+  return level_it->second;
+}
+
+  ///////////////////////////////////////////////////////////////////
+  //////////////////// OrderBook Operations /////////////////////////
+  ///////////////////////////////////////////////////////////////////
+void OrderBook::Clear() {
+  orders_by_id_.clear();
+  offers_.clear();
+  bids_.clear();
+}
 
 void OrderBook::Add(MarketByOrderEvent mbo) { 
 //Not using normalized/aggregate sets so should not encounter TOB flags

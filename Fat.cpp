@@ -5,6 +5,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <fstream>
 
 struct OHLCVBar {
     int64_t timestamp;
@@ -183,4 +184,32 @@ int GetTimezoneOffset(const std::string& timezone) {
         std::cerr << "Warning: Unknown timezone '" << timezone << "', using UTC" << std::endl;
         return 0;
     }
+}
+
+    
+std::string GetEnvVarConfigPath () {
+    namespace fs = std::filesystem;
+    fs::path current_dir = fs::current_path();
+    fs::path parent_dir = current_dir.parent_path();
+    fs::path env = ".env";
+    std::ifstream file(parent_dir / env);
+
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open environment variable file:";
+        return "";
+    }
+    std::string csvFilePath;
+    std::string line;
+    while (std::getline(file, line)) {
+        size_t equalsPos = line.find('=');
+        if (equalsPos != std::string::npos) {
+            std::string key = line.substr(0, equalsPos - 1);
+            std::string value = line.substr(equalsPos + 2);
+            if(key == "PATH_TO_CONFIG"){
+                return value;
+            }
+        }
+    }
+    file.close();
+    return "";
 }

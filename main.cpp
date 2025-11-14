@@ -18,34 +18,6 @@
 #include <memory>
 #include <fstream>
 
-    
-std::string GetEnvVarConfigPath () {
-    namespace fs = std::filesystem;
-    fs::path current_dir = fs::current_path();
-    fs::path parent_dir = current_dir.parent_path();
-    fs::path env = ".env";
-    std::ifstream file(parent_dir / env);
-
-    if (!file.is_open()) {
-        std::cerr << "Error: Could not open environment variable file:";
-        return "";
-    }
-    std::string csvFilePath;
-    std::string line;
-    while (std::getline(file, line)) {
-        size_t equalsPos = line.find('=');
-        if (equalsPos != std::string::npos) {
-            std::string key = line.substr(0, equalsPos - 1);
-            std::string value = line.substr(equalsPos + 2);
-            if(key == "PATH_TO_CONFIG"){
-                return value;
-            }
-        }
-    }
-    file.close();
-    return "";
-}
-
 namespace PrintHelper {
     inline void BacktestStart(){
         std::cout << "Backtester Program Started" << std::endl;
@@ -113,7 +85,6 @@ int main(int argc, char* argv[]) {
     // }
     
     ///  Argument Parsing & Initial Setup 
-    //std::string config_path_string = GetEnvVarConfigPath();
     std::string config_path_string = "../config/config_1.json";
     const backtester::AppConfig config = backtester::ParseConfigToObj(config_path_string);
     ///  Initialize Logger 
