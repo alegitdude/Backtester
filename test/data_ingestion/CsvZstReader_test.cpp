@@ -109,7 +109,7 @@ TEST_F(CsvZstReaderTest, OpenInvalidZstFile) {
     EXPECT_FALSE(reader.readLine(line));
 }
 
-// Test reading multiple lines
+// Test reading multiple lines // MARK: NEED MORE testing
 TEST_F(CsvZstReaderTest, ReadMultipleLines) {
     CsvZstReader reader;
     ASSERT_TRUE(reader.open(path_to_multilinezst));

@@ -1,5 +1,5 @@
 #pragma once
-#include "../../../data_ingestion/CsvZstReader.h"
+#include "../data_ingestion/CsvZstReader.h"
 #include <iostream>
 #include <memory>
 #include <vector>

@@ -17,21 +17,49 @@ namespace backtester {
 ///////////////////////////////////////////////////////////////////
 // MARK: Getters
 
-PriceLevel OrderBook::GetBidLevel(std::size_t idx = 0) const {
+// PriceLevel OrderBook::GetBidLevel(std::size_t idx) const {
+//     if (bids_.size() > idx) {
+//         // Reverse iterator to get highest bid prices first
+//         auto level_it = bids_.rbegin();
+//         std::advance(level_it, idx);
+//         return GetPriceLevel(level_it->first, level_it->second);
+//     }
+//     return PriceLevel{};
+// }
+
+PriceLevel OrderBook::GetBidLevel(std::size_t idx) const {
     if (bids_.size() > idx) {
-        // Reverse iterator to get highest bid prices first
-        auto level_it = bids_.rbegin();
-        std::advance(level_it, idx);
-        return GetPriceLevel(level_it->first, level_it->second);
+      auto it = bids_.rbegin();
+      std::advance(it, idx);
+    
+      return PriceLevel{
+          it->first,        // Price
+          it->second.size,  // Size
+          it->second.count  // Count
+      };
     }
     return PriceLevel{};
 }
 
-PriceLevel OrderBook::GetAskLevel(std::size_t idx = 0) const {
-    if (offers_.size() > idx) {
-        auto level_it = offers_.begin();
-        std::advance(level_it, idx);
-        return GetPriceLevel(level_it->first, level_it->second);
+// PriceLevel OrderBook::GetAskLevel(std::size_t idx) const {
+//     if (offers_.size() > idx) {
+//         auto level_it = offers_.begin();
+//         std::advance(level_it, idx);
+//         //return GetPriceLevel(level_it->first, level_it->second);
+//     }
+//     return PriceLevel{};
+// }
+
+PriceLevel OrderBook::GetAskLevel(std::size_t idx) const {
+   if (bids_.size() > idx) {
+      auto it = offers_.begin();
+      std::advance(it, idx);
+    
+      return PriceLevel{
+          it->first,        // Price
+          it->second.size,  // Size
+          it->second.count  // Count
+      };
     }
     return PriceLevel{};
 }
@@ -42,7 +70,7 @@ PriceLevel OrderBook::GetBidLevelByPx(int64_t px) const {
         std::string str = std::to_string(px);
         throw std::invalid_argument{"No bid level at " + str};
     }
-    return GetPriceLevel(px, level_it->second);
+    return GetPriceLevel(level_it->second);
 }
 
 PriceLevel OrderBook::GetAskLevelByPx(int64_t price) const {
@@ -50,7 +78,7 @@ PriceLevel OrderBook::GetAskLevelByPx(int64_t price) const {
     if (level_it == offers_.end()) {
         throw std::invalid_argument{"No ask level at " + std::to_string(price)};
     }
-    return GetPriceLevel(price, level_it->second);
+    return GetPriceLevel(level_it->second);
 }
 
 const MarketByOrderEvent& OrderBook::GetOrder(uint64_t order_id) {
@@ -60,7 +88,7 @@ const MarketByOrderEvent& OrderBook::GetOrder(uint64_t order_id) {
                                     std::to_string(order_id)};
     }
     auto& level = GetLevel(order_it->second.side, order_it->second.price);
-    return *GetLevelOrder(level, order_id);
+    return *GetLevelOrder(level.orders, order_id);
 }
 
 uint32_t OrderBook::GetQueuePos(uint64_t order_id) {
@@ -69,9 +97,9 @@ uint32_t OrderBook::GetQueuePos(uint64_t order_id) {
         throw std::invalid_argument{"No order with ID " +
                                     std::to_string(order_id)};
     }
-    const auto& level_it = GetLevel(order_it->second.side, order_it->second.price);
+    const auto& levelQueue = GetLevel(order_it->second.side, order_it->second.price);
     uint32_t prior_size = 0;
-    for (const auto& order : level_it) {
+    for (const auto& order : levelQueue.orders) {
         if (order.order_id == order_id) {
         break;
         }
@@ -79,19 +107,19 @@ uint32_t OrderBook::GetQueuePos(uint64_t order_id) {
     }
     return prior_size;
 }
-//// TODO THIS SHOULD BE WHOLE BOOK 
-std::vector<BidAskPair> OrderBook::GetSnapshot(std::size_t level_count = 1) const {
+
+std::vector<BidAskPair> OrderBook::GetSnapshot(std::size_t level_count) const {
     std::vector<BidAskPair> res;
     for (size_t i = 0; i < level_count; ++i) {
         BidAskPair ba_pair{kUndefPrice, kUndefPrice, 0, 0, 0, 0};
         auto bid = GetBidLevel(i);
-        if (bid) {
+        if (bid.price) {
         ba_pair.bid_px = bid.price;
         ba_pair.bid_sz = bid.size;
         ba_pair.bid_ct = bid.count;
         }
         auto ask = GetAskLevel(i);
-        if (ask) {
+        if (ask.price) {
         ba_pair.ask_px = ask.price;
         ba_pair.ask_sz = ask.size;
         ba_pair.ask_ct = ask.count;
@@ -134,24 +162,10 @@ void OrderBook::Apply(const MarketByOrderEvent& mbo) {
 }
 /////////// Private
 
-//using Orders = std::unordered_map<uint64_t, PriceAndSide>;
 
-PriceLevel OrderBook::GetPriceLevel(int64_t price, const LevelOrders level) {
-  PriceLevel res{price};
-  // only using pure mbo messages so should not encounter TOB flag
-  for (const auto& order : level) {
-    //if (!IsTOB(order.flags)) {
-    ++res.count;
-    //}
-    res.size += order.size;
-  }
-  return res;
-}
+std::vector<MarketByOrderEvent>::iterator OrderBook::GetLevelOrder(
+       std::vector<MarketByOrderEvent>& level, uint64_t order_id) {
 
-using LevelOrders = std::vector<MarketByOrderEvent>;
-
-LevelOrders::iterator OrderBook::GetLevelOrder(LevelOrders& level,
-                                            uint64_t order_id) {
   auto order_it = std::find_if(level.begin(), level.end(),
                                 [order_id](const MarketByOrderEvent& order) {
                                   return order.order_id == order_id;
@@ -162,7 +176,7 @@ LevelOrders::iterator OrderBook::GetLevelOrder(LevelOrders& level,
   return order_it;
 }
 
-LevelOrders& OrderBook::GetLevel(OrderSide side, int64_t price) {
+LevelQueue& OrderBook::GetLevel(OrderSide side, int64_t price) {
   SideLevels& levels = GetSideLevels(side);
   auto level_it = levels.find(price);
   if (level_it == levels.end()) {
@@ -193,8 +207,10 @@ void OrderBook::Add(MarketByOrderEvent mbo) {
 //     LevelOrders level = {mbo};
 //     levels.emplace(mbo.price, level);
 //   }   
-    LevelOrders& level = GetOrInsertLevel(mbo.side, mbo.price);
-    level.emplace_back(mbo);
+    LevelQueue& level = GetOrInsertLevel(mbo.side, mbo.price);
+    level.orders.emplace_back(mbo);
+    level.count++;
+    level.size += mbo.size;
     auto res = orders_by_id_.emplace(mbo.order_id,
                                     PriceAndSide{mbo.price, mbo.side});
     if (!res.second) {
@@ -205,18 +221,19 @@ void OrderBook::Add(MarketByOrderEvent mbo) {
   
 
   void OrderBook::Cancel(MarketByOrderEvent mbo) {
-    LevelOrders& level = GetLevel(mbo.side, mbo.price);
-    auto order_it = GetLevelOrder(level, mbo.order_id);
+    LevelQueue& level = GetLevel(mbo.side, mbo.price);
+    auto order_it = GetLevelOrder(level.orders, mbo.order_id);
     if (order_it->size < mbo.size) {
       throw std::logic_error{
           "Tried to cancel more size than existed for order ID " +
           std::to_string(mbo.order_id)};
     }
     order_it->size -= mbo.size;
+    level.size -= mbo.size;
     if (order_it->size == 0) {
       orders_by_id_.erase(mbo.order_id);
-      level.erase(order_it);
-      if (level.empty()) {
+      level.orders.erase(order_it);
+      if (level.orders.empty()) {
         RemoveLevel(mbo.side, mbo.price);
       }
     }
@@ -233,26 +250,37 @@ void OrderBook::Add(MarketByOrderEvent mbo) {
       throw std::logic_error{"Order " + std::to_string(mbo.order_id) +
                              " changed side"};
     }
+
     auto prev_price = price_side_it->second.price;
-    LevelOrders& prev_level = GetLevel(mbo.side, prev_price);
-    auto level_order_it = GetLevelOrder(prev_level, mbo.order_id);
-    if (prev_price != mbo.price) {
+    LevelQueue& prev_level = GetLevel(mbo.side, prev_price);
+    auto level_order_it = GetLevelOrder(prev_level.orders, mbo.order_id);
+
+    if (prev_price != mbo.price) { // changed price
       price_side_it->second.price = mbo.price;
-      prev_level.erase(level_order_it);
-      if (prev_level.empty()) {
+      prev_level.orders.erase(level_order_it);
+      prev_level.count--;
+      prev_level.size -= mbo.size;
+
+      if (prev_level.orders.empty()) {
         RemoveLevel(mbo.side, prev_price);
       }
-      LevelOrders& level = GetOrInsertLevel(mbo.side, mbo.price);
+      LevelQueue& level = GetOrInsertLevel(mbo.side, mbo.price);
       // Changing price loses priority
-      level.emplace_back(mbo);
-    } else if (level_order_it->size < mbo.size) {
-      LevelOrders& level = prev_level;
+      level.orders.emplace_back(mbo);
+      level.count++;
+      level.size += mbo.size;
+
+    } else if (level_order_it->size < mbo.size) { // increase size
+      LevelQueue& level = prev_level;
       // Increasing size loses priority
-      level.erase(level_order_it);
-      level.emplace_back(mbo);
+      level.size += (mbo.size - level_order_it->size);
+      level.orders.erase(level_order_it);
+      level.orders.emplace_back(mbo);
+      
     } else {
       level_order_it->size = mbo.size;
-    }
+      prev_level.size -= (level_order_it->size - mbo.size);
+    } 
   }
 
 };

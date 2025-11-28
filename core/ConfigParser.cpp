@@ -3,21 +3,21 @@
 #include "Types.h"
 #include <nlohmann/json.hpp>
 #include <fstream>
+#include <string>
    
 namespace backtester{
 
-AppConfig ParseConfigToObj(std::string& config_path){
-	auto config_abs_path = std::filesystem::path(config_path); 
+AppConfig ParseConfigToObj(std::filesystem::path& config_path){
 	using json = nlohmann::json;
 
-	if (std::filesystem::exists(config_abs_path)) {
-			std::cout << "The file '" << config_abs_path << "' exists." << std::endl;
+	if (std::filesystem::exists(config_path)) {
+		std::cout << "The file '" << config_path.c_str() << "' exists." << std::endl;
 	} else {
-			std::cout << "The file '" << config_abs_path << "' does not exist." << std::endl;
-			throw std::runtime_error("Config file not found at: " + config_path);
+		std::cout << "The file '" << config_path.c_str() << "' does not exist." << std::endl;
+		throw std::runtime_error("Config file not found at: " + config_path.generic_string());
 	}
 
-	std::ifstream f(config_abs_path);
+	std::ifstream f(config_path);
 	if (!f.is_open()) {
 		throw std::runtime_error("Config file does not open: ");
 	}

@@ -23,13 +23,13 @@ class EventQueue {
 
     ~EventQueue() {}
 
-    void push_event(std::unique_ptr<Event> event_ptr);
+    void PushEvent(std::unique_ptr<Event> event_ptr);
 
-    bool is_empty() const ;
+    bool IsEmpty() const ;
 
-    const Event& top_event() const ;
+    const Event& ReadTopEvent() const ;
 
-    std::unique_ptr<Event> pop_top_event() ;
+    std::unique_ptr<Event> PopTopEvent() ;
 
     size_t size() const ;
 

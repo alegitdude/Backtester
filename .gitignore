@@ -3,3 +3,4 @@ build/
 .env
 Backtester
 cmake-build-debug/
+logs/*

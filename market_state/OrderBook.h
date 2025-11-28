@@ -29,8 +29,8 @@ class OrderBook {
 
 private:
     ///Level orders -> SideLevels -> bids or offers: map of price with vector or mbo msgs
-    using LevelOrders = std::vector<MarketByOrderEvent>;
-    using SideLevels = std::map<int64_t, LevelOrders>;
+    //using LevelOrders = std::vector<MarketByOrderEvent>;
+    using SideLevels = std::map<int64_t, LevelQueue>;
 
     SideLevels offers_;
     SideLevels bids_;
@@ -51,8 +51,15 @@ private:
     /////////////////////////////////////////////////////////
     /////////////////// Methods /////////////////////////////
     /////////////////////////////////////////////////////////
+    inline PriceLevel GetPriceLevel(const LevelQueue& level) const {
+        return PriceLevel{
+                level.price,        
+                level.size,  
+                level.count  
+      };    
+    }
 
-    inline LevelOrders &GetOrInsertLevel(OrderSide side, int64_t price) {
+    inline LevelQueue& GetOrInsertLevel(OrderSide side, int64_t price) {
         SideLevels &levels = GetSideLevels(side);
         /// auto creates key if doesn't exist
         return levels[price];
@@ -73,11 +80,13 @@ private:
       }
     }
 
-    LevelOrders& GetLevel(OrderSide side, int64_t price);
-    static PriceLevel GetPriceLevel(int64_t price, const LevelOrders level);
+    LevelQueue& GetLevel(OrderSide side, int64_t price);
 
-    static LevelOrders::iterator GetLevelOrder(LevelOrders &level, 
-                                               uint64_t order_id);
+    //static PriceLevel GetPriceLevel(int64_t price, const LevelOrders& level);
+
+    static std::vector<MarketByOrderEvent>::iterator GetLevelOrder(
+        std::vector<MarketByOrderEvent>& level,
+        uint64_t order_id);
 
     inline void RemoveLevel(OrderSide side, int64_t price) {
         SideLevels &levels = GetSideLevels(side);

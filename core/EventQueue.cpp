@@ -5,25 +5,25 @@
 
 namespace backtester {
 
-void EventQueue::push_event(std::unique_ptr<Event> event_ptr) {
+void EventQueue::PushEvent(std::unique_ptr<Event> event_ptr) {
     if(event_ptr != nullptr){
         pq_.push_back(std::move(event_ptr)); 
         std::push_heap(pq_.begin(), pq_.end(), comparator_);
     }
 }
 
-bool EventQueue::is_empty() const {
+bool EventQueue::IsEmpty() const {
     return pq_.empty();
 }
 
-const Event& EventQueue::top_event() const {
+const Event& EventQueue::ReadTopEvent() const {
     if(pq_.empty()) {
         throw std::out_of_range("Attempted to grab top event of empty quque");     
     }        
     return *pq_.front();
 }
 
-std::unique_ptr<Event> EventQueue::pop_top_event() {
+std::unique_ptr<Event> EventQueue::PopTopEvent() {
     if(pq_.empty()) {
         return std::unique_ptr<Event>{}; 
     }

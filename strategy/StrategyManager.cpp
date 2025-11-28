@@ -2,7 +2,7 @@
 
 namespace backtester {
 
-void StrategyManager::on_market_event(std::unique_ptr<Event>& event) {
+void StrategyManager::OnMarketEvent(std::unique_ptr<Event>& event) {
 	return;
 }
 

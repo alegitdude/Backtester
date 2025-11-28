@@ -11,13 +11,13 @@ namespace backtester {
 
 class Backtester {
  public:
-		Backtester(EventQueue& eq, DataReaderManager& drm, MarketStateManager& msm,
-							 PortfolioManager& pm, ReportGenerator& rg, ExecutionHandler& eh,
-							 StrategyManager& sm
-							 ) : event_queue_(eq), data_reader_manager_(drm), 
-							 market_state_manager_(msm),portfolio_manager_(pm),
-							 report_generator_(rg), execution_handler_(eh), 
-							 strategy_manager_(sm) {}
+	Backtester( EventQueue& eq, DataReaderManager& drm, MarketStateManager& msm,
+				PortfolioManager& pm, ReportGenerator& rg, ExecutionHandler& eh,
+				StrategyManager& sm) : 
+				event_queue_(eq), data_reader_manager_(drm), 
+				market_state_manager_(msm),portfolio_manager_(pm),
+				report_generator_(rg), execution_handler_(eh), 
+				strategy_manager_(sm) {}
 
     int RunLoop(const AppConfig& config);
 

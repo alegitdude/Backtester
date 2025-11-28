@@ -35,15 +35,16 @@ namespace PrintHelper {
 };
 
 void printHelp() {
-    std::cout << "Here are the required arguments for running a backtest" << std::endl;
-    std::cout << "--MboFilePath" << std::endl;
-    std::cout << "--ResultsFolderPath" << std::endl;
-    std::cout << "--Strategy" << std::endl;
+    std::cout << "A settings file in json format is required to use this backtester" << std::endl;
     std::cout << "Here are the optional arguments for running a backtest" << std::endl;
 }
 
-void setup_logging() {
-    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("simulation.log", true);
+void SetupLogging() {
+    auto now = std::chrono::system_clock::now();
+    std::time_t currentTime_t = std::chrono::system_clock::to_time_t(now);
+    std::string time_string = std::ctime(&currentTime_t);
+
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("../logs/" + time_string + ".simulation.log", true);
     auto logger = std::make_shared<spdlog::logger>("main_logger", file_sink);
     spdlog::set_default_logger(logger);
     spdlog::set_level(spdlog::level::info);
@@ -61,39 +62,42 @@ int main(int argc, char* argv[]) {
     //     return 0;
     // }
 
-    // std::filesystem::path config_path;
-    // for (int i = 1; i < argc; ++i) { // Start from 1 to skip program name
-    //     std::string arg = argv[i];
+    std::filesystem::path config_path;
+    std::filesystem::path default_settings = "../config/config_1.json";
 
-    //     if (arg == "--help" || arg == "-h") {
-    //         printHelp();
-    //         return 0; 
-    //     }
-    //     if(i == 1){ //ConfigFilePath
-    //         if(!std::filesystem::exists(arg)){
-    //             std::cout << "Config file path does not exist!" << std::endl;
-    //             std::cout << arg << std::endl;
-    //             return 0;
-    //         }
-    //         config_path = std::filesystem::path(arg);
-    //         // if(mboPath.extension() != "csv" || mboPath.extension() != "dbn"){
-    //         //     std::cout << "Mbo File has wrong file extension!" << std::endl;
-    //         //     std::cout << arg << std::endl;
-    //         //     return 0;
-    //         // }
-    //     }
-    // }
+    for (int i = 1; i < argc; ++i) { // Start from 1 to skip program name
+        std::string arg = argv[i];
+
+        if (arg == "--help" || arg == "-h") {
+            printHelp();
+            return 0; 
+        }
+        if(i == 1){ //ConfigFilePath
+            if(!std::filesystem::exists(arg)){
+                std::cout << "Config file path does not exist!" << std::endl;
+                std::cout << arg << std::endl;
+                config_path = default_settings;
+            }
+            config_path = std::filesystem::path(arg);
+            if(config_path.extension() != "json" || config_path.extension() != "yaml"){
+                std::cout << "Config file has wrong file extension! Needs to be json" << std::endl;
+                std::cout << arg << std::endl;
+                config_path = default_settings;
+            }
+        }
+        if(std::filesystem::is_empty(config_path)){
+            config_path = default_settings;
+        }
+    }
     
     ///  Argument Parsing & Initial Setup 
-    std::string config_path_string = "../config/config_1.json";
-    const backtester::AppConfig config = backtester::ParseConfigToObj(config_path_string);
     ///  Initialize Logger 
-    setup_logging();
+    SetupLogging();
     spdlog::info("Logger Initialized");
     ///  Configuration Loading 
     spdlog::info("Loading Confgiuration File");
     ///  Component Initialization 
-
+    const backtester::AppConfig config = backtester::ParseConfigToObj(config_path);
     ///  Create central EventQueue
     backtester::EventQueue event_queue;
     /// Initialize Data Reader(s) and possibly DataReaderManager?
@@ -101,7 +105,7 @@ int main(int argc, char* argv[]) {
     /// Initialize Market State Manager
     backtester::MarketStateManager market_state_manager;
     /// Initialize Portfolio Manager
-	backtester::PortfolioManager portfolio_manager(10000);
+	backtester::PortfolioManager portfolio_manager(config.initial_cash);
     /// Initialize Report Generator
 	backtester::ReportGenerator report_generator;
     /// Initialize Execution Handler

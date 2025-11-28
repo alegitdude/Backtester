@@ -28,7 +28,7 @@ bool DataReaderManager::RegisterAndInitStreams(
 
         std::unique_ptr<CsvZstReader> reader = std::make_unique<CsvZstReader>();
 
-        if(!reader->open(path)){
+        if(!reader->Open(path)){
             std::string failure = "Failed to open reader for: " + symbol;
             std::cerr << failure << std::endl;
             spdlog::error(failure + "at " + path);
@@ -37,7 +37,7 @@ bool DataReaderManager::RegisterAndInitStreams(
 
         // Verify Header
         std::string header_line;
-        reader->readLine(header_line);
+        reader->ReadLine(header_line);
 
         if(header_line != kExpectedMboHeader){
             std::string failure = "Incorrect header format for " + symbol;
@@ -66,19 +66,21 @@ bool DataReaderManager::LoadNextEventForSymbol(const std::string& symbol) {
     }       
 
     CsvZstReader& reader = *readers_[symbol].reader;
-    TmStampFormat ts_type = readers_[symbol].config.ts_format;
     std::string raw_line;
 
-    if(!reader.readLine(raw_line)){
+    if(!reader.ReadLine(raw_line)){
         spdlog::info("End of data for symbol: " + symbol);
         // clean up resources?? TODO reader.close()
-        // readers_.erase(symbol); 
+        // readers_.erase(symbol);
+        reader.Close(); 
+        return false;
     }
 
     std::unique_ptr<MarketByOrderEvent> event_ptr;
-
+    std::cout << "Yup" + std::to_string(static_cast<int>(readers_[symbol].config.schema)) << std::endl;
     if(readers_[symbol].config.schema == DataSchema::MBO){
-       event_ptr = ParseMboLineToEvent(symbol, raw_line, ts_type);
+        std::cout << raw_line << std::endl;
+       event_ptr = ParseMboLineToEvent(symbol, raw_line);
     // } else if (readers_[symbol].schema == DataSchema::OHLCV){ // TODO
     //     event_ptr = ParseOhlcvLineToEvent(symbol, raw_line);
     } else {
@@ -86,7 +88,7 @@ bool DataReaderManager::LoadNextEventForSymbol(const std::string& symbol) {
     }
 
     if(event_ptr != nullptr){
-        event_queue_.push_event(std::move(event_ptr));
+        event_queue_.PushEvent(std::move(event_ptr));
         return true;
     }
   
@@ -97,8 +99,9 @@ bool DataReaderManager::LoadNextEventForSymbol(const std::string& symbol) {
 
 std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
     const std::string& symbol, 
-    const std::string& line,
-    const TmStampFormat& ts_type ) {
+    const std::string& line) {
+
+    DataSourceConfig config = readers_[symbol].config;
 
     std::string_view current_view(line);
     size_t pos = 0;
@@ -110,9 +113,9 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
     OrderSide side;
     uint8_t flags;
     int32_t ts_in_delta; 
-    double price;
+    int64_t price;
 
-    for (int i = 1; i <= 14; ++i) { 
+    for (int i = 1; i <= 15; ++i) { 
         std::string_view token = GetNextToken(pos, current_view);
 
         switch (i) {
@@ -122,7 +125,7 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
                 break;
 
             case 2: // ts_event (uint64_t)
-                if (token.empty()) throw std::runtime_error("Field 2 empty.");
+                if (token.empty()) throw std::runtime_error("Field 2 empty."); /////// TODO iso or unix conditional
                 std::from_chars(token.data(), token.data() + token.size(), ts_event);
                 break;
                 
@@ -152,11 +155,20 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
             case 8: // price (int64_t)
                 if(action == EventType::kMarketOrderClear) break;
                 if (token.empty()) throw std::runtime_error("Field 8 empty.");
-                uint32_t raw_price;
-                std::from_chars(token.data(), token.data() + token.size(), raw_price);
-                price = static_cast<double>(raw_price) * 1e-9;
-                break;
 
+                if(readers_[symbol].config.price_format == PriceFormat::DECIMAL){
+                    double raw_price;
+                    std::from_chars(token.data(), token.data() + token.size(), raw_price);
+                    raw_price *= 100;
+                    price = raw_price;
+                    break;
+                } else {
+                    uint32_t raw_price;
+                    std::from_chars(token.data(), token.data() + token.size(), raw_price);
+                    price = raw_price;
+                    break;
+                }
+                
             case 9: // size (uint32_t)
                 if (token.empty()) throw std::runtime_error("Field 9 empty.");
                 std::from_chars(token.data(), token.data() + token.size(), size);
@@ -233,31 +245,5 @@ std::string_view DataReaderManager::GetNextToken(size_t& start_pos,
     return token;
 };
 
-// std::unique_ptr<Event> DataReaderManager::parse_line_to_event(
-//     const std::string& symbol, 
-//     const std::string& line
-// ) {
-//     std::stringstream ss(line);
-//     uint64_t ts_recv, ts_event; 
-//     char action, side_char;
-
-//     // Example simplified parsing
-//     // ss >> ts_recv >> ts_event >> action >> side_char >> ...
-//     // Note: CSV parsing requires careful tokenizing to handle all fields correctly.
-
-//     // 2. Create the Event
-//     std::unique_ptr<MarketRecordEvent> event_ptr = 
-//         std::make_unique<MarketRecordEvent>(
-//             ts_recv, 
-//             EventType::MARKET_RECORD_EVENT, 
-//             ts_event, 
-//             // ... all other required raw parameters
-//         );
-
-//     // 3. Set the resolved symbol string on the event
-//     event_ptr->set_symbol_str(symbol);
-
-//     return event_ptr;
-// }
 
 }

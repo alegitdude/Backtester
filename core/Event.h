@@ -98,7 +98,7 @@ struct MarketByOrderEvent : Event {
     uint16_t publisher_id;  // Databento publisher ID
     uint32_t instrument_id; // Numeric instrument ID (Databento's ID for the asset)
     OrderSide side;         // raw char converted
-    double price;           // The order price as converted from 1e-9 units
+    int64_t price;          // The order price as converted from 1e-9 units
     uint32_t size;          // The order quantity
     uint64_t order_id;      // The order ID assigned by the venue
     uint8_t flags;          // Bit field for event characteristics

@@ -11,10 +11,10 @@
 namespace backtester {
     
 CsvZstReader::~CsvZstReader() {
-    close();
+    Close();
 }
 
-bool CsvZstReader::open(const std::string& filename) {
+bool CsvZstReader::Open(const std::string& filename) {
     // Reset state variables
     output_pos_ = 0;
     output_size_ = 0;
@@ -33,7 +33,7 @@ bool CsvZstReader::open(const std::string& filename) {
     return ZSTD_initDStream(dstream_) != ZSTD_isError(ZSTD_initDStream(dstream_));
 }
 
-void CsvZstReader::close() {
+void CsvZstReader::Close() {
     // Close file if it's open
     if (file_.is_open()) file_.close();
     // Free ZSTD decompression context if it exists
@@ -43,7 +43,7 @@ void CsvZstReader::close() {
     }
 }
 
-bool CsvZstReader::readLine(std::string& line) {
+bool CsvZstReader::ReadLine(std::string& line) {
     // Clear the output line to start fresh
     line.clear();
     
@@ -66,7 +66,7 @@ bool CsvZstReader::readLine(std::string& line) {
         }
         
         // Need more data - decompress next chunk
-        if (!fillBuffer()) {
+        if (!FillBuffer()) {
             // No more data available - return true if we have a partial line
             return !line.empty(); // Return partial line if exists
         }
@@ -75,7 +75,7 @@ bool CsvZstReader::readLine(std::string& line) {
 
 
 // Reads compressed data from file and decompresses it into output buffer
-bool CsvZstReader::fillBuffer() {
+bool CsvZstReader::FillBuffer() {
     if (eof_reached_) return false;
     
     // Read next chunk of compressed data from file

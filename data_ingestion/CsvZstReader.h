@@ -11,7 +11,7 @@
 
 namespace backtester {
 
-class CsvZstReader { // reader.open -> reader.readline
+class CsvZstReader { 
  public:
     CsvZstReader() : dstream_(nullptr), output_pos_(0), output_size_(0), 
 		                 eof_reached_(false) {
@@ -21,11 +21,11 @@ class CsvZstReader { // reader.open -> reader.readline
     
     ~CsvZstReader();
 
-    bool open(const std::string& filename);
+    bool Open(const std::string& filename);
     
-    void close();
+    void Close();
     
-    bool readLine(std::string& line); 
+    bool ReadLine(std::string& line); 
 
  private:
     std::ifstream file_;
@@ -43,7 +43,7 @@ class CsvZstReader { // reader.open -> reader.readline
     size_t output_buf_size = ZSTD_DStreamOutSize();
 
     // Reads compressed data from file and decompresses it into output buffer
-    bool fillBuffer(); 
+    bool FillBuffer(); 
 };
 
 }

@@ -20,7 +20,7 @@ FetchContent_Declare(
 FetchContent_Declare(
   spdlog
   GIT_REPOSITORY https://github.com/gabime/spdlog.git
-  GIT_TAG        v1.14.1 # Recommended to use a specific version tag
+  GIT_TAG        v1.14.1 
 )
 
 FetchContent_Declare(
@@ -29,9 +29,16 @@ FetchContent_Declare(
   GIT_TAG release-1.12.1
 )
 
+FetchContent_Declare(
+    ryml
+    GIT_REPOSITORY https://github.com/biojppm/rapidyaml.git
+    GIT_TAG v0.10.0 
+    GIT_SHALLOW FALSE [1.1]
+)
+
 FetchContent_MakeAvailable(googletest)
 
-FetchContent_MakeAvailable(databento json spdlog)
+FetchContent_MakeAvailable(databento json spdlog ryml)
   
 add_executable(Backtester main.cpp data_ingestion/CsvZstReader.cpp 
 data_ingestion/DataReaderManager.cpp core/EventQueue.cpp core/ConfigParser.cpp 
@@ -43,5 +50,5 @@ data_ingestion/CsvZstReader.cpp utils/TimeUtils.cpp)
 
 
 target_link_libraries(tests GTest::gtest_main zstd)
-target_link_libraries(Backtester PRIVATE databento::databento nlohmann_json::nlohmann_json spdlog)
+target_link_libraries(Backtester PRIVATE databento::databento nlohmann_json::nlohmann_json spdlog ryml::ryml)
 
