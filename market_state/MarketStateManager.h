@@ -11,7 +11,7 @@ class MarketStateManager{
 
     void OnMarketEvent(const MarketByOrderEvent& event);
 
-    const std::vector<BidAskPair> GetOBSnapshot() const { return order_book_.GetSnapshot(); }
+    const std::vector<BidAskPair> GetOBSnapshot(int levels) const { return order_book_.GetSnapshot(levels); }
     // double get_vwap() const { return vwap_.get_vwap(); }
     // const Bbo& get_bbo() const { return bbo_cache_.get_bbo(); }
     // double get_weighted_mid_price() const { return wmp_calculator_.get_wmp(); }

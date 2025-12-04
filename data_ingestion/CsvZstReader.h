@@ -32,6 +32,8 @@ class CsvZstReader {
     ZSTD_DStream* dstream_;
     std::vector<char> input_buffer_;
     std::vector<char> output_buffer_;
+    size_t input_pos_;
+    size_t input_valid_size_;
     // Current read position in the output buffer
     size_t output_pos_;
     // Amount of data in the output buffer

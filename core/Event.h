@@ -4,7 +4,6 @@
 
 enum EventType {
     kMarketOrderAdd, // 0
-    KMarketOrderExecuted,
     kMarketOrderCancel,
     kMarketOrderModify,
     kMarketOrderClear,
@@ -13,14 +12,14 @@ enum EventType {
     kMarketNone,
     kMarketHeartbeat, 
 
-    kStrategySignal, // 9
+    kStrategySignal, // 8
     kStrategyOrderSubmit,  
     kStrategyOrderCancel,
     kStrategyOrderModify,
     kStrategyOrderFill,  
     KStrategyOrderRejection, 
 
-    kBacktestControlStart, // 15
+    kBacktestControlStart, // 14
     kBacktestControlEndOfDay,
     kBacktestControlSnapshot,
     kBacktestControlEndOfBacktest

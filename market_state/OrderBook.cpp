@@ -108,6 +108,7 @@ uint32_t OrderBook::GetQueuePos(uint64_t order_id) {
     return prior_size;
 }
 
+// MARK: GETSNAPSHOT
 std::vector<BidAskPair> OrderBook::GetSnapshot(std::size_t level_count) const {
     std::vector<BidAskPair> res;
     for (size_t i = 0; i < level_count; ++i) {

@@ -1,3 +1,4 @@
+#pragma once
 #include "../core/Event.h"
 #include <cstdint>
 #include <limits>

@@ -45,10 +45,15 @@ data_ingestion/DataReaderManager.cpp core/EventQueue.cpp core/ConfigParser.cpp
 utils/TimeUtils.cpp core/Backtester.cpp market_state/MarketStateManager.cpp
 market_state/OrderBook.cpp)
 
-add_executable(tests test/data_ingestion/CsvZstReader_test.cpp 
-data_ingestion/CsvZstReader.cpp utils/TimeUtils.cpp)
+
+# add_executable(tests test/data_ingestion/CsvZstReader_test.cpp 
+# data_ingestion/CsvZstReader.cpp utils/TimeUtils.cpp)
 
 
-target_link_libraries(tests GTest::gtest_main zstd)
+add_executable(tests test/market_state/OrderBook_test.cpp data_ingestion/CsvZstReader.cpp
+market_state/OrderBook.cpp data_ingestion/DataReaderManager.cpp core/EventQueue.cpp
+market_state/MarketStateManager.cpp)
+
+target_link_libraries(tests GTest::gtest_main zstd spdlog)
 target_link_libraries(Backtester PRIVATE databento::databento nlohmann_json::nlohmann_json spdlog ryml::ryml)
 

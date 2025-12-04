@@ -59,7 +59,7 @@ class CsvZstReaderTest : public ::testing::Test {
     std::ofstream output(filename, std::ios::binary);
     if (!output) {
         throw std::runtime_error(
-            "Failed to open output file: " + filename.string()
+            "Failed to Open output file: " + filename.string()
         );
     }
     
@@ -72,30 +72,40 @@ class CsvZstReaderTest : public ::testing::Test {
   }
 };
 
+TEST_F(CsvZstReaderTest, ReadRealMbp10File) {
+    CsvZstReader reader;
+    reader.Open(path_to_test_data + "ES-glbx-20251105.mbp-10.csv.zst");
+    int lines = 0;
+    std::string line;
+    while (reader.ReadLine(line)) {  // This returns bool
+        lines++;  // Need to increment inside the loop
+    }
+}
+
 TEST_F(CsvZstReaderTest, OpenValidFile) {
     CsvZstReader reader;
-    EXPECT_TRUE(reader.open(path_to_simplezst));
+    EXPECT_TRUE(reader.Open(path_to_simplezst));
 }
 
 TEST_F(CsvZstReaderTest, ReadSingleLine) {    
     CsvZstReader reader;
-    ASSERT_TRUE(reader.open(path_to_simplezst));
+    ASSERT_TRUE(reader.Open(path_to_simplezst));
     
     std::string line;
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "single line");
     
     // Should return false on second read (EOF)
-    EXPECT_FALSE(reader.readLine(line));
+    EXPECT_FALSE(reader.ReadLine(line));
 }
 
-// Test opening a non-existent file
+// Test Opening a non-existent file
 TEST_F(CsvZstReaderTest, OpenNonExistentFile) {
     CsvZstReader reader;
-    EXPECT_FALSE(reader.open("test_data/does_not_exist.zst"));
+    EXPECT_FALSE(reader.Open("test_data/does_not_exist.zst"));
 }
 
-// Test opening an invalid/corrupt zst file
+// Test Opening an invalid/corrupt zst file
 TEST_F(CsvZstReaderTest, OpenInvalidZstFile) {
     // Create a file that's not actually zst compressed
     std::ofstream file("test_data/invalid.zst");
@@ -103,38 +113,38 @@ TEST_F(CsvZstReaderTest, OpenInvalidZstFile) {
     file.close();
     
     CsvZstReader reader;
-    // May open successfully but fail on read
-    reader.open("test_data/invalid.zst");
+    // May Open successfully but fail on read
+    reader.Open("test_data/invalid.zst");
     std::string line;
-    EXPECT_FALSE(reader.readLine(line));
+    EXPECT_FALSE(reader.ReadLine(line));
 }
 
 // Test reading multiple lines // MARK: NEED MORE testing
 TEST_F(CsvZstReaderTest, ReadMultipleLines) {
     CsvZstReader reader;
-    ASSERT_TRUE(reader.open(path_to_multilinezst));
+    ASSERT_TRUE(reader.Open(path_to_multilinezst));
     
     std::string line;
     
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "line1");
     
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "line2");
     
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "line3");
     
-    EXPECT_FALSE(reader.readLine(line));
+    EXPECT_FALSE(reader.ReadLine(line));
 }
 
 // // Test reading empty file
 TEST_F(CsvZstReaderTest, ReadEmptyFile) {
     CsvZstReader reader;
-    ASSERT_TRUE(reader.open(path_to_emptyzst));
+    ASSERT_TRUE(reader.Open(path_to_emptyzst));
     
     std::string line;
-    EXPECT_FALSE(reader.readLine(line));
+    EXPECT_FALSE(reader.ReadLine(line));
 }
 
 // // Test file with no trailing newline /// MARK: FAIL!!!!!!!!!!!!!!
@@ -142,34 +152,34 @@ TEST_F(CsvZstReaderTest, ReadFileNoTrailingNewline) {
     createZstFile(path_to_test_data + "notrailingNL", "line1\nline2");
     
     CsvZstReader reader;
-    ASSERT_TRUE(reader.open(path_to_test_data + "notrailingNL"));
+    ASSERT_TRUE(reader.Open(path_to_test_data + "notrailingNL"));
     
     std::string line;
     
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "line1");
     
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "line2");
     
-    EXPECT_FALSE(reader.readLine(line));
+    EXPECT_FALSE(reader.ReadLine(line));
 }
 
 // // Test reading empty lines
 TEST_F(CsvZstReaderTest, ReadEmptyLines) {
     createZstFile(path_to_test_data + "empty_lines.zst", "line1\n\nline3\n");
     CsvZstReader reader;
-    ASSERT_TRUE(reader.open(path_to_test_data + "empty_lines.zst"));
+    ASSERT_TRUE(reader.Open(path_to_test_data + "empty_lines.zst"));
     
     std::string line;
     
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "line1");
     
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "");  
     
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "line3");
 }
 
@@ -179,58 +189,58 @@ TEST_F(CsvZstReaderTest, ReadLongLine) {
     createZstFile(path_to_test_data + "long.zst", long_line + "\n");
     
     CsvZstReader reader;
-    ASSERT_TRUE(reader.open(path_to_test_data + "long.zst"));
+    ASSERT_TRUE(reader.Open(path_to_test_data + "long.zst"));
     
     std::string line;
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, long_line);
 }
 
-// // Test close method
+// // Test Close method
 TEST_F(CsvZstReaderTest, CloseFile) {
     CsvZstReader reader;
-    ASSERT_TRUE(reader.open(path_to_simplezst));
+    ASSERT_TRUE(reader.Open(path_to_simplezst));
     
     std::string line;
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     
-    reader.close();
+    reader.Close();
     
-    // After close, readLine should fail
-    EXPECT_FALSE(reader.readLine(line));
+    // After Close, ReadLine should fail
+    EXPECT_FALSE(reader.ReadLine(line));
 }
 
-// // Test multiple close calls (should be safe)
+// // Test multiple Close calls (should be safe)
 TEST_F(CsvZstReaderTest, MultipleClose) {
     CsvZstReader reader;
-    reader.close();
-    reader.close();  // Should not crash
+    reader.Close();
+    reader.Close();  // Should not crash
     SUCCEED();
 }
 
-// // Test opening file multiple times 
-TEST_F(CsvZstReaderTest, ReopenFile) {
+// // Test Opening file multiple times 
+TEST_F(CsvZstReaderTest, ReOpenFile) {
     CsvZstReader reader;
-    ASSERT_TRUE(reader.open(path_to_multilinezst));
+    ASSERT_TRUE(reader.Open(path_to_multilinezst));
     
     std::string line;
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "line1");
     
-    // Close and reopen
-    reader.close();
-    ASSERT_TRUE(reader.open(path_to_multilinezst));
+    // Close and reOpen
+    reader.Close();
+    ASSERT_TRUE(reader.Open(path_to_multilinezst));
     
     // Should read from beginning again
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "line1");
 }
 
-// Test reading without opening file
+// Test reading without Opening file
 TEST_F(CsvZstReaderTest, ReadWithoutOpen) {
     CsvZstReader reader;
     std::string line;
-    EXPECT_FALSE(reader.readLine(line));
+    EXPECT_FALSE(reader.ReadLine(line));
 }
 
 // // Test destructor cleanup (memory leak test - use valgrind)
@@ -238,7 +248,7 @@ TEST_F(CsvZstReaderTest, DestructorCleanup) {
     
     {
         CsvZstReader reader;
-        reader.open(path_to_multilinezst);
+        reader.Open(path_to_multilinezst);
         // Reader goes out of scope, destructor should clean up
     }
     SUCCEED();  // If no crash/leak, test passes
@@ -252,25 +262,25 @@ TEST_F(CsvZstReaderTest, ReadCsvContent) {
     createZstFile(path_to_test_data + "csvdata.zst", csv);
     
     CsvZstReader reader;
-    ASSERT_TRUE(reader.open(path_to_test_data + "csvdata.zst"));
+    ASSERT_TRUE(reader.Open(path_to_test_data + "csvdata.zst"));
     
     std::string line;
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "name,age,city");
     
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "Alice,30,NYC");
     
-    EXPECT_TRUE(reader.readLine(line));
+    EXPECT_TRUE(reader.ReadLine(line));
     EXPECT_EQ(line, "Bob,25,LA");
 }
 
 TEST_F(CsvZstReaderTest, ReadRealMBOFile) {
     CsvZstReader reader;
-    reader.open(path_to_test_data + "futures_mbo.csv.zst");
+    reader.Open(path_to_test_data + "futures_mbo.csv.zst");
     int lines = 0;
     std::string line;
-     while (reader.readLine(line)) {  // This returns bool
+     while (reader.ReadLine(line)) {  // This returns bool
         lines++;  // Need to increment inside the loop
     }
     EXPECT_EQ(lines, 21);  // Known sample size

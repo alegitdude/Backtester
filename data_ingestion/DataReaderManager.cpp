@@ -70,14 +70,13 @@ bool DataReaderManager::LoadNextEventForSymbol(const std::string& symbol) {
 
     if(!reader.ReadLine(raw_line)){
         spdlog::info("End of data for symbol: " + symbol);
-        // clean up resources?? TODO reader.close()
-        // readers_.erase(symbol);
+        // readers_.erase(symbol); TODO
         reader.Close(); 
         return false;
     }
 
     std::unique_ptr<MarketByOrderEvent> event_ptr;
-    std::cout << "Yup" + std::to_string(static_cast<int>(readers_[symbol].config.schema)) << std::endl;
+    //std::cout << "Yup" + std::to_string(static_cast<int>(readers_[symbol].config.schema)) << std::endl;
     if(readers_[symbol].config.schema == DataSchema::MBO){
         std::cout << raw_line << std::endl;
        event_ptr = ParseMboLineToEvent(symbol, raw_line);
