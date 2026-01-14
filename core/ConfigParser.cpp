@@ -1,11 +1,55 @@
 #include "ConfigParser.h"
-#include "../../../utils/TimeUtils.h"
+#include "../utils/TimeUtils.h"
 #include "Types.h"
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <string>
-   
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+
 namespace backtester{
+
+std::vector<Symbol> ParseDataSymbols(const std::string& filepath){
+        std::vector<Symbol> instruments;
+        
+        std::ifstream file(filepath, std::ios::in);
+
+        if (!file.is_open()) {
+            std::cerr << "Could not open the file!" << std::endl;
+            return instruments;
+        }
+
+        std::string line;
+		uint32_t count = 0;
+        while (std::getline(file, line)) {
+            std::stringstream ss(line);
+            std::string symbol, instrument, date;
+            Symbol row;
+			count++;
+			if(count == 1) {continue;}
+            if (std::getline(ss, symbol, ',') &&
+                std::getline(ss, instrument, ',') &&
+                std::getline(ss, date)) { 
+                
+                 try {
+                    row.symbol = symbol;
+                    row.instrument_id = static_cast<uint32_t>(std::stoul(instrument));
+                    row.date = date;
+                    
+                    instruments.push_back(row);
+                } catch (const std::exception& e) {
+                    // Handles cases where column 2 is not a valid number
+                    std::cerr << "Skipping row due to conversion error: " << e.what() << std::endl;
+                }
+            }
+        }
+
+        file.close();
+        return instruments;
+}
 
 AppConfig ParseConfigToObj(std::filesystem::path& config_path){
 	using json = nlohmann::json;
@@ -38,8 +82,8 @@ AppConfig ParseConfigToObj(std::filesystem::path& config_path){
 
 	for (const auto& item : data["data_streams"]) {
 		DataSourceConfig data_config;
-		data_config.symbol = item["symbol"];
-		data_config.filepath = item["filepath"];
+		data_config.data_symbology = ParseDataSymbols(item["symbol_filepath"]);
+		data_config.data_filepath = item["data_filepath"];
 		data_config.schema = StrToDataSchema(item["schema"]);
 		data_config.encoding = StrToEncoding(item["encoding"]);
 		data_config.compression = StrToCompression(item["compression"]);
@@ -47,7 +91,12 @@ AppConfig ParseConfigToObj(std::filesystem::path& config_path){
 		data_config.ts_format = StrToTSFormat(item["timestamp_format"]); 
 		config.data_streams.push_back(data_config);
 	};
-	
+
+	for(const auto& data_stream : config.data_streams){
+		for(const auto& symbology : data_stream.data_symbology){
+			config.active_instruments.push_back(symbology.instrument_id);
+		}
+	}
 	return config;
 };
 

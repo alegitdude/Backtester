@@ -6,6 +6,8 @@ namespace backtester {
 
 AppConfig ParseConfigToObj(std::filesystem::path& config_path); 
 
+std::vector<Symbol> ParseDataSymbols(const std::string& filepath);
+
 inline DataSchema StrToDataSchema(const std::string& str) {
   if (str == "MBO" || str == "mbo") return DataSchema::MBO;
   if (str == "OHLCV" || str == "ohlcv") return DataSchema::OHLCV;

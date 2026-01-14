@@ -28,7 +28,7 @@ int Backtester::RunLoop(const AppConfig& config) {
             // execution_handler_.check_pending_strategy_orders_for_fills(
             //     market_state_manager.get_OB_snapshot());
             
-            data_reader_manager_.LoadNextEventForSymbol(market_event->symbol);
+            data_reader_manager_.LoadNextEventFromSource(market_event->data_source);
         }            
 
         if(isStrategyEvent(eventType)){

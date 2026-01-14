@@ -13,25 +13,20 @@ bool DataReaderManager::RegisterAndInitStreams(
     const std::vector<DataSourceConfig>& data_sources) {
   
     for(DataSourceConfig source : data_sources){
-        std::string symbol = source.symbol;       
-        std::string path = source.filepath;      
-
-        if (symbol.empty()) {
-            std::cerr << "Error: Empty symbol" << std::endl;
-            return false;
-        }
+        std::string source_name = source.data_source_name;      
+        std::string data_filepath = source.data_filepath;      
         
-        if (!std::filesystem::exists(path)) {
-            std::cerr << "Error: File not found: " << path << std::endl;
+        if (!std::filesystem::exists(data_filepath)) {
+            std::cerr << "Error: File not found: " << data_filepath << std::endl;
             return false;
         }
 
         std::unique_ptr<CsvZstReader> reader = std::make_unique<CsvZstReader>();
 
-        if(!reader->Open(path)){
-            std::string failure = "Failed to open reader for: " + symbol;
+        if(!reader->Open(data_filepath)){
+            std::string failure = "Failed to open reader for: " + source_name;
             std::cerr << failure << std::endl;
-            spdlog::error(failure + "at " + path);
+            spdlog::error(failure + "at " + data_filepath);
             return false;
         }   
 
@@ -40,18 +35,17 @@ bool DataReaderManager::RegisterAndInitStreams(
         reader->ReadLine(header_line);
 
         if(header_line != kExpectedMboHeader){
-            std::string failure = "Incorrect header format for " + symbol;
+            std::string failure = "Incorrect header format for " + source_name;
             std::cerr << failure << std::endl;
-            spdlog::error(failure + "at " + path);
+            spdlog::error(failure + "at " + data_filepath);
             return false;
         }
-
-        // 3. Store the active reader
-        readers_[symbol] = {std::move(reader), source};
+        // 3. Store the active reader 
+        readers_[source_name] = {std::move(reader), source};
 
         // 4. Load the very first event to start the queue
-        if(!LoadNextEventForSymbol(symbol)) 
-             spdlog::warn("Symbol " + symbol + " has no events.");
+        if(!LoadNextEventFromSource(source_name)) 
+             spdlog::warn("Symbol " + source_name + " has no events.");
     }
 
     std::cout << "Data readers initialized" << std::endl;;      
@@ -60,26 +54,24 @@ bool DataReaderManager::RegisterAndInitStreams(
 
 // MARK: LoadNextEventForSymbol
 
-bool DataReaderManager::LoadNextEventForSymbol(const std::string& symbol) {
-    if(readers_.find(symbol) == readers_.end()){
+bool DataReaderManager::LoadNextEventFromSource(const std::string& source_name) {
+    if(readers_.find(source_name) == readers_.end()){
         return false;  // Reader was already closed or not registered
     }       
 
-    CsvZstReader& reader = *readers_[symbol].reader;
+    CsvZstReader& reader = *readers_[source_name].reader;
     std::string raw_line;
 
     if(!reader.ReadLine(raw_line)){
-        spdlog::info("End of data for symbol: " + symbol);
+        spdlog::info("End of data for symbol: " + source_name);
         // readers_.erase(symbol); TODO
         reader.Close(); 
         return false;
     }
 
     std::unique_ptr<MarketByOrderEvent> event_ptr;
-    //std::cout << "Yup" + std::to_string(static_cast<int>(readers_[symbol].config.schema)) << std::endl;
-    if(readers_[symbol].config.schema == DataSchema::MBO){
-        std::cout << raw_line << std::endl;
-       event_ptr = ParseMboLineToEvent(symbol, raw_line);
+    if(readers_[source_name].config.schema == DataSchema::MBO){
+       event_ptr = ParseMboLineToEvent(source_name, raw_line);
     // } else if (readers_[symbol].schema == DataSchema::OHLCV){ // TODO
     //     event_ptr = ParseOhlcvLineToEvent(symbol, raw_line);
     } else {
@@ -97,10 +89,10 @@ bool DataReaderManager::LoadNextEventForSymbol(const std::string& symbol) {
 // MARK:  ParseMboLineToEvent
 
 std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
-    const std::string& symbol, 
+    const std::string& data_source_name, 
     const std::string& line) {
 
-    DataSourceConfig config = readers_[symbol].config;
+    DataSourceConfig config = readers_[data_source_name].config;
 
     std::string_view current_view(line);
     size_t pos = 0;
@@ -113,6 +105,7 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
     uint8_t flags;
     int32_t ts_in_delta; 
     int64_t price;
+    std::string symbol;
 
     for (int i = 1; i <= 15; ++i) { 
         std::string_view token = GetNextToken(pos, current_view);
@@ -152,19 +145,17 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
                 break;
 
             case 8: // price (int64_t)
-                if(action == EventType::kMarketOrderClear) break;
+                if(action == EventType::kMarketOrderClear) { price = 0; break;} 
                 if (token.empty()) throw std::runtime_error("Field 8 empty.");
 
-                if(readers_[symbol].config.price_format == PriceFormat::DECIMAL){
+                if(config.price_format == PriceFormat::DECIMAL){
                     double raw_price;
                     std::from_chars(token.data(), token.data() + token.size(), raw_price);
                     raw_price *= 100;
                     price = raw_price;
                     break;
                 } else {
-                    uint32_t raw_price;
-                    std::from_chars(token.data(), token.data() + token.size(), raw_price);
-                    price = raw_price;
+                    std::from_chars(token.data(), token.data() + token.size(), price);       
                     break;
                 }
                 
@@ -197,6 +188,8 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
                 break;
 
             case 15: // potentially symbol added
+                if (token.empty()) throw std::runtime_error("Field 15 empty.");
+                symbol = token;
                 break;
 
             default:
@@ -207,9 +200,9 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
 
     std::unique_ptr<MarketByOrderEvent> event_ptr = 
         std::make_unique<MarketByOrderEvent>(
-            ts_recv, 
-            action,
             ts_event, 
+            action,
+            ts_recv, 
             publisher_id,
             instrument_id,
             side,
@@ -219,7 +212,8 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
             flags,
             ts_in_delta,
             sequence,
-            symbol
+            symbol,
+            data_source_name
         );
 
     return event_ptr;

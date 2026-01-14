@@ -15,7 +15,7 @@ class DataReaderManager {
     DataReaderManager(EventQueue& queue) : event_queue_(queue) {}
 
     bool RegisterAndInitStreams(const std::vector<DataSourceConfig>& file_paths);
-    bool LoadNextEventForSymbol(const std::string& symbol);
+    bool LoadNextEventFromSource(const std::string& source_name);
 
  private:
     std::unordered_map<std::string, DataStream>readers_;

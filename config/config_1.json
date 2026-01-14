@@ -14,8 +14,9 @@
 
 		"data_streams" : [
 			{
-				"symbol" : "ES", 
-				"filepath" : "../test/test_data/futures_mbo.csv.zst", 
+				"data_source_name" : "ES",
+				"symbology_filepath" : "ES", 
+				"data_filepath" : "../test/test_data/futures_mbo.csv.zst", 
 				"encoding" : "CSV",
 				"schema" : "MBO",
 				"compression" : "ZSTD",
@@ -23,4 +24,5 @@
 				"timestamp_format" : "iso"			
 			}
 		]
+
 }

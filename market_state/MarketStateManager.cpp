@@ -2,29 +2,42 @@
 
 namespace backtester {
 
-void MarketStateManager::OnMarketEvent(const MarketByOrderEvent& event) {
-        order_book_.OnEvent(event);
+void MarketStateManager::Initialize(const std::vector<uint32_t>& active_ids) {
+        // 1. Reserve memory to prevent re-allocation/pointer invalidation
+        instrument_store_.reserve(active_ids.size());
+        
+        // 2. Determine max ID to size the lookup table
+        uint32_t max_id = 0;
+        for(auto id : active_ids) if(id > max_id) max_id = id;
 
-        // 2. Update BBO/WMP from the new book state.
-        //    (OrderBook needs to return a 'BookUpdate' struct or similar)
-    //     if (order_book_.has_changed()) {
-    //         bbo_cache_.update(order_book_.get_bbo());
-    //         wmp_calculator_.update(bbo_cache_.get_bid(), bbo_cache_.get_bid_size(),
-    //                                bbo_cache_.get_ask(), bbo_cache_.get_ask_size());
-    //     }
+        // 3. Resize lookup table (filled with nullptr initially)
+        // This vector maps: instrument_id -> pointer to State
+        lookup_table_.resize(max_id + 1, nullptr);
 
-    //     // 3. Update trade-based metrics if this event was a trade.
-    //     if (event.action == 'F') { // 'F' for Fill/Trade
-    //         vwap_.update(event.price, event.quantity);
-    //         last_trade_.update(event.price, event.quantity);
-    //         total_volume_.update(event.quantity);
-    //         volatility_.update(event.price, event.timestamp);
-    //     }
-
-    //     // 4. Update flow-based metrics on all events.
-    //     order_flow_.update(event);
-
-    //     // 5. Update system stats (ALWAYS LAST)
-    //     latency_tracker_.update_system_latency(event.timestamp);
+        // 4. Create the states and populate the lookup table
+        for (uint32_t id : active_ids) {
+            // Create the state object in the contiguous storage
+            instrument_store_.emplace_back(); 
+            
+            // Point the lookup slot to this new object
+            lookup_table_[id] = &instrument_store_.back();
+        }
     }
+
+void MarketStateManager::OnMarketEvent(const MarketByOrderEvent& event) {
+        InstrumentState* state = nullptr;
+        state = GetOrCreateInstrumentState(event.instrument_id);
+
+        state->OnMarketEvent(event);
+}
+
+const std::vector<BidAskPair> MarketStateManager::GetOBSnapshot(
+        uint32_t instrument_id, uint16_t publisher_id, 
+        std::size_t level_count) {
+    static const std::vector<BidAskPair> EMPTY_SNAPSHOT;
+    
+    const InstrumentState* instrument = GetInstrumentState(instrument_id);
+    return instrument ? instrument->GetOBSnapshotByPub(publisher_id, level_count) : EMPTY_SNAPSHOT;
+}
+
 }

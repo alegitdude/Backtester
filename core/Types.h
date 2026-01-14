@@ -32,9 +32,16 @@ enum class TmStampFormat {
     ISO
 };
 
-struct DataSourceConfig {
+struct Symbol {
     std::string symbol;
-    std::string filepath;
+    uint32_t instrument_id;
+    std::string date;
+};
+
+struct DataSourceConfig {
+    std::string data_source_name; // can be anything but needed to differentiate sources
+    std::vector<Symbol> data_symbology;
+    std::string data_filepath;
     DataSchema schema;
     Encoding encoding;
     Compression compression;
@@ -61,6 +68,7 @@ struct AppConfig {
     std::string traded_symbol;
     // symbol, filepath, schema
     std::vector<DataSourceConfig> data_streams;
+    std::vector<uint32_t> active_instruments; 
 
 };
 

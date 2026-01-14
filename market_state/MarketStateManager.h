@@ -1,5 +1,6 @@
 #pragma once
 #include "../core/Event.h"
+#include "InstrumentState.h"
 #include "OrderBook.h"
 #include <iostream>
 
@@ -9,35 +10,47 @@ class MarketStateManager{
  public:
 	MarketStateManager() = default;
 
-    void OnMarketEvent(const MarketByOrderEvent& event);
+    void Initialize(const std::vector<uint32_t>& active_ids);
 
-    const std::vector<BidAskPair> GetOBSnapshot(int levels) const { return order_book_.GetSnapshot(levels); }
-    // double get_vwap() const { return vwap_.get_vwap(); }
-    // const Bbo& get_bbo() const { return bbo_cache_.get_bbo(); }
-    // double get_weighted_mid_price() const { return wmp_calculator_.get_wmp(); }
-    // double get_realized_volatility() const { return volatility_.get_vol(); }
-    // double get_p99_latency_ns() const { return latency_tracker_.get_p99(); }
+    void OnMarketEvent(const MarketByOrderEvent& event) ; 
+
+    const std::vector<BidAskPair> GetOBSnapshot(
+        uint32_t instrument_id, uint16_t publisher_id, 
+        std::size_t level_count = 1) ;
+    //std::vector<BidAskPair> GetAggOBSnapshot
+ private:
+
+    std::vector<InstrumentState> instrument_store_;
+    std::vector<InstrumentState*> lookup_table_;
+
+    std::unordered_map<uint32_t, InstrumentState> surprise_instruments_;
     
+    inline InstrumentState* GetOrCreateInstrumentState(uint32_t id) {
+        if (id < lookup_table_.size() && lookup_table_[id]) {
+            return lookup_table_[id];
+        }
 
-private:
-    OrderBook order_book_;
+        auto it = surprise_instruments_.find(id);
+        if (it != surprise_instruments_.end()) {
+            return &it->second;
+        }
 
-    // // L1 / Microstructure
-    // BboCache bbo_cache_;
-    // WeightedMidPriceCalculator wmp_calculator_;
-    
-    // // Trade Metrics
-    // VwapCalculator vwap_;
-    // LastTradeTracker last_trade_;
-    // TotalVolumeTracker total_volume_;
+        return &surprise_instruments_[id];
+    }
 
-    // // Flow Metrics
-    // OrderFlowTracker order_flow_;
-    // RealizedVolCalculator volatility_; // trade- or midprice-driven
+    const inline InstrumentState* GetInstrumentState(uint32_t id) const {
+        if (id < lookup_table_.size() && lookup_table_[id]) {
+            return lookup_table_[id];
+        }
 
-    // // System Metrics
-    // SystemLatencyTracker latency_tracker_;
+        auto it = surprise_instruments_.find(id);
+        if (it != surprise_instruments_.end()) {
+            return &it->second;
+        }
 
+        return nullptr; 
+    }
 };
+
 };
 

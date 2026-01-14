@@ -24,7 +24,7 @@ class OrderBook {
     const MarketByOrderEvent& GetOrder(uint64_t order_id);
     uint32_t GetQueuePos(uint64_t order_id);
 
-    std::vector<BidAskPair> GetSnapshot(std::size_t level_count = 1) const ;
+    const std::vector<BidAskPair> GetSnapshot(std::size_t level_count = 1) const ;
     void OnEvent(const MarketByOrderEvent& mbo) {Apply(mbo);};
     void Apply(const MarketByOrderEvent& mbo);
 
@@ -62,7 +62,9 @@ private:
 
     inline LevelQueue& GetOrInsertLevel(OrderSide side, int64_t price) {
         SideLevels &levels = GetSideLevels(side);
-        /// auto creates key if doesn't exist
+        if(levels[price].price != price){
+            levels[price].price = price;
+        }
         return levels[price];
     }
 

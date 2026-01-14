@@ -4,3 +4,5 @@ build/
 Backtester
 cmake-build-debug/
 logs/*
+test/test_data/ES-glbx-20251105.mbp-10.csv.zst
+test/test_data/ES-glbx-20251105.mbo.csv.zst

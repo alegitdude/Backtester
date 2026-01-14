@@ -65,21 +65,22 @@ public:
 struct MarketByOrderEvent : Event {
  public:
     MarketByOrderEvent(
-        uint64_t ts_recv, 
-        EventType type, // action
         uint64_t ts_event, 
+        EventType type, // action
+        uint64_t ts_recv,         
         uint16_t publisher_id, 
         uint32_t instrument_id,
         OrderSide side, 
-        double price, // converted
+        int64_t price, // converted
         uint32_t size,
         uint64_t order_id, 
         uint8_t flags, 
         int32_t ts_in_delta, 
         uint32_t sequence,
-        std::string symbol
-    ) : Event(ts_recv, type), // ts_recv as primary timestamp for Event 
-        ts_event(ts_event), 
+        std::string symbol,
+        std::string data_source
+    ) : Event(ts_event, type), // ts_event
+        ts_recv(ts_recv), 
         publisher_id(publisher_id), 
         instrument_id(instrument_id),
         side(side), 
@@ -89,11 +90,12 @@ struct MarketByOrderEvent : Event {
         flags(flags), 
         ts_in_delta(ts_in_delta), 
         sequence(sequence),
-        symbol(symbol) {}
+        symbol(symbol),
+        data_source(data_source) {}
 
     virtual ~MarketByOrderEvent() = default;
 
-    uint64_t ts_event;      // Capture-server-received timestamp
+    uint64_t ts_recv;      // Capture-server-received timestamp
     uint16_t publisher_id;  // Databento publisher ID
     uint32_t instrument_id; // Numeric instrument ID (Databento's ID for the asset)
     OrderSide side;         // raw char converted
@@ -104,6 +106,7 @@ struct MarketByOrderEvent : Event {
     int32_t ts_in_delta;    // Matching-engine-sending timestamp relative to ts_recv
     uint32_t sequence;      // Sequence number
     std::string symbol;
+    std::string data_source;
 
 };
 
@@ -126,17 +129,6 @@ struct MarketByOrderEvent : Event {
 //     ) : Event(ts_event, )
 //  private: 
 // }
-
-
-
-
-
-
-
-
-
-
-
 
 
 

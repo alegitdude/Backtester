@@ -1,8 +1,16 @@
 #pragma once
+#include "OrderBook.h"
 #include <cstdint>
 #include <limits>
 
+namespace backtester {
+
 static constexpr auto kUndefPrice = std::numeric_limits<std::int64_t>::max();
+
+//  struct PublisherBook {
+//     uint16_t publisher_id;
+//     OrderBook book;
+//   };
 
 struct LevelQueue {
     int64_t price{kUndefPrice};
@@ -27,4 +35,15 @@ struct BidAskPair {
     std::uint32_t ask_sz;
     std::uint32_t bid_ct;
     std::uint32_t ask_ct;
+
+    bool operator==(const BidAskPair& bap2) const {
+        return bid_px == bap2.bid_px &&
+                ask_px == bap2.ask_px &&
+                bid_sz == bap2.bid_sz &&
+                ask_sz == bap2.ask_sz &&
+                bid_ct == bap2.bid_ct &&
+                ask_ct == bap2.ask_ct;
+    }
 };
+
+}
