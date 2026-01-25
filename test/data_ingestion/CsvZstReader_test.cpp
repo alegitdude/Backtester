@@ -1,4 +1,4 @@
-#include "../../data_ingestion/CsvZstReader.h"
+#include "../../include/data_ingestion/CsvZstReader.h"
 #include <gtest/gtest.h>
 #include <chrono>
 #include <fstream>
@@ -119,7 +119,7 @@ TEST_F(CsvZstReaderTest, OpenInvalidZstFile) {
     EXPECT_FALSE(reader.ReadLine(line));
 }
 
-// Test reading multiple lines // MARK: NEED MORE testing
+// Test reading multiple lines // 
 TEST_F(CsvZstReaderTest, ReadMultipleLines) {
     CsvZstReader reader;
     ASSERT_TRUE(reader.Open(path_to_multilinezst));
@@ -147,7 +147,7 @@ TEST_F(CsvZstReaderTest, ReadEmptyFile) {
     EXPECT_FALSE(reader.ReadLine(line));
 }
 
-// // Test file with no trailing newline /// MARK: FAIL!!!!!!!!!!!!!!
+// // Test file with no trailing newline 
 TEST_F(CsvZstReaderTest, ReadFileNoTrailingNewline) {
     createZstFile(path_to_test_data + "notrailingNL", "line1\nline2");
     

@@ -40,15 +40,15 @@ FetchContent_MakeAvailable(googletest)
 
 FetchContent_MakeAvailable(databento json spdlog ryml)
   
-add_executable(Backtester main.cpp data_ingestion/CsvZstReader.cpp 
-data_ingestion/DataReaderManager.cpp core/EventQueue.cpp core/ConfigParser.cpp 
-utils/TimeUtils.cpp core/Backtester.cpp market_state/MarketStateManager.cpp
-market_state/OrderBook.cpp market_state/InstrumentState.cpp)
+add_executable(Backtester src/main.cpp src/data_ingestion/CsvZstReader.cpp 
+src/data_ingestion/DataReaderManager.cpp src/core/EventQueue.cpp src/core/ConfigParser.cpp 
+src/utils/TimeUtils.cpp src/core/Backtester.cpp src/market_state/MarketStateManager.cpp
+src/market_state/OrderBook.cpp src/market_state/InstrumentState.cpp)
 
-add_executable(tests test/market_state/OrderBook_test.cpp data_ingestion/CsvZstReader.cpp
-market_state/OrderBook.cpp data_ingestion/DataReaderManager.cpp core/EventQueue.cpp
-market_state/MarketStateManager.cpp market_state/InstrumentState.cpp core/ConfigParser.cpp
-utils/TimeUtils.cpp)
+add_executable(tests test/core/ConfigParser_test.cpp src/data_ingestion/CsvZstReader.cpp
+src/market_state/OrderBook.cpp src/data_ingestion/DataReaderManager.cpp src/core/EventQueue.cpp
+src/market_state/MarketStateManager.cpp src/market_state/InstrumentState.cpp src/core/ConfigParser.cpp
+src/utils/TimeUtils.cpp)
 
 target_link_libraries(tests GTest::gtest_main zstd spdlog nlohmann_json::nlohmann_json)
 target_link_libraries(Backtester PRIVATE databento::databento nlohmann_json::nlohmann_json spdlog ryml::ryml)
