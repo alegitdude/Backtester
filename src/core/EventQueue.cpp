@@ -37,7 +37,6 @@ size_t EventQueue::size() const {
     return pq_.size();
 }
 
-// Clear all events from the queue (for resetting)
 void EventQueue::clear() {
     pq_ = std::vector<std::unique_ptr<Event>>();
 }

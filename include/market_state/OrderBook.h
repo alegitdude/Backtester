@@ -13,9 +13,8 @@ namespace backtester {
 
 class OrderBook {
  public:
-    inline std::pair<PriceLevel, PriceLevel> Bbo() const {
-        return {GetBidLevel(), GetAskLevel()};
-    }
+    inline const Bbo GetBbo() {return bbo_cache_;}
+    int64_t GetMidPrice();
 
     PriceLevel GetBidLevel(std::size_t idx = 0) const;
     PriceLevel GetAskLevel(std::size_t idx = 0) const;
@@ -29,6 +28,7 @@ class OrderBook {
     void Apply(const MarketByOrderEvent& mbo);
 
 private:
+    Bbo bbo_cache_;
     ///Level orders -> SideLevels -> bids or offers: map of price with vector or mbo msgs
     //using LevelOrders = std::vector<MarketByOrderEvent>;
     using SideLevels = std::map<int64_t, LevelQueue>;
@@ -52,6 +52,7 @@ private:
     /////////////////////////////////////////////////////////
     /////////////////// Methods /////////////////////////////
     /////////////////////////////////////////////////////////
+
     inline PriceLevel GetPriceLevel(const LevelQueue& level) const {
         return PriceLevel{
                 level.price,        
@@ -82,6 +83,8 @@ private:
           }
       }
     }
+
+    void UpdateBboCache();
 
     LevelQueue& GetLevel(OrderSide side, int64_t price);
 

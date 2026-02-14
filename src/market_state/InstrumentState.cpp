@@ -13,6 +13,7 @@ void InstrumentState::OnMarketEvent(const MarketByOrderEvent& event) {
     }
     it->second.Apply(event);
 
+    UpdateInstrumentBbo();
         // 2. Update BBO/WMP from the new book state.
         //    (OrderBook needs to return a 'BookUpdate' struct or similar)
     //     if (order_book_.has_changed()) {
@@ -34,6 +35,18 @@ void InstrumentState::OnMarketEvent(const MarketByOrderEvent& event) {
 
     //     // 5. Update system stats (ALWAYS LAST)
     //     latency_tracker_.update_system_latency(event.timestamp);
+}
+
+void InstrumentState::UpdateInstrumentBbo(){
+    for (auto& [publisher, book] : books_) {
+        instrument_Bbo_.ask_price = std::min(book.GetBbo().ask_price, 
+            instrument_Bbo_.ask_price);
+        instrument_Bbo_.bid_price = std::max(book.GetBbo().bid_price, 
+            instrument_Bbo_.bid_price);
+    }
+    if(instrument_Bbo_.bid_price > instrument_Bbo_.ask_price){
+        throw std::logic_error("bid price is higher than ask price?");
+    }
 }
 
 const std::vector<BidAskPair> InstrumentState::GetOBSnapshotByPub(

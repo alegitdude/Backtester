@@ -32,6 +32,17 @@ enum class TmStampFormat {
     ISO
 };
 
+enum class InstrumentType {
+    FUT,
+    STOCK,
+    OPTION
+};
+
+enum class RiskMode {
+    PosSizeInDollars,    // max_position_size in dollars
+    PercentOfAcct       // max pct of account per trade
+};
+
 struct Symbol {
     std::string symbol;
     uint32_t instrument_id;
@@ -54,22 +65,63 @@ struct DataStream {
     DataSourceConfig config;
 };
 
+struct Strategy {
+    std::string name;
+    std::vector<int> params;
+    int max_lob_lvl; // If strat only needs current price, lvl is 1, 
+                     // otherwise how many levels strat is doing calculations on
+};
+
+struct TradedInstrument {
+    uint32_t instrument_id;
+    InstrumentType instrument_type;
+    int64_t tick_size;
+    int64_t tick_value;
+    int64_t margin_req;
+};
+
+struct RiskLimits {
+    RiskMode risk_mode;
+    
+    // Position-based limits (used if mode == PositionLimit)
+    int64_t max_position_size = 0;            // Max contracts/shares per instrument, 0 = no limit
+    
+    // Risk-based limits (used if mode == RiskPercent)
+    int64_t max_risk_per_trade_pct = 20'000'000;     // Max 2% of equity at risk per trade
+    
+    // Always enforced
+    int64_t max_portfolio_delta = 0;         // Max total absolute delta, 0 = no limit
+    int64_t max_drawdown_pct = 10'000'000;           // 10% circuit breaker
+    int64_t max_delta_per_trade = 50000;     // Max dollar delta added per trade
+};
+
 struct AppConfig {
-    long long start_time; //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
-    long long end_time;  //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
-    int execution_latency = 500000;
-    int initial_cash = 100000;
+    uint64_t start_time; //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
+    uint64_t end_time;  //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
+    uint32_t execution_latency_ms = 200;
+    int64_t initial_cash = 100000;
     std::string log_file_path;
     std::string report_output_dir;
-    std::string strategy_name = "defaultStrat";
-    // strategy_params: {
-    //     "some_param": "5"
-    // },
-    std::string traded_symbol;
-    // symbol, filepath, schema
-    std::vector<DataSourceConfig> data_streams;
+    std::vector<Strategy> strategies;
+    uint32_t max_lob_lvl;
+    std::vector<TradedInstrument> traded_instruments;
+    RiskLimits risk_limits;
+    std::vector<DataSourceConfig> data_configs;
     std::vector<uint32_t> active_instruments; 
+};
 
+struct Position {
+    uint32_t instrument_id = 0;
+    int64_t quantity = 0;   // Signed: positive = long, negative = short
+    int64_t avg_entry_price = 0;
+    uint64_t last_update_ts = 0;
+
+    double UnrealizedPnL(double currentPrice){
+        return quantity * (currentPrice - avg_entry_price);
+    }
+    bool IsFlat() const { return quantity == 0; }
+    bool IsLong() const { return quantity > 0; }
+    bool IsShort() const { return quantity < 0; }
 };
 
 enum class DataInterval{
@@ -82,7 +134,7 @@ enum class DataInterval{
 
 
 struct Trade {
-    double entryPrice, exitPrice;
+    int64_t entryPrice, exitPrice;
     long entryTime, exitTime;
     int quantity;
 };

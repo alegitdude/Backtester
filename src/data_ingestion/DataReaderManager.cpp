@@ -151,7 +151,7 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
                 if(config.price_format == PriceFormat::DECIMAL){
                     double raw_price;
                     std::from_chars(token.data(), token.data() + token.size(), raw_price);
-                    raw_price *= 100;
+                    raw_price *= 1000000000;
                     price = raw_price;
                     break;
                 } else {

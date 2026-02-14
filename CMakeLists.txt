@@ -48,7 +48,7 @@ src/market_state/OrderBook.cpp src/market_state/InstrumentState.cpp)
 add_executable(tests test/core/ConfigParser_test.cpp src/data_ingestion/CsvZstReader.cpp
 src/market_state/OrderBook.cpp src/data_ingestion/DataReaderManager.cpp src/core/EventQueue.cpp
 src/market_state/MarketStateManager.cpp src/market_state/InstrumentState.cpp src/core/ConfigParser.cpp
-src/utils/TimeUtils.cpp)
+src/utils/TimeUtils.cpp include/core/Constants.h src/utils/NumericUtils.cpp src/utils/StringUtils.cpp)
 
 target_link_libraries(tests GTest::gtest_main zstd spdlog nlohmann_json::nlohmann_json)
 target_link_libraries(Backtester PRIVATE databento::databento nlohmann_json::nlohmann_json spdlog ryml::ryml)

@@ -6,13 +6,10 @@
 
 
 namespace backtester {
-/*  LevelOrders = std::vector<MarketByOrderEvent>; vector of orders
-    SideLevels = std::map<int64_t, LevelOrders>; price , all the orders
-    PriceLevel = price, size, count
+  int64_t OrderBook::GetMidPrice(){
+    return ((bbo_cache_.ask_price - bbo_cache_.bid_price) / 2) + bbo_cache_.bid_price;
+  }
 
-    SideLevels offers_; all the offers prices and orders
-    SideLevels bids_; all the bids prices and orders 
-    */
 ///////////////////////////////////////////////////////////////////
 /////////////////////////// Getters ///////////////////////////////
 ///////////////////////////////////////////////////////////////////
@@ -161,9 +158,13 @@ void OrderBook::Apply(const MarketByOrderEvent& mbo) {
                                     std::to_string(mbo.type)};
         }
     }
+    UpdateBboCache();
 }
 /////////// Private
-
+void OrderBook::UpdateBboCache() {
+  bbo_cache_.bid_price = GetBidLevel().price;
+  bbo_cache_.ask_price = GetAskLevel().price; 
+}
 
 std::vector<MarketByOrderEvent>::iterator OrderBook::GetLevelOrder(
        std::vector<MarketByOrderEvent>& level_orders, uint64_t order_id) {

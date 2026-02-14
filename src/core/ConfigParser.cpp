@@ -1,6 +1,8 @@
 #include "../../include/core/ConfigParser.h"
 #include "../../include/utils/TimeUtils.h"
+#include "../../include/utils/NumericUtils.h"
 #include "../../include/core/Types.h"
+#include "../../include/core/DefaultConfig.h"
 #include "spdlog/spdlog.h"
 #include <fstream>
 #include <string>
@@ -55,13 +57,13 @@ AppConfig ParseConfigFromJson(const nlohmann::json& data){
 	std::vector<std::string> errors;
     std::vector<std::string> warnings;
     
-    for (const auto& field : kRequiredFields) {
+    for (const auto& field : kRequiredConfigFields) {
         if (!data.contains(field)) {
             errors.push_back("Missing required field: '" + field + "'");
         }
     }
     
-    for (const auto& field : kOptionalFields) {
+    for (const auto& field : kOptionalConfigFields) {
         if (!data.contains(field)) {
             warnings.push_back("'" + field + "' not specified, using default");
         }
@@ -103,13 +105,15 @@ AppConfig ParseConfigFromJson(const nlohmann::json& data){
 	config.start_time = time::ParseIsoToUnix(data["start_time"]); // TODO Double check est
 	config.end_time = time::ParseIsoToUnix(data["end_time"]); // TODO Double check est
 
-	config.execution_latency = data["execution_latency"];
+	config.execution_latency_ms = data["execution_latency"];
 	config.initial_cash = data["initial_cash"];
 	config.log_file_path = data["log_file_path"];
 	config.report_output_dir = data["report_output_dir"];
 	
-	config.strategy_name = data["strategy_name"];
-	config.traded_symbol = data["traded_symbol"];	
+	config.strategies = ParseStrategies(data["strategies"]);
+	config.traded_instruments = ParseTradedInstrs(data["traded_instruments"]);	
+
+	config.risk_limits = ParseRiskLimits(data["risk_limits"]);
 
 	for (const auto& item : data["data_streams"]) {
 		DataSourceConfig data_config;
@@ -121,10 +125,10 @@ AppConfig ParseConfigFromJson(const nlohmann::json& data){
 		data_config.compression = StrToCompression(item["compression"]);
 		data_config.price_format = StrToPriceFormat(item["price_format"]);
 		data_config.ts_format = StrToTSFormat(item["timestamp_format"]); 
-		config.data_streams.push_back(data_config);
+		config.data_configs.push_back(data_config);
 	};
 
-	for(const auto& data_stream : config.data_streams){
+	for(const auto& data_stream : config.data_configs){
 		for(const auto& symbology : data_stream.data_symbology){
 			config.active_instruments.push_back(symbology.instrument_id);
 		}
@@ -153,6 +157,66 @@ AppConfig ParseConfigToObj(std::filesystem::path& config_path){
 		throw std::runtime_error("Config file is not valid JSON at: " + config_path.generic_string());
 	}
 	return ParseConfigFromJson(data);
+}
+
+std::vector<Strategy> ParseStrategies(const nlohmann::json& data) {
+	std::vector<Strategy> res;
+	if(data.contains("")){}
+
+	for (const auto& item : data) {
+		Strategy strat;
+		strat.name = item["name"];
+		std::vector<int> params;
+		for(const auto& param : item["params"]){
+			params.push_back(param);
+		}
+		strat.params = params;
+		strat.max_lob_lvl = item["max_lob_lvl"];
+		res.push_back(strat);
+	}	
+	return res; 
+}
+
+std::vector<TradedInstrument> ParseTradedInstrs(const nlohmann::json& data) {
+	std::vector<TradedInstrument> res;
+	for(const auto& item : data){
+		for(std::string field : kRequiredTradedInstrFields){
+			if(!data.contains(field)){
+				spdlog::error("field {} of traded instrument is not parsable ", field);	
+				throw std::runtime_error("Traded Instrument in config file is not valid: ");
+			}
+		}	
+		TradedInstrument instr;
+		instr.instrument_id = data["instrument_id"];
+		instr.instrument_type = ParseInstrType(data["instrument_type"]);
+		instr.tick_size = data["tick_size"];
+		instr.tick_value = data["tick_value"];
+		instr.margin_req = data["margin_req"];
+
+		res.push_back(instr);
+	}
+	return res;
+}
+
+RiskLimits ParseRiskLimits(const nlohmann::json& data) {
+	std::vector<std::string> absent_fields;
+	RiskLimits res;
+	for(std::string field : kRiskLimitsFields){
+		if(!data.contains(field)){
+			spdlog::warn("field {} of riskLimits is not parsable, using default risk limits ", field);	
+			AppConfig config = GetDefaultConfig();
+			return config.risk_limits;
+		}
+	}
+
+	res.risk_mode = ParseRiskMode(data["risk_mode"]);
+	res.max_position_size = numericUtils::doubleToFixedPoint(data["max_position_size"]);
+	res.max_risk_per_trade_pct = numericUtils::doubleToFixedPoint(data["max_risk_per_trade_pct"]);
+	res.max_portfolio_delta = numericUtils::doubleToFixedPoint(data["max_portfolio_delta"]);
+	res.max_drawdown_pct = numericUtils::doubleToFixedPoint(data["max_drawdown_pct"]);
+	res.max_delta_per_trade = numericUtils::doubleToFixedPoint(data["max_delta_per_trade"]);
+
+	return res;
 }
 
 }

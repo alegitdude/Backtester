@@ -2,7 +2,9 @@
 
 namespace backtester {
 
-void MarketStateManager::Initialize(const std::vector<uint32_t>& active_ids) {
+void MarketStateManager::Initialize(const std::vector<uint32_t>& active_ids, 
+    std::vector<uint32_t> traded_instr_ids) {
+        traded_instr_ids_ = traded_instr_ids;
         // 1. Reserve memory to prevent re-allocation/pointer invalidation
         instrument_store_.reserve(active_ids.size());
         
@@ -17,7 +19,7 @@ void MarketStateManager::Initialize(const std::vector<uint32_t>& active_ids) {
         // 4. Create the states and populate the lookup table
         for (uint32_t id : active_ids) {
             // Create the state object in the contiguous storage
-            instrument_store_.emplace_back(); 
+            instrument_store_.emplace_back(id); 
             
             // Point the lookup slot to this new object
             lookup_table_[id] = &instrument_store_.back();
@@ -29,6 +31,14 @@ void MarketStateManager::OnMarketEvent(const MarketByOrderEvent& event) {
         state = GetOrCreateInstrumentState(event.instrument_id);
 
         state->OnMarketEvent(event);
+}
+
+std::unordered_map<uint32_t, Bbo> MarketStateManager::GetTradedInstrsBbo(){
+    std::unordered_map<uint32_t, Bbo> res;
+    for(auto instr_state : instrument_store_){
+        res[instr_state.instrument_id] = instr_state.GetInstrumentBbo();
+    }
+    return res;
 }
 
 const std::vector<BidAskPair> MarketStateManager::GetOBSnapshot(

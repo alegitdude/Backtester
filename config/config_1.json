@@ -1,17 +1,34 @@
 {
 		"initial_cash" : 100000, 
-		"execution_latency" : 500000,
-		"report_output_dir" : "a_file_path",
-		"strategy_name" : "some_strat",
-		"strategy_params" : {
-			"some_param" : "5"
-		},
+		"execution_latency_ms" : 500000,
+		"report_output_dir" : "../include/reporting",
 
 		"start_time" : "2022-01-03T00:24:44.606235524Z",
 		"end_time" : "2022-01-03T00:30:48.299185940Z",
 		"log_folder_path" : "../logs",
-		"traded_symbol" : "some_symbol",
 
+		"traded_instruments" : [{
+			"instrument_id" : 294973,
+			"instrument_type" : "FUT",
+			"tick_size" : 0.25,
+    		"tick_value" : 12.50,
+    		"margin_req": 16500
+		}],
+
+		"strategies" : [{
+			"name" : "MovAvgCrossMin",
+			"params" : [5, 20],
+    		"max_lob_lvl" : 1
+		}],
+		
+		"risk_limits" : {
+			"risk_mode" : "PercentOfAcct",
+			"max_position_size" : "3",
+			"max_risk_per_trade_pct" : ".02", 
+			"max_portfolio_delta" : "0",
+			"max_drawdown_pct" : ".40",
+			"max_delta_per_trade" : "0"
+		},
 		"data_streams" : [
 			{
 				"data_source_name" : "ES",

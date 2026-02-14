@@ -1,5 +1,4 @@
 #pragma once
-#include "OrderBook.h"
 #include <cstdint>
 #include <limits>
 
@@ -7,10 +6,12 @@ namespace backtester {
 
 static constexpr auto kUndefPrice = std::numeric_limits<std::int64_t>::max();
 
-//  struct PublisherBook {
-//     uint16_t publisher_id;
-//     OrderBook book;
-//   };
+struct Bbo {
+    int64_t bid_price = 0;
+    int64_t ask_price = 0;
+    // uint32_t bid_qty = 0;
+    // uint32_t ask_qty = 0;
+};
 
 struct LevelQueue {
     int64_t price{kUndefPrice};

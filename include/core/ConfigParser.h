@@ -1,23 +1,41 @@
 #pragma once
 #include "Types.h"
+#include "../utils/StringUtils.h"
 #include <nlohmann/json.hpp>
 #include <filesystem>
 
 namespace backtester {
 
-const std::vector<std::string> kRequiredFields = {
+const std::vector<std::string> kRequiredConfigFields = {
     "start_time",
     "end_time", 
-    "traded_symbol",
+    "traded_instrument",
     "data_streams",
-    "strategy_name"
+    "strategies"
 };
 
-const std::vector<std::string> kOptionalFields = {
+const std::vector<std::string> kOptionalConfigFields = {
     "execution_latency",
     "initial_cash",
     "log_file_path",
     "report_output_dir"
+};
+
+const std::vector<std::string> kRequiredTradedInstrFields = {
+	"instrument_id",
+  "instrument_type",
+  "tick_size",
+  "tick_value",
+  "margin_requirement"
+};
+
+const std::vector<std::string> kRiskLimitsFields = {
+  "risk_mode",
+  "max_position_size",
+  "max_risk_per_trade_pct", 
+  "max_portfolio_delta",
+  "max_drawdown_pct",
+  "max_delta_per_trade" 
 };
 
 const std::vector<std::string> kRequiredDataStreamFields = {
@@ -36,9 +54,12 @@ const std::vector<std::string> kOptionalDataStreamFields = {
 
 AppConfig ParseConfigToObj(std::filesystem::path& config_path); 
 
-std::vector<Symbol> ParseDataSymbols(const std::string& filepath);
-
 AppConfig ParseConfigFromJson(const nlohmann::json& data);
+
+std::vector<Symbol> ParseDataSymbols(const std::string& filepath);
+std::vector<Strategy> ParseStrategies(const nlohmann::json& data);
+std::vector<TradedInstrument> ParseTradedInstrs(const nlohmann::json& data);
+RiskLimits ParseRiskLimits(const nlohmann::json& data);
 
 inline DataSchema StrToDataSchema(const std::string& str) {
   if (str == "MBO" || str == "mbo") return DataSchema::MBO;
@@ -70,5 +91,18 @@ inline TmStampFormat StrToTSFormat(const std::string& str) {
 	if (str == "ISO" || str == "iso") return TmStampFormat::ISO;
 	throw std::invalid_argument("Invalid schema: " + str);
 };
+
+inline InstrumentType ParseInstrType(const std::string& str) {
+  if (str == "FUT" || str == "fut") return InstrumentType::FUT;
+  if (str == "STOCK" || str == "STOCK") return InstrumentType::STOCK;
+  if (str == "OPTION" || str == "OPTION") return InstrumentType::OPTION;
+	throw std::invalid_argument("Invalid instrument type: " + str);
+}
+
+inline RiskMode ParseRiskMode(const std::string& str){
+  if (stringUtils::ToLower(str) == "percentofacct") return RiskMode::PercentOfAcct;
+  if (stringUtils::ToLower(str) == "posSizeindollars") return RiskMode::PosSizeInDollars;
+  return RiskMode::PercentOfAcct;
+}
 
 };

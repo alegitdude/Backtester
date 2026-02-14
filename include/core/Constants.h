@@ -1,3 +1,4 @@
+#pragma once
 #include <string>
 
 const std::string kExpectedMboHeader = "ts_recv,ts_event,rtype,publisher_id,instrument_id,action,side,price,size,channel_id,order_id,flags,ts_in_delta,sequence,symbol";

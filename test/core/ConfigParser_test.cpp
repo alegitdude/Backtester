@@ -43,8 +43,17 @@ TEST_F(ConfigParserTest, ParsesValidConfigWithAllFields) {
         {"initial_cash", 50000},
         {"log_file_path", "../../logs"},
         {"report_output_dir", "../../reports"},
-        {"strategy_name", "TestStrategy"},
-        {"traded_symbol", "ES"},
+        {"strategies", {{
+			{"name", "MovAvgCrossMin"},
+			{"params", {5, 20}},
+    		{"max_lob_lvl", 1}
+		}}},
+        {"traded_instrument" , {
+			{"instrument_id" , 294973},
+			{"tick_size" , 0.25},
+    		{"tick_value" , 12.50},
+    		{"margin_req", 16500}
+		}},
         {"data_streams", {{
 				{"data_source_name" , "ES"},
 				{"symbology_filepath" , "../test/test_data/ES-20251105_symbology.csv"}, 
@@ -114,28 +123,42 @@ TEST_F(ConfigParserTest, ParsesValidConfigWithAllFields) {
         42007174, 42004134, 42009453, 42018017, 42004092, 42000977, 42004810, 42140878,
         42004613, 42140864, 42009476, 17740, 42140874, 42004653, 42000746, 42018129, 42140861,
         42004904, 42140870, 42008091, 42002687, 42011265};
-
+    std::vector<Strategy> strategies = {{.name = "MovAvgCrossMin", 
+                                         .params = std::vector<int> {2, 5}, 
+                                         .max_lob_lvl = 1 }};
+    TradedInstrument traded_instrument = {.instrument_id = 294973,
+                                         .tick_size = 250000000,
+                                         .tick_value = 12'500000000,
+                                         .margin_req = 16500'000000000};                              
+                                        
     EXPECT_EQ(result.start_time, 1704101400000000000);
     EXPECT_EQ(result.end_time, 1704124800000000000);
-    EXPECT_EQ(result.execution_latency, 100);
+    EXPECT_EQ(result.execution_latency_ms, 100);
     EXPECT_EQ(result.initial_cash, 50000);
     EXPECT_EQ(result.log_file_path, "../../logs");
     EXPECT_EQ(result.report_output_dir, "../../reports");
-    EXPECT_EQ(result.strategy_name, "TestStrategy");
-    EXPECT_EQ(result.traded_symbol, "ES");
-    EXPECT_EQ(result.active_instruments, expected_instrs);
-    EXPECT_EQ(result.data_streams[0].compression, stream.compression);
-    EXPECT_EQ(result.data_streams[0].data_filepath, stream.data_filepath);
-    EXPECT_EQ(result.data_streams[0].data_source_name, stream.data_source_name);
-    EXPECT_EQ(result.data_streams[0].encoding, stream.encoding);
-    EXPECT_EQ(result.data_streams[0].price_format, stream.price_format);
-    EXPECT_EQ(result.data_streams[0].schema, stream.schema);
-    EXPECT_EQ(result.data_streams[0].ts_format, stream.ts_format);
+    EXPECT_EQ(result.strategies[0].name, strategies[0].name);
+    EXPECT_EQ(result.strategies[0].params, strategies[0].params);
+    EXPECT_EQ(result.strategies[0].max_lob_lvl, strategies[0].max_lob_lvl);
 
-    for(int i = 0; i < result.data_streams[0].data_symbology.size(); i++){
-        EXPECT_EQ(result.data_streams[0].data_symbology[i].date, stream.data_symbology[i].date);
-        EXPECT_EQ(result.data_streams[0].data_symbology[i].instrument_id, stream.data_symbology[i].instrument_id);
-        EXPECT_EQ(result.data_streams[0].data_symbology[i].symbol, stream.data_symbology[i].symbol);
+    EXPECT_EQ(result.traded_instruments[0].instrument_id, traded_instrument.instrument_id);
+    EXPECT_EQ(result.traded_instruments[0].margin_req, traded_instrument.margin_req);
+    EXPECT_EQ(result.traded_instruments[0].tick_size, traded_instrument.tick_size);
+    EXPECT_EQ(result.traded_instruments[0].tick_value, traded_instrument.tick_value);
+    EXPECT_EQ(result.active_instruments, expected_instrs);
+
+    EXPECT_EQ(result.data_configs[0].compression, stream.compression);
+    EXPECT_EQ(result.data_configs[0].data_filepath, stream.data_filepath);
+    EXPECT_EQ(result.data_configs[0].data_source_name, stream.data_source_name);
+    EXPECT_EQ(result.data_configs[0].encoding, stream.encoding);
+    EXPECT_EQ(result.data_configs[0].price_format, stream.price_format);
+    EXPECT_EQ(result.data_configs[0].schema, stream.schema);
+    EXPECT_EQ(result.data_configs[0].ts_format, stream.ts_format);
+
+    for(int i = 0; i < result.data_configs[0].data_symbology.size(); i++){
+        EXPECT_EQ(result.data_configs[0].data_symbology[i].date, stream.data_symbology[i].date);
+        EXPECT_EQ(result.data_configs[0].data_symbology[i].instrument_id, stream.data_symbology[i].instrument_id);
+        EXPECT_EQ(result.data_configs[0].data_symbology[i].symbol, stream.data_symbology[i].symbol);
     }
 
 

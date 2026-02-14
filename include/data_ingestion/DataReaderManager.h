@@ -12,7 +12,7 @@ class EventQueue;
 
 class DataReaderManager {
  public:
-    DataReaderManager(EventQueue& queue) : event_queue_(queue) {}
+    explicit DataReaderManager(EventQueue& queue) : event_queue_(queue) {}
 
     bool RegisterAndInitStreams(const std::vector<DataSourceConfig>& file_paths);
     bool LoadNextEventFromSource(const std::string& source_name);

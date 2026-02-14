@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
                 config_path = default_settings;
             }
             config_path = std::filesystem::path(arg);
-            if(config_path.extension() != "json" || config_path.extension() != "yaml"){
+            if(config_path.extension() != "json" && config_path.extension() != "yaml"){
                 std::cout << "Config file has wrong file extension! Needs to be json" << std::endl;
                 std::cout << arg << std::endl;
                 config_path = default_settings;
@@ -102,20 +102,29 @@ int main(int argc, char* argv[]) {
     backtester::EventQueue event_queue;
     /// Initialize Data Reader(s) and possibly DataReaderManager?
 	backtester::DataReaderManager data_reader_manager(event_queue);
+
     /// Initialize Market State Manager
     backtester::MarketStateManager market_state_manager;
+    std::vector<uint32_t> traded_instr_ids;
+    traded_instr_ids.reserve(config.traded_instruments.size());
+    std::transform(config.traded_instruments.begin(), config.traded_instruments.end(), std::back_inserter(ids),
+               [](const auto& obj) { return obj.instrument_id; });
+
+    market_state_manager.Initialize(config.active_instruments, traded_instr_ids);
+
     /// Initialize Portfolio Manager
-	backtester::PortfolioManager portfolio_manager(config.initial_cash);
+	backtester::PortfolioManager portfolio_manager(config);
     /// Initialize Report Generator
 	backtester::ReportGenerator report_generator;
     /// Initialize Execution Handler
 	backtester::ExecutionHandler execution_handler;
     /// Initialize Strategy Manager and specific Strategy
-    backtester::StrategyManager strategy_manager;
+    backtester::StrategyManager strategy_manager(execution_handler, config.strategies);
+    strategy_manager.InitiailizeStrategies();
     
     // Read the first event from each data source and add to the EventQueue
     spdlog::info("Populating initial events from data sources...");
-    data_reader_manager.RegisterAndInitStreams(config.data_streams);
+    data_reader_manager.RegisterAndInitStreams(config.data_configs);
     
     // Initialize Backtester class
     backtester::Backtester backtester(event_queue, data_reader_manager, market_state_manager,
