@@ -39,12 +39,12 @@ void InstrumentState::OnMarketEvent(const MarketByOrderEvent& event) {
 
 void InstrumentState::UpdateInstrumentBbo(){
     for (auto& [publisher, book] : books_) {
-        instrument_Bbo_.ask_price = std::min(book.GetBbo().ask_price, 
-            instrument_Bbo_.ask_price);
-        instrument_Bbo_.bid_price = std::max(book.GetBbo().bid_price, 
-            instrument_Bbo_.bid_price);
+        instrument_Bbo_.ask.price = std::min(book.GetBbo().ask.price, 
+            instrument_Bbo_.ask.price);
+        instrument_Bbo_.bid.price = std::max(book.GetBbo().bid.price, 
+            instrument_Bbo_.bid.price);
     }
-    if(instrument_Bbo_.bid_price > instrument_Bbo_.ask_price){
+    if(instrument_Bbo_.bid.price > instrument_Bbo_.ask.price){
         throw std::logic_error("bid price is higher than ask price?");
     }
 }
@@ -56,6 +56,15 @@ const std::vector<BidAskPair> InstrumentState::GetOBSnapshotByPub(
                                                 
     const OrderBook* book = GetOrderBook(publisher_id);
     return book? book->GetSnapshot(level_count) : EMPTY_SNAPSHOT;
+}
+
+int64_t InstrumentState::GetQueueDepthByPx(int64_t price) const{
+    int64_t total_depth = 0;
+    for (auto& [publisher, book] : books_) {
+        PriceLevel price_level = book.GetLevelByPx(price);
+        total_depth += price_level.size;
+    }
+    return total_depth;
 }
 
 }

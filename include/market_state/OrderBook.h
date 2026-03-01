@@ -1,5 +1,6 @@
 #pragma once
 #include "../core/Event.h"
+#include "../core/Types.h"
 #include <cstdint>
 #include <limits>
 #include <map>
@@ -13,13 +14,14 @@ namespace backtester {
 
 class OrderBook {
  public:
-    inline const Bbo GetBbo() {return bbo_cache_;}
-    int64_t GetMidPrice();
+    inline const BidAskPair GetBbo() {return bbo_cache_;}
+    int64_t GetMidPrice() const;
 
     PriceLevel GetBidLevel(std::size_t idx = 0) const;
     PriceLevel GetAskLevel(std::size_t idx = 0) const;
     PriceLevel GetBidLevelByPx(int64_t price) const;
     PriceLevel GetAskLevelByPx(int64_t price) const;
+    PriceLevel GetLevelByPx(int64_t price) const;
     const MarketByOrderEvent& GetOrder(uint64_t order_id);
     uint32_t GetQueuePos(uint64_t order_id);
 
@@ -28,7 +30,7 @@ class OrderBook {
     void Apply(const MarketByOrderEvent& mbo);
 
 private:
-    Bbo bbo_cache_;
+    BidAskPair bbo_cache_;
     ///Level orders -> SideLevels -> bids or offers: map of price with vector or mbo msgs
     //using LevelOrders = std::vector<MarketByOrderEvent>;
     using SideLevels = std::map<int64_t, LevelQueue>;

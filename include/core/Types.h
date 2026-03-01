@@ -98,7 +98,7 @@ struct RiskLimits {
 struct AppConfig {
     uint64_t start_time; //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
     uint64_t end_time;  //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
-    uint32_t execution_latency_ms = 200;
+    uint64_t execution_latency_ms = 200;
     int64_t initial_cash = 100000;
     std::string log_file_path;
     std::string report_output_dir;
@@ -122,6 +122,46 @@ struct Position {
     bool IsFlat() const { return quantity == 0; }
     bool IsLong() const { return quantity > 0; }
     bool IsShort() const { return quantity < 0; }
+
+    bool operator==(const Position& pos2) const {
+        return  instrument_id == pos2.instrument_id &&
+                quantity == pos2.quantity &&
+                avg_entry_price == pos2.avg_entry_price &&
+                last_update_ts == pos2.last_update_ts;
+    }
+};
+
+// struct Bbo {
+//     int64_t bid_price = 0;
+//     int64_t ask_price = 0;
+//     // uint32_t bid_qty = 0;
+//     // uint32_t ask_qty = 0;
+// };
+
+struct PriceLevel {
+    int64_t price;
+    uint32_t size;
+    uint32_t count;
+};
+
+struct BidAskPair {
+    PriceLevel bid;
+    PriceLevel ask;
+    // std::int64_t bid_price;
+    // std::int64_t ask_price;
+    // std::uint32_t bid_size;
+    // std::uint32_t ask_size;
+    // std::uint32_t bid_count;
+    // std::uint32_t ask_count;
+
+    bool operator==(const BidAskPair& bap2) const {
+        return bid.price == bap2.bid.price &&
+                ask.price == bap2.ask.price &&
+                bid.size == bap2.bid.size &&
+                ask.size == bap2.ask.size &&
+                bid.count == bap2.bid.count &&
+                ask.count == bap2.ask.count;
+    }
 };
 
 enum class DataInterval{

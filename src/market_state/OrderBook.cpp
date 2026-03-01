@@ -6,8 +6,8 @@
 
 
 namespace backtester {
-  int64_t OrderBook::GetMidPrice(){
-    return ((bbo_cache_.ask_price - bbo_cache_.bid_price) / 2) + bbo_cache_.bid_price;
+  int64_t OrderBook::GetMidPrice() const{
+    return ((bbo_cache_.ask.price - bbo_cache_.bid.price) / 2) + bbo_cache_.bid.price;
   }
 
 ///////////////////////////////////////////////////////////////////
@@ -79,6 +79,13 @@ PriceLevel OrderBook::GetAskLevelByPx(int64_t price) const {
     return GetPriceLevel(level_it->second);
 }
 
+PriceLevel OrderBook::GetLevelByPx(int64_t price) const {
+  if(price > GetMidPrice()){
+    return GetAskLevelByPx(price);
+  }
+  return GetBidLevelByPx(price);
+}
+
 const MarketByOrderEvent& OrderBook::GetOrder(uint64_t order_id) {
     auto order_it = orders_by_id_.find(order_id);
     if (order_it == orders_by_id_.end()) {
@@ -110,18 +117,18 @@ uint32_t OrderBook::GetQueuePos(uint64_t order_id) {
 const std::vector<BidAskPair> OrderBook::GetSnapshot(std::size_t level_count) const {
     std::vector<BidAskPair> res;
     for (size_t i = 0; i < level_count; ++i) {
-        BidAskPair ba_pair{kUndefPrice, kUndefPrice, 0, 0, 0, 0};
+        BidAskPair ba_pair{kUndefPrice, 0, 0, kUndefPrice, 0, 0};
         auto bid = GetBidLevel(i);
         if (bid.price) {
-        ba_pair.bid_px = bid.price;
-        ba_pair.bid_sz = bid.size;
-        ba_pair.bid_ct = bid.count;
+        ba_pair.bid.price = bid.price;
+        ba_pair.bid.size = bid.size;
+        ba_pair.bid.count = bid.count;
         }
         auto ask = GetAskLevel(i);
         if (ask.price) {
-        ba_pair.ask_px = ask.price;
-        ba_pair.ask_sz = ask.size;
-        ba_pair.ask_ct = ask.count;
+        ba_pair.ask.price = ask.price;
+        ba_pair.ask.size = ask.size;
+        ba_pair.ask.count = ask.count;
         }
         res.emplace_back(ba_pair);
     }
@@ -162,8 +169,15 @@ void OrderBook::Apply(const MarketByOrderEvent& mbo) {
 }
 /////////// Private
 void OrderBook::UpdateBboCache() {
-  bbo_cache_.bid_price = GetBidLevel().price;
-  bbo_cache_.ask_price = GetAskLevel().price; 
+  PriceLevel bid_level = GetBidLevel();
+  bbo_cache_.bid.price = bid_level.price;
+  bbo_cache_.bid.count = bid_level.count;
+  bbo_cache_.bid.size = bid_level.size;
+
+  PriceLevel ask_level = GetAskLevel();
+  bbo_cache_.ask.price = ask_level.price; 
+  bbo_cache_.ask.count = ask_level.count;
+  bbo_cache_.ask.size = ask_level.size;
 }
 
 std::vector<MarketByOrderEvent>::iterator OrderBook::GetLevelOrder(

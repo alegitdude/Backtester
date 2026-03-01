@@ -14,12 +14,15 @@ class MarketStateManager{
         std::vector<uint32_t> traded_instr_id);
 
     void OnMarketEvent(const MarketByOrderEvent& event) ; 
-
-    std::unordered_map<uint32_t, Bbo> GetTradedInstrsBbo();
+    
+    const BidAskPair GetInstrumentBbo(uint32_t instr_id) const;
+    std::unordered_map<uint32_t, BidAskPair> GetTradedInstrsBbo();
     
     const std::vector<BidAskPair> GetOBSnapshot(
         uint32_t instrument_id, uint16_t publisher_id, 
         std::size_t level_count = 1) ;
+    
+    const int64_t GetQueueDepth(uint32_t instr_id, int64_t price) const;
 
  private:
     std::vector<uint32_t> traded_instr_ids_;

@@ -20,29 +20,29 @@ class PortfolioManager {
 
     std::unique_ptr<StrategyOrderEvent> RequestOrder(
         const StrategySignalEvent* signal, 
-        const std::unordered_map<uint32_t, Bbo>& latest_prices);
+        const std::unordered_map<uint32_t, BidAskPair>& latest_prices);
 
-    void ProcessFill(const FillEvent& fill);
+    void ProcessFill(const StrategyFillEvent& fill);
 
     // =========================================================================
     // MARK: Metrics & PnL Accessors (All return Scaled int64_t)
     // =========================================================================
 
     // Equity = Cash + Unrealized PnL
-    int64_t GetTotalEquity(const std::unordered_map<uint32_t, Bbo>& latest_prices) const;
+    int64_t GetTotalEquity(const std::unordered_map<uint32_t, BidAskPair>& latest_prices) const;
     
     // Buying Power = Equity - Margin Used
-    int64_t GetBuyingPowerAvailable(const std::unordered_map<uint32_t, Bbo>& latest_prices) const;
+    int64_t GetBuyingPowerAvailable(const std::unordered_map<uint32_t, BidAskPair>& latest_prices) const;
     
     // Returns PnL for a specific position object against a current price
-    int64_t GetUnrealizedPnL(const Position& pos, Bbo current_price) const;
+    int64_t GetUnrealizedPnL(const Position& pos, BidAskPair& current_price) const;
 
     // Sum of Dollar Deltas for all positions
-    int64_t GetTotalPortfolioDelta(const std::unordered_map<uint32_t, Bbo>& latest_prices) const;
+    int64_t GetTotalPortfolioDelta(const std::unordered_map<uint32_t, BidAskPair>& latest_prices) const;
 
     // Dollar/Currency Delta for a specific instrument
     // Futures Dollar Value = (Price / TickSize) * TickValue
-    int64_t GetDelta(uint32_t instrument_id, Bbo current_Bbo) const;
+    int64_t GetDelta(uint32_t instrument_id, BidAskPair current_Bbo) const;
 
     // Returns a ratio (0.0 to 1.0)
     int64_t GetCurrentDrawdown(int64_t current_equity) const;
@@ -73,7 +73,7 @@ class PortfolioManager {
 
     std::unique_ptr<StrategyOrderEvent> HandleAddRequest(
         const StrategySignalEvent* signal, 
-        const std::unordered_map<uint32_t, Bbo>& latest_prices);
+        const std::unordered_map<uint32_t, BidAskPair>& latest_prices);
 
     std::unique_ptr<StrategyOrderEvent> HandleModifyRequest(const StrategySignalEvent* signal);
     std::unique_ptr<StrategyOrderEvent> HandleCancelRequest(const StrategySignalEvent* signal);

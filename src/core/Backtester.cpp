@@ -22,9 +22,10 @@ int Backtester::RunLoop(const AppConfig& config) {
 
             market_state_manager_.OnMarketEvent(*market_event);
 
-            std::vector<std::unique_ptr<StrategySignalEvent>> signals = strategy_manager_.OnMarketEvent(current_event, 
-                market_state_manager_.GetOBSnapshot(market_event->instrument_id, 
-                    config.max_lob_lvl));
+            const std::vector<BidAskPair> snapshot = market_state_manager_.GetOBSnapshot(
+                market_event->instrument_id, config.max_lob_lvl);
+
+            auto signals = strategy_manager_.OnMarketEvent(*market_event, snapshot);
 
             if(signals.size() > 0){
                 for(int i = 0; i < signals.size(); i++){
@@ -32,43 +33,48 @@ int Backtester::RunLoop(const AppConfig& config) {
                 }
             }
 
-            // execution_handler_.check_pending_strategy_orders_for_fills(
-            //     market_state_manager.get_OB_snapshot());
+            execution_handler_.OnMarketEvent(*market_event, snapshot[0]);
             
             data_reader_manager_.LoadNextEventFromSource(market_event->data_source);
         }            
 
-        if(isStrategyEvent(eventType)){
-            if(eventType == kStrategySignal){
-                const StrategySignalEvent* signal_event = 
-                  static_cast<const StrategySignalEvent*>(current_event.get());
+        if(isStrategySignalEvent(eventType)){
+            const StrategySignalEvent* signal_event = 
+                static_cast<const StrategySignalEvent*>(current_event.get());
 
-                auto current_prices = market_state_manager_.GetTradedInstrsBbo();
-                auto order_event = portfolio_manager_.RequestOrder(signal_event, 
-                    current_prices);
-                if(order_event){
-                    event_queue_.PushEvent(std::move(order_event)); 
-                    spdlog::debug("Queued order from signal at ts={}", current_time);
-                } else {
-                    spdlog::warn("Signal rejected by portfolio at ts={}", current_time);
-                }
-             }
+            auto current_prices = market_state_manager_.GetTradedInstrsBbo();
+            auto order_event = portfolio_manager_.RequestOrder(signal_event, 
+                current_prices);
 
-            if(eventType >= EventType::kStrategySignal && 
-                eventType <= EventType::kStrategyOrderClear){
-                execution_handler_.place_order(order_event); // Execution handler will push FillEvent to queue
-            } 
-      
-            if(eventType >= EventType::kStrategyOrderFill){
-                // Your strategy's order got filled
-                // portfolio_manager.process_fill(current_event)
-                // strategy_manager.on_fill_event(current_event) 
-
-                // // Log the trade for reporting
-                // report_generator.record_fill(current_event, portfolio_manager.get_current_pnl())
-            }
+            if(order_event){
+                event_queue_.PushEvent(std::move(order_event)); 
+                spdlog::debug("Queued order from signal at ts={}", current_time);
+            } else {
+                spdlog::warn("Signal rejected by portfolio at ts={}", current_time);
+            }          
         }
-             
+        
+        if(isStrategyOrderEvent){
+            const StrategyOrderEvent* order_event = 
+                static_cast<const StrategyOrderEvent*>(current_event.get());
+            int64_t queue_depth = market_state_manager_.GetQueueDepth(
+                order_event->instrument_id, order_event->price);
+            const BidAskPair cur_bbo = market_state_manager_.GetInstrumentBbo(order_event->instrument_id);
+
+            execution_handler_.OnStrategyOrder(*order_event, cur_bbo, queue_depth); // Execution handler will push FillEvent to queue
+        } 
+    
+        if(eventType >= EventType::kStrategyOrderFill){
+            const StrategyFillEvent* fill_event = 
+                 static_cast<const StrategyFillEvent*>(current_event.get());
+
+            portfolio_manager_.ProcessFill(*fill_event);
+            strategy_manager_.OnFillEvent(*fill_event); 
+
+            // // Log the trade for reporting
+            // report_generator.record_fill(current_event, portfolio_manager.get_current_pnl())
+        }
+
         if (isControlEvent(eventType)) {
             continue;  
         }        

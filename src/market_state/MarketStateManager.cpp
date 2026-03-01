@@ -33,8 +33,12 @@ void MarketStateManager::OnMarketEvent(const MarketByOrderEvent& event) {
         state->OnMarketEvent(event);
 }
 
-std::unordered_map<uint32_t, Bbo> MarketStateManager::GetTradedInstrsBbo(){
-    std::unordered_map<uint32_t, Bbo> res;
+const BidAskPair MarketStateManager::GetInstrumentBbo(uint32_t instr_id) const {
+    return GetInstrumentState(instr_id)->GetInstrumentBbo();
+}
+
+std::unordered_map<uint32_t, BidAskPair> MarketStateManager::GetTradedInstrsBbo(){
+    std::unordered_map<uint32_t, BidAskPair> res;
     for(auto instr_state : instrument_store_){
         res[instr_state.instrument_id] = instr_state.GetInstrumentBbo();
     }
@@ -47,7 +51,13 @@ const std::vector<BidAskPair> MarketStateManager::GetOBSnapshot(
     static const std::vector<BidAskPair> EMPTY_SNAPSHOT;
     
     const InstrumentState* instrument = GetInstrumentState(instrument_id);
-    return instrument ? instrument->GetOBSnapshotByPub(publisher_id, level_count) : EMPTY_SNAPSHOT;
+    return instrument ? instrument->GetOBSnapshotByPub(publisher_id, level_count) 
+        : EMPTY_SNAPSHOT;
+}
+
+const int64_t MarketStateManager::GetQueueDepth(uint32_t instr_id, int64_t price) const{
+    const InstrumentState* instrument_state = GetInstrumentState(instr_id);
+    return instrument_state->GetQueueDepthByPx(price);
 }
 
 }

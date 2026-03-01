@@ -18,7 +18,7 @@ PortfolioManager::PortfolioManager(const AppConfig& config)
 
 std::unique_ptr<StrategyOrderEvent> PortfolioManager::RequestOrder(
     const StrategySignalEvent* signal, 
-    const std::unordered_map<uint32_t, Bbo>& current_prices) {
+    const std::unordered_map<uint32_t, BidAskPair>& current_prices) {
     
     switch (signal->signal_type) {
         case SignalType::kBuySignal:
@@ -39,7 +39,7 @@ std::unique_ptr<StrategyOrderEvent> PortfolioManager::RequestOrder(
 
 std::unique_ptr<StrategyOrderEvent> PortfolioManager::HandleAddRequest(
     const StrategySignalEvent* signal, 
-    const std::unordered_map<uint32_t, Bbo>& latest_prices) {
+    const std::unordered_map<uint32_t, BidAskPair>& latest_prices) {
 
     if (!IsValidTick(signal->instrument_id, signal->price)) {
         spdlog::warn("Portfolio: Rejected price {} - not a valid tick multiple.", signal->price);
@@ -83,8 +83,7 @@ std::unique_ptr<StrategyOrderEvent> PortfolioManager::HandleAddRequest(
         EventType::kStrategyOrderAdd,
         signal->signal_id,  // signal_id becomes order id for tracking
         signal->instrument_id,
-        OrderType::kAdd,
-        side,
+        side, 
         signal->price, 
         signal->quantity,       
         signal->strategy_id
@@ -129,7 +128,7 @@ std::unique_ptr<StrategyOrderEvent> PortfolioManager::HandleCancelRequest(const 
 // MARK: Execution & Position Management
 // =============================================================================
 
-void PortfolioManager::ProcessFill(const FillEvent& fill) {
+void PortfolioManager::ProcessFill(const StrategyFillEvent& fill) {
     Position& pos = positions_[fill.instrument_id];
     const TradedInstrument* traded_instr_ptr = GetTradedInstr(fill.instrument_id);
 
@@ -142,7 +141,7 @@ void PortfolioManager::ProcessFill(const FillEvent& fill) {
         // (OldQty * OldPrice) + (NewQty * NewPrice)
         // Note: Use __int128 if there's a risk of overflow with very large quantities * scaled prices
         // Assuming int64_t is sufficient for (Qty * Price) for now.
-        
+        pos.instrument_id = fill.instrument_id;
         int64_t current_notional = std::abs(pos.quantity) * pos.avg_entry_price;
         int64_t fill_notional = std::abs(fill_qty_signed) * fill_price;
         
@@ -200,37 +199,37 @@ void PortfolioManager::ProcessFill(const FillEvent& fill) {
 // MARK: Valuation & Metrics
 // =============================================================================
 
-int64_t PortfolioManager::GetUnrealizedPnL(const Position& pos, Bbo cur_Bbo) const {
+int64_t PortfolioManager::GetUnrealizedPnL(const Position& pos, BidAskPair& cur_Bbo) const {
     if (pos.quantity == 0) return 0;
     const TradedInstrument* traded_instr_ptr = GetTradedInstr(pos.instrument_id);
 
     int64_t pnl = 0;
     
     if (traded_instr_ptr->instrument_type == InstrumentType::FUT) {
-        int64_t price_diff = (pos.quantity > 0) ? (cur_Bbo.bid_price - pos.avg_entry_price)
-                                                : (pos.avg_entry_price - cur_Bbo.ask_price);
+        int64_t price_diff = (pos.quantity > 0) ? (cur_Bbo.bid.price - pos.avg_entry_price)
+                                                : (pos.avg_entry_price - cur_Bbo.ask.price);
         
         int64_t ticks = price_diff / traded_instr_ptr->tick_size;
         pnl = ticks * traded_instr_ptr->tick_value * std::abs(pos.quantity);
     } 
     else {
         // STOCK
-        int64_t price_diff = (pos.quantity > 0) ? (cur_Bbo.bid_price - pos.avg_entry_price)
-                                                : (pos.avg_entry_price - cur_Bbo.ask_price);
+        int64_t price_diff = (pos.quantity > 0) ? (cur_Bbo.bid.price - pos.avg_entry_price)
+                                                : (pos.avg_entry_price - cur_Bbo.ask.price);
         pnl = price_diff * std::abs(pos.quantity);
     }
     
     return pnl;
 }
 
-int64_t PortfolioManager::GetTotalEquity(const std::unordered_map<uint32_t, Bbo>& cur_Bbos) const {
+int64_t PortfolioManager::GetTotalEquity(const std::unordered_map<uint32_t, BidAskPair>& cur_Bbos) const {
     int64_t unrealized = 0;
     
     if(!positions_.empty()){
         for (const auto& [id, pos] : positions_) {
             if (pos.quantity == 0) continue;
             
-            Bbo bbo = {pos.avg_entry_price, pos.avg_entry_price}; // Fallback
+            BidAskPair bbo = {pos.avg_entry_price, 0, 0, pos.avg_entry_price, 0, 0}; // Fallback
             if (cur_Bbos.count(id)) {
                 bbo = cur_Bbos.at(id);
             } 
@@ -248,7 +247,7 @@ int64_t PortfolioManager::GetTotalEquity(const std::unordered_map<uint32_t, Bbo>
     return equity;
 }
 
-int64_t PortfolioManager::GetBuyingPowerAvailable(const std::unordered_map<uint32_t, Bbo>& cur_prices) const {
+int64_t PortfolioManager::GetBuyingPowerAvailable(const std::unordered_map<uint32_t, BidAskPair>& cur_prices) const {
     int64_t total_equity = GetTotalEquity(cur_prices);
     
     int64_t margin_used = 0;
@@ -267,14 +266,14 @@ int64_t PortfolioManager::GetBuyingPowerAvailable(const std::unordered_map<uint3
     return std::max<int64_t>(0, total_equity - margin_used);
 }
 
-int64_t PortfolioManager::GetDelta(uint32_t instrument_id, Bbo cur_Bbo) const {
+int64_t PortfolioManager::GetDelta(uint32_t instrument_id, BidAskPair cur_Bbo) const {
     auto it = positions_.find(instrument_id);
     if (it == positions_.end()) return 0;
     
     const TradedInstrument* traded_instr_ptr = GetTradedInstr(instrument_id);
     
-    int64_t mid_price = ((cur_Bbo.ask_price - cur_Bbo.bid_price) / 2) + 
-        cur_Bbo.bid_price;
+    int64_t mid_price = ((cur_Bbo.ask.price - cur_Bbo.bid.price) / 2) + 
+        cur_Bbo.bid.price;
 
     if (traded_instr_ptr->instrument_type == InstrumentType::FUT) {   
         int64_t ticks = mid_price / traded_instr_ptr->tick_size;
@@ -286,13 +285,13 @@ int64_t PortfolioManager::GetDelta(uint32_t instrument_id, Bbo cur_Bbo) const {
     return it->second.quantity * mid_price;
 }
 
-int64_t PortfolioManager::GetTotalPortfolioDelta(const std::unordered_map<uint32_t, Bbo>& cur_prices) const {
+int64_t PortfolioManager::GetTotalPortfolioDelta(const std::unordered_map<uint32_t, BidAskPair>& cur_prices) const {
     int64_t total_delta = 0;
     
     for (const auto& [id, pos] : positions_) {
         if (pos.quantity == 0) continue;
 
-        Bbo bbo = {pos.avg_entry_price, pos.avg_entry_price,};
+        BidAskPair bbo = {pos.avg_entry_price, 0, 0, pos.avg_entry_price, 0, 0};
         if (cur_prices.count(id)) {
             bbo = cur_prices.at(id);
         } 

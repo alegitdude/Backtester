@@ -189,50 +189,49 @@ struct StrategyOrderEvent : Event {
         uint32_t qty,       
         std::string strategy_id
     ) : Event(ts, event_type), 
-        order_id_(order_id),
-        instrument_id_(instrument_id), 
-        side_(side),
-        price_(price), 
-        quantity_(qty),     
-        strategy_id_(strategy_id){}
+        order_id(order_id),
+        instrument_id(instrument_id), 
+        side(side),
+        price(price), 
+        quantity(qty),     
+        strategy_id(strategy_id){}
     
     ~StrategyOrderEvent() {}
 
-    int32_t order_id_;
-    uint32_t instrument_id_;
-    OrderType order_type_; // Add, Modify, Cancel, Clear
-    OrderSide side_;
-    int64_t price_;
-    long quantity_;
-    std::string strategy_id_;
+    int32_t order_id;
+    uint32_t instrument_id;
+    OrderSide side;
+    int64_t price;
+    uint32_t quantity;
+    std::string strategy_id;
 };
 
-struct FillEvent : Event {
-    FillEvent(
+struct StrategyFillEvent : Event {
+    StrategyFillEvent(
         uint64_t timestamp,
-        const std::string& strategy_id,
         int32_t order_id,
         uint32_t instrument_id,
         OrderSide side,
         int64_t fill_price,     
-        uint32_t fill_quantity,       
+        uint32_t fill_quantity, 
+        const std::string& strategy_id,       
         int64_t commission = 0
-    ) : Event(timestamp, EventType::kStrategyOrderFill),
-        strategy_id(std::move(strategy_id)),
+    ) : Event(timestamp, EventType::kStrategyOrderFill),      
+        order_id(order_id),
         instrument_id(instrument_id),
         side(side),
         fill_price(fill_price),
         fill_quantity(fill_quantity),
-        order_id(order_id),
+        strategy_id(std::move(strategy_id)),
         commission(commission) {}
 
-    int32_t order_id;
-    std::string strategy_id;
+    int32_t order_id; 
     uint32_t instrument_id;
     OrderSide side;
     int64_t fill_price;
     uint32_t fill_quantity;
-    double commission;
+    std::string strategy_id;
+    int64_t commission;
 };
 
 //////////////////////////////////////////////////////////////

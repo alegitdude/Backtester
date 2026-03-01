@@ -34,8 +34,11 @@ class Backtester {
 	inline bool isMarketEvent(EventType type) {
     return type >= kMarketOrderAdd && type <= kMarketHeartbeat;
 	}
-	inline bool isStrategyEvent(EventType type) {
-		return type >= kStrategySignal && type <= KStrategyOrderRejection;
+	inline bool isStrategySignalEvent(EventType type) {
+		return type >= kStrategySignal;
+	}
+	inline bool isStrategyOrderEvent(EventType type){
+		return type >= EventType::kStrategySignal && type <= EventType::kStrategyOrderClear;
 	}
 	inline bool isControlEvent(EventType type) {
 		return type >= kBacktestControlStart && type <= kBacktestControlEndOfBacktest;

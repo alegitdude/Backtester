@@ -32,7 +32,7 @@ class OrderBookTest : public ::testing::Test {
         .price_format = PriceFormat::FIXPNTINT, 
         .ts_format = TmStampFormat::UNIX };
 
-    AppConfig test_config = {.data_streams = std::vector<DataSourceConfig>{data_source}};                              
+    AppConfig test_config = {.data_configs = std::vector<DataSourceConfig>{data_source}};                              
                                     
     inline bool isMarketEvent(EventType type) {
     return type >= kMarketOrderAdd && type <= kMarketHeartbeat;
@@ -77,18 +77,18 @@ class OrderBookTest : public ::testing::Test {
             ParseField(fields[8], snapshot.price);
             ParseField(fields[12], snapshot.sequence_id);
 
-            snapshot.levels.assign(10, {kUndefPrice, kUndefPrice, 0, 0, 0, 0});
+            snapshot.levels.assign(10, {kUndefPrice, 0, 0, kUndefPrice, 0, 0});
             for (int i = 0; i < 10; ++i) {
                 int base = 13 + i * 6;
                 if(fields[base] != ""){
-                    ParseField(fields[base], snapshot.levels[i].bid_px);
-                    ParseField(fields[base+2], snapshot.levels[i].bid_sz);
-                    ParseField(fields[base+4], snapshot.levels[i].bid_ct);
+                    ParseField(fields[base], snapshot.levels[i].bid.price);
+                    ParseField(fields[base+2], snapshot.levels[i].bid.size);
+                    ParseField(fields[base+4], snapshot.levels[i].bid.count);
                 }
                 if(fields[base+1] != ""){
-                    ParseField(fields[base+1], snapshot.levels[i].ask_px);
-                    ParseField(fields[base+3], snapshot.levels[i].ask_sz);
-                    ParseField(fields[base+5], snapshot.levels[i].ask_ct);
+                    ParseField(fields[base+1], snapshot.levels[i].ask.price);
+                    ParseField(fields[base+3], snapshot.levels[i].ask.size);
+                    ParseField(fields[base+5], snapshot.levels[i].ask.count);
                 }
             }
         }
@@ -109,7 +109,7 @@ TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
     std::string sym_path = "../test/test_data/ES-20251105_symbology.csv";
     std::vector<Symbol> symbols = backtester::ParseDataSymbols(sym_path);
 
-    AppConfig config = {.data_streams = std::vector<DataSourceConfig>{data_source},
+    AppConfig config = {.data_configs = std::vector<DataSourceConfig>{data_source},
                         .active_instruments = {}};  
 
     for(const auto& symbol : symbols){
@@ -121,9 +121,10 @@ TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
     EventQueue event_queue;
     DataReaderManager data_reader_manager(event_queue);
     MarketStateManager market_state_manager;
-    market_state_manager.Initialize(config.active_instruments);
+    std::vector<uint32_t> traded_instrs = {1};
+    market_state_manager.Initialize(config.active_instruments, traded_instrs);
     
-    ASSERT_TRUE(data_reader_manager.RegisterAndInitStreams(config.data_streams));
+    ASSERT_TRUE(data_reader_manager.RegisterAndInitStreams(config.data_configs));
 
     size_t events_processed = 0;
     size_t snapshots_compared = 0;

@@ -11,10 +11,12 @@ class InstrumentState {
     uint32_t instrument_id;
 
     void OnMarketEvent(const MarketByOrderEvent& event);
-    inline Bbo GetInstrumentBbo(){return instrument_Bbo_;}
+    inline const BidAskPair GetInstrumentBbo() const {return instrument_Bbo_;}
     
     const std::vector<BidAskPair> GetOBSnapshotByPub(uint16_t publisher_id, 
                                                std::size_t level_count = 1) const;
+
+    int64_t GetQueueDepthByPx(int64_t price) const; 
     // double get_vwap() const { return vwap_.get_vwap(); }
     // const Bbo& get_bbo() const { return bbo_cache_.get_bbo(); }
     // double get_weighted_mid_price() const { return wmp_calculator_.get_wmp(); }
@@ -23,7 +25,7 @@ class InstrumentState {
  private:
     // Key = publisher_id
     std::unordered_map<uint16_t, OrderBook> books_;
-    Bbo instrument_Bbo_;
+    BidAskPair instrument_Bbo_;
 
     void UpdateInstrumentBbo();
 

@@ -107,8 +107,8 @@ int main(int argc, char* argv[]) {
     backtester::MarketStateManager market_state_manager;
     std::vector<uint32_t> traded_instr_ids;
     traded_instr_ids.reserve(config.traded_instruments.size());
-    std::transform(config.traded_instruments.begin(), config.traded_instruments.end(), std::back_inserter(ids),
-               [](const auto& obj) { return obj.instrument_id; });
+    std::transform(config.traded_instruments.begin(), config.traded_instruments.end(), 
+        std::back_inserter(traded_instr_ids), [](const auto& obj) { return obj.instrument_id; });
 
     market_state_manager.Initialize(config.active_instruments, traded_instr_ids);
 
@@ -117,9 +117,9 @@ int main(int argc, char* argv[]) {
     /// Initialize Report Generator
 	backtester::ReportGenerator report_generator;
     /// Initialize Execution Handler
-	backtester::ExecutionHandler execution_handler;
+	backtester::ExecutionHandler execution_handler(event_queue, config.execution_latency_ms);
     /// Initialize Strategy Manager and specific Strategy
-    backtester::StrategyManager strategy_manager(execution_handler, config.strategies);
+    backtester::StrategyManager strategy_manager(config);
     strategy_manager.InitiailizeStrategies();
     
     // Read the first event from each data source and add to the EventQueue

@@ -6,13 +6,6 @@ namespace backtester {
 
 static constexpr auto kUndefPrice = std::numeric_limits<std::int64_t>::max();
 
-struct Bbo {
-    int64_t bid_price = 0;
-    int64_t ask_price = 0;
-    // uint32_t bid_qty = 0;
-    // uint32_t ask_qty = 0;
-};
-
 struct LevelQueue {
     int64_t price{kUndefPrice};
     std::vector<MarketByOrderEvent> orders;
@@ -23,28 +16,6 @@ struct LevelQueue {
     operator bool() const { return !IsEmpty(); }
 };
 
-struct PriceLevel {
-    int64_t price;
-    uint32_t size;
-    uint32_t count;
-};
 
-struct BidAskPair {
-    std::int64_t bid_px;
-    std::int64_t ask_px;
-    std::uint32_t bid_sz;
-    std::uint32_t ask_sz;
-    std::uint32_t bid_ct;
-    std::uint32_t ask_ct;
-
-    bool operator==(const BidAskPair& bap2) const {
-        return bid_px == bap2.bid_px &&
-                ask_px == bap2.ask_px &&
-                bid_sz == bap2.bid_sz &&
-                ask_sz == bap2.ask_sz &&
-                bid_ct == bap2.bid_ct &&
-                ask_ct == bap2.ask_ct;
-    }
-};
 
 }
