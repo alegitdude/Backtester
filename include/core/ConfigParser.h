@@ -3,6 +3,7 @@
 #include "../utils/StringUtils.h"
 #include <nlohmann/json.hpp>
 #include <filesystem>
+#include <optional>
 
 namespace backtester {
 
@@ -52,8 +53,6 @@ const std::vector<std::string> kOptionalDataStreamFields = {
     "data_source_name"
 };
 
-AppConfig default_config = GetDefaultConfig();
-
 AppConfig ParseConfigToObj(std::filesystem::path& config_path); 
 
 AppConfig ParseConfigFromJson(const nlohmann::json& data);
@@ -61,7 +60,7 @@ AppConfig ParseConfigFromJson(const nlohmann::json& data);
 std::vector<Symbol> ParseDataSymbols(const std::string& filepath);
 std::vector<Strategy> ParseStrategies(const nlohmann::json& data);
 std::vector<TradedInstrument> ParseTradedInstrs(const nlohmann::json& data);
-RiskLimits ParseRiskLimits(const nlohmann::json& data);
+RiskLimits ParseRiskLimits(const nlohmann::json& data, const AppConfig def_config);
 
 inline DataSchema StrToDataSchema(const std::string& str) {
   if (str == "MBO" || str == "mbo") return DataSchema::MBO;
@@ -109,5 +108,8 @@ inline RiskMode ParseRiskMode(const std::string& str){
 
 template <typename T>
 T GetRequired(const nlohmann::json& j, const std::string& key, const std::string& context);
+
+template <typename T>
+std::optional<T> GetOptional(const nlohmann::json& j, const std::string& key, const std::string& context);
 
 };

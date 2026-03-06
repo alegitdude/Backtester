@@ -8,6 +8,7 @@
 #include "../include/portfolio/PortfolioManager.h"
 #include "../include/reporting/ReportGenerator.h"
 #include "../include/core/ConfigParser.h"
+#include "../include/core/DefaultConfig.h"
 #include <nlohmann/json.hpp>
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
@@ -90,19 +91,19 @@ int main(int argc, char* argv[]) {
         }
     }
     
-    ///  Argument Parsing & Initial Setup 
+    bool use_demo_config = true;
+    
     ///  Initialize Logger 
     SetupLogging();
     spdlog::info("Logger Initialized");
     ///  Configuration Loading 
     spdlog::info("Loading Confgiuration File");
-    ///  Component Initialization 
-    const backtester::AppConfig config = backtester::ParseConfigToObj(config_path);
+    const backtester::AppConfig config = use_demo_config? backtester::GetDefaultConfig()
+        :  backtester::ParseConfigToObj(config_path);
     ///  Create central EventQueue
     backtester::EventQueue event_queue;
-    /// Initialize Data Reader(s) and possibly DataReaderManager?
+    /// Initialize DataReaderManager
 	backtester::DataReaderManager data_reader_manager(event_queue);
-
     /// Initialize Market State Manager
     backtester::MarketStateManager market_state_manager;
     std::vector<uint32_t> traded_instr_ids;
@@ -118,7 +119,7 @@ int main(int argc, char* argv[]) {
 	backtester::ReportGenerator report_generator;
     /// Initialize Execution Handler
 	backtester::ExecutionHandler execution_handler(event_queue, config.execution_latency_ms);
-    /// Initialize Strategy Manager and specific Strategy
+    /// Initialize Strategy Manager and Strategies
     backtester::StrategyManager strategy_manager(config);
     strategy_manager.InitiailizeStrategies();
     

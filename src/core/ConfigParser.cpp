@@ -13,7 +13,7 @@
 #include <string>
 
 namespace backtester{
-
+	
 std::vector<Symbol> ParseDataSymbols(const std::string& filepath){
         std::vector<Symbol> instruments;
         
@@ -54,13 +54,14 @@ std::vector<Symbol> ParseDataSymbols(const std::string& filepath){
 }
 
 AppConfig ParseConfigFromJson(const nlohmann::json& data){
+	AppConfig default_config = backtester::GetDefaultConfig();
 	AppConfig config;
 	// MARK: Start Time
 	std::string start_str = GetRequired<std::string>(data, "start_time", "Global Settings");
 	auto start_result = time::ParseIsoToUnix(start_str); //TODO double check est
 	if (!start_result.success) {
-    	throw std::runtime_error(fmt::format("Config 'start_time' error: {} in string '{}'", 
-                             start_result.error_msg, data["start_time"]));
+    	throw std::runtime_error(fmt::format("Config 'start_time' error: {} in string ", 
+                             start_result.error_msg));
 	}
 	config.start_time = start_result.unix_nanos;
 
@@ -68,8 +69,8 @@ AppConfig ParseConfigFromJson(const nlohmann::json& data){
 	std::string end_str = GetRequired<std::string>(data, "end_time", "Global Settings");
 	auto end_result = time::ParseIsoToUnix(end_str);
 	if (!end_result.success) {
-    	throw std::runtime_error(fmt::format("Config 'end_time' error: {} in string '{}'", 
-                             start_result.error_msg, data["end_time"]));
+    	throw std::runtime_error(fmt::format("Config 'end_time' error: {} in string ", 
+                             start_result.error_msg));
 	}
 	config.end_time = end_result.unix_nanos;
 
@@ -91,11 +92,11 @@ AppConfig ParseConfigFromJson(const nlohmann::json& data){
 	}
 
 	// MARK: Log File Path
-	config.log_file_path = GetOptional<uint64_t>(data, "log_file_path",
+	config.log_file_path = GetOptional<std::string>(data, "log_file_path",
 		"Global Settings").value_or(default_config.log_file_path); 
 	
 	// MARK: Report Output Directory
-	config.report_output_dir = GetOptional<uint64_t>(data, "report_output_dir",
+	config.report_output_dir = GetOptional<std::string>(data, "report_output_dir",
 		"Global Settings").value_or(default_config.report_output_dir); 
 
 	// MARK: Strategies
@@ -119,7 +120,7 @@ AppConfig ParseConfigFromJson(const nlohmann::json& data){
 		spdlog::warn("No parsable risk limits detected, using default");
 		config.risk_limits = default_config.risk_limits;
 	} else {
-		config.risk_limits = ParseRiskLimits(data["risk_limits"]);
+		config.risk_limits = ParseRiskLimits(data["risk_limits"], default_config);
 	}
 
 	// MARK: Data Streams
@@ -210,9 +211,9 @@ std::vector<TradedInstrument> ParseTradedInstrs(const nlohmann::json& data) {
 	return res;
 }
 
-RiskLimits ParseRiskLimits(const nlohmann::json& data) {
+RiskLimits ParseRiskLimits(const nlohmann::json& data, AppConfig default_config) {
 	RiskLimits res;
-	std::string context = "Risk Limits";
+	
 	for(std::string field : kRiskLimitsFields){
 		if(!data.contains(field)){
 			spdlog::warn("field {} of riskLimits is not parsable, using default risk limits ", field);	
@@ -220,7 +221,6 @@ RiskLimits ParseRiskLimits(const nlohmann::json& data) {
 		}
 	}
 	std::string context = "Risk Limits";
-
 	res.risk_mode = ParseRiskMode(GetOptional<std::string>(data, 
 		"risk_mode", context).value_or("PercentOfAcct"));
 	res.max_position_size = numericUtils::doubleToFixedPoint(GetOptional<double>(data, 
