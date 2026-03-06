@@ -2,6 +2,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <charconv>
+#include <optional>
 
 namespace backtester {
 
@@ -64,28 +65,71 @@ std::string EpochToString(uint64_t epoch_nanos, const std::string& timezone = "U
 //     return static_cast<uint64_t>(epoch_seconds) * 1'000'000'000ULL + nanos;
 // }
 
-uint64_t ParseIsoToUnix(const std::string& s) {
+TimeParseResult ParseIsoToUnix(std::string_view s) {
     struct tm t = {0};
     const char* data = s.data();
+    
+    // Helper to check from_chars results
+    auto check = [&](const std::from_chars_result& res, std::string_view field) -> bool {
+        if (res.ec != std::errc{}) return false;
+        return true;
+    };
 
-    // Use from_chars for slightly better safety at near-identical speed
-    std::from_chars(data,      data + 4, t.tm_year); t.tm_year -= 1900;
-    std::from_chars(data + 5,  data + 7, t.tm_mon);  t.tm_mon -= 1;
-    std::from_chars(data + 8,  data + 10, t.tm_mday);
-    std::from_chars(data + 11, data + 13, t.tm_hour);
-    std::from_chars(data + 14, data + 16, t.tm_min);
-    std::from_chars(data + 17, data + 19, t.tm_sec);
+    // Parsing YYYY-MM-DD HH:MM:SS
+    if (!check(std::from_chars(data,      data + 4,  t.tm_year), "year"))  return {0, "Invalid Year", false};
+    if (!check(std::from_chars(data + 5,  data + 7,  t.tm_mon),  "month")) return {0, "Invalid Month", false};
+    if (!check(std::from_chars(data + 8,  data + 10, t.tm_mday), "day"))   return {0, "Invalid Day", false};
+    if (!check(std::from_chars(data + 11, data + 13, t.tm_hour), "hour"))  return {0, "Invalid Hour", false};
+    if (!check(std::from_chars(data + 14, data + 16, t.tm_min),  "min"))   return {0, "Invalid Minute", false};
+    if (!check(std::from_chars(data + 17, data + 19, t.tm_sec),  "sec"))   return {0, "Invalid Second", false};
 
-    time_t epoch_seconds = timegm(&t); // Use _mkgmtime on Windows
+    t.tm_year -= 1900;
+    t.tm_mon -= 1;
+    
+    time_t epoch_seconds = timegm(&t); // Ensure UTC interpretation
 
-    uint32_t nanos = 0;
-    // Check if subseconds exist before parsing
-    if (s.length() > 20 && s[19] == '.') {
-        std::from_chars(data + 20, data + 29, nanos);
+    uint64_t nanos = 0;
+    if (s.length() > 19 && s[19] == '.') {
+        const char* nano_start = data + 20;
+        const char* nano_end = data + s.length();
+        uint32_t raw_val = 0;
+        auto res = std::from_chars(nano_start, nano_end, raw_val);
+        
+        if (res.ec == std::errc{}) {
+            // SCALE THE NANOS: .1 should be 100,000,000
+            size_t digits = res.ptr - nano_start;
+            nanos = raw_val;
+            for (size_t i = digits; i < 9; ++i) nanos *= 10;
+        }
     }
 
-    return static_cast<uint64_t>(epoch_seconds) * 1'000'000'000ULL + nanos;
+    return {static_cast<uint64_t>(epoch_seconds) * 1'000'000'000ULL + nanos, "", true};
 }
+
+// std::optional<uint64_t> ParseIsoToUnix(const std::string& s) {
+//     struct tm t = {0};
+//     const char* data = s.data();
+//     auto [ptr, ec] = std::from_chars(data, data + 4, t.tm_year);
+//         if (ec != std::errc{}) {
+//         return std::nullopt;  
+//     }
+//     t.tm_year -= 1900;
+//     std::from_chars(data + 5,  data + 7, t.tm_mon);  t.tm_mon -= 1;
+//     std::from_chars(data + 8,  data + 10, t.tm_mday);
+//     std::from_chars(data + 11, data + 13, t.tm_hour);
+//     std::from_chars(data + 14, data + 16, t.tm_min);
+//     std::from_chars(data + 17, data + 19, t.tm_sec);
+
+//     time_t epoch_seconds = timegm(&t); // Use _mkgmtime on Windows
+
+//     uint32_t nanos = 0;
+//     // Check if subseconds exist before parsing
+//     if (s.length() > 20 && s[19] == '.') {
+//         std::from_chars(data + 20, data + 29, nanos);
+//     }
+
+//     return static_cast<uint64_t>(epoch_seconds) * 1'000'000'000ULL + nanos;
+// }
 
 // MARK: Get Timezone offset
 

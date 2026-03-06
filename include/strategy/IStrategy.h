@@ -13,7 +13,7 @@ class IStrategy {
 
     virtual std::unique_ptr<StrategySignalEvent> OnMarketEvent(
         const MarketByOrderEvent& event,
-        const std::vector<BidAskPair> ob_snapshot) ;  // return signal if generated, else nullptr
+        const std::vector<BidAskPair>& ob_snapshot) ;  // return signal if generated, else nullptr
 
     virtual void OnFill(const StrategyFillEvent& fill) ;  // update internal state (e.g., position)
 

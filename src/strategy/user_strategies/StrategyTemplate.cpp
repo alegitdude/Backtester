@@ -4,7 +4,7 @@
 
 namespace backtester {
 
-class MovAvgCross : public IStrategy {
+class Template : public IStrategy {
 public:
     virtual void Initialize(const Strategy& config) override {
         return;
@@ -13,8 +13,8 @@ public:
     virtual std::unique_ptr<StrategySignalEvent> OnMarketEvent(
         const MarketByOrderEvent& event,
         const std::vector<BidAskPair>& ob_snapshot) override {
-        
-        spdlog::info("Moving Average strategy processing event...");
+        // ... Your custom trading logic ...
+        spdlog::info("Template strategy processing event...");
     }
 
     virtual void OnFill(const StrategyFillEvent& fill) override {
@@ -33,6 +33,6 @@ public:
 // ==========================================================
 // Required Strategy Registration: Class Name, Strategy Name
 // ==========================================================
-REGISTER_STRATEGY(MovAvgCross, "SMA_Cross");
+REGISTER_STRATEGY(Template, "Blank_Template");
 
 }

@@ -68,16 +68,16 @@ struct DataStream {
 struct Strategy {
     std::string name;
     std::vector<int> params;
-    int max_lob_lvl; // If strat only needs current price, lvl is 1, 
+    std::size_t max_lob_lvl; // If strat only needs current price, lvl is 1, 
                      // otherwise how many levels strat is doing calculations on
 };
 
 struct TradedInstrument {
     uint32_t instrument_id;
     InstrumentType instrument_type;
-    int64_t tick_size;
-    int64_t tick_value;
-    int64_t margin_req;
+    uint64_t tick_size;
+    uint64_t tick_value;
+    uint64_t margin_req;
 };
 
 struct RiskLimits {
@@ -99,7 +99,7 @@ struct AppConfig {
     uint64_t start_time; //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
     uint64_t end_time;  //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
     uint64_t execution_latency_ms = 200;
-    int64_t initial_cash = 100000;
+    uint64_t initial_cash = 100000;
     std::string log_file_path;
     std::string report_output_dir;
     std::vector<Strategy> strategies;
@@ -147,12 +147,6 @@ struct PriceLevel {
 struct BidAskPair {
     PriceLevel bid;
     PriceLevel ask;
-    // std::int64_t bid_price;
-    // std::int64_t ask_price;
-    // std::uint32_t bid_size;
-    // std::uint32_t ask_size;
-    // std::uint32_t bid_count;
-    // std::uint32_t ask_count;
 
     bool operator==(const BidAskPair& bap2) const {
         return bid.price == bap2.bid.price &&
@@ -162,6 +156,12 @@ struct BidAskPair {
                 bid.count == bap2.bid.count &&
                 ask.count == bap2.ask.count;
     }
+};
+
+struct TimeParseResult {
+    uint64_t unix_nanos = 0;
+    std::string error_msg = "";
+    bool success = false;
 };
 
 enum class DataInterval{

@@ -52,6 +52,8 @@ const std::vector<std::string> kOptionalDataStreamFields = {
     "data_source_name"
 };
 
+AppConfig default_config = GetDefaultConfig();
+
 AppConfig ParseConfigToObj(std::filesystem::path& config_path); 
 
 AppConfig ParseConfigFromJson(const nlohmann::json& data);
@@ -104,5 +106,8 @@ inline RiskMode ParseRiskMode(const std::string& str){
   if (stringUtils::ToLower(str) == "posSizeindollars") return RiskMode::PosSizeInDollars;
   return RiskMode::PercentOfAcct;
 }
+
+template <typename T>
+T GetRequired(const nlohmann::json& j, const std::string& key, const std::string& context);
 
 };

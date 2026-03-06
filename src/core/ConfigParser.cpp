@@ -54,77 +54,91 @@ std::vector<Symbol> ParseDataSymbols(const std::string& filepath){
 }
 
 AppConfig ParseConfigFromJson(const nlohmann::json& data){
-	std::vector<std::string> errors;
-    std::vector<std::string> warnings;
-    
-    for (const auto& field : kRequiredConfigFields) {
-        if (!data.contains(field)) {
-            errors.push_back("Missing required field: '" + field + "'");
-        }
-    }
-    
-    for (const auto& field : kOptionalConfigFields) {
-        if (!data.contains(field)) {
-            warnings.push_back("'" + field + "' not specified, using default");
-        }
-    }
-    
-    if (data.contains("data_streams")) {
-        int index = 0;
-        for (const auto& stream : data["data_streams"]) {
-            std::string prefix = "data_streams[" + std::to_string(index) + "]";
-            
-            for (const auto& field : kRequiredDataStreamFields) {
-                if (!stream.contains(field)) {
-                    errors.push_back(prefix + ": missing required field '" + field + "'");
-                }
-            }
-            
-            for (const auto& field : kOptionalDataStreamFields) {
-                if (!stream.contains(field)) {
-                    warnings.push_back(prefix + ": '" + field + "' not specified, using default");
-                }
-            }
-            index++;
-        }
-    } 
-    
-    for (const auto& w : warnings) {
-        spdlog::warn("{}", w);
-    }
-    
-    if (!errors.empty()) {
-        std::string msg = "Config validation failed:\n";
-        for (const auto& e : errors) {
-            msg += "  - " + e + "\n";
-        }
-        throw std::runtime_error(msg);
-    }
-
 	AppConfig config;
-	config.start_time = time::ParseIsoToUnix(data["start_time"]); // TODO Double check est
-	config.end_time = time::ParseIsoToUnix(data["end_time"]); // TODO Double check est
+	// MARK: Start Time
+	std::string start_str = GetRequired<std::string>(data, "start_time", "Global Settings");
+	auto start_result = time::ParseIsoToUnix(start_str); //TODO double check est
+	if (!start_result.success) {
+    	throw std::runtime_error(fmt::format("Config 'start_time' error: {} in string '{}'", 
+                             start_result.error_msg, data["start_time"]));
+	}
+	config.start_time = start_result.unix_nanos;
 
-	config.execution_latency_ms = data["execution_latency"];
-	config.initial_cash = data["initial_cash"];
-	config.log_file_path = data["log_file_path"];
-	config.report_output_dir = data["report_output_dir"];
+	// MARK: End Time
+	std::string end_str = GetRequired<std::string>(data, "end_time", "Global Settings");
+	auto end_result = time::ParseIsoToUnix(end_str);
+	if (!end_result.success) {
+    	throw std::runtime_error(fmt::format("Config 'end_time' error: {} in string '{}'", 
+                             start_result.error_msg, data["end_time"]));
+	}
+	config.end_time = end_result.unix_nanos;
+
+	if(config.start_time >= config.end_time){
+		throw std::runtime_error(fmt::format("Config start_time {} is equal to or greater than end_time {}. Backtest can't run.", 
+                             config.start_time, config.end_time));
+	}
+
+	// MARK: Execution Latency
+    config.execution_latency_ms = GetOptional<uint64_t>(data, "execution_latency_ms",
+		"Global Settings").value_or(default_config.execution_latency_ms);   
+
+	// MARK: Initial Cash
+	config.execution_latency_ms = GetOptional<uint64_t>(data, "initial_cash",
+		"Global Settings").value_or(default_config.initial_cash); 
+	if(config.initial_cash < 1){
+		spdlog::warn("Initial Cash below 1, using default config initial cash");
+		config.initial_cash = default_config.initial_cash;
+	}
+
+	// MARK: Log File Path
+	config.log_file_path = GetOptional<uint64_t>(data, "log_file_path",
+		"Global Settings").value_or(default_config.log_file_path); 
 	
+	// MARK: Report Output Directory
+	config.report_output_dir = GetOptional<uint64_t>(data, "report_output_dir",
+		"Global Settings").value_or(default_config.report_output_dir); 
+
+	// MARK: Strategies
+	if (!data.contains("strategies") || !data["strategies"].is_array() ||
+		!data["strategies"].size() > 0) {
+        throw std::runtime_error(
+			"Config Error: 'strategies' must be a JSON array with at least one element.");
+    }
 	config.strategies = ParseStrategies(data["strategies"]);
+
+	// MARK: Traded Instruments
+	if (!data.contains("traded_instruments") || !data["traded_instruments"].is_array() ||
+		!data["traded_instruments"].size() > 0) {
+        throw std::runtime_error(
+			"Config Error: 'traded_instruments' must be a JSON array with at least one element.");
+    }
 	config.traded_instruments = ParseTradedInstrs(data["traded_instruments"]);	
 
-	config.risk_limits = ParseRiskLimits(data["risk_limits"]);
+	// MARK: Risk Limits
+	if (!data.contains("risk_limits")){
+		spdlog::warn("No parsable risk limits detected, using default");
+		config.risk_limits = default_config.risk_limits;
+	} else {
+		config.risk_limits = ParseRiskLimits(data["risk_limits"]);
+	}
 
-	for (const auto& item : data["data_streams"]) {
+	// MARK: Data Streams
+	if (!data.contains("data_streams") || !data["data_streams"].is_array() ||
+		!data["data_streams"].size() > 0) {
+        throw std::runtime_error(
+			"Config Error: 'strategies' must be a JSON array with at least one element.");
+    }
+	std::string context = "data streams";
+	for (const auto& stream : data["data_streams"]) {
 		DataSourceConfig data_config;
-		data_config.data_source_name = item["data_source_name"];
-		data_config.data_symbology = ParseDataSymbols(item["symbology_filepath"]);
-		data_config.data_filepath = item["data_filepath"];
-		data_config.schema = StrToDataSchema(item["schema"]);
-		data_config.encoding = StrToEncoding(item["encoding"]);
-		data_config.compression = StrToCompression(item["compression"]);
-		data_config.price_format = StrToPriceFormat(item["price_format"]);
-		data_config.ts_format = StrToTSFormat(item["timestamp_format"]); 
+		data_config.data_source_name = GetRequired<std::string>(stream, "data_source_name", context);
+		data_config.data_symbology = ParseDataSymbols(GetRequired<std::string>(stream, "symbology_filepath", context));
+		data_config.data_filepath =  GetRequired<std::string>(stream, "data_filepath", context);
+		data_config.schema = StrToDataSchema(GetRequired<std::string>(stream, "schema", context));
+		data_config.encoding = StrToEncoding(GetRequired<std::string>(stream, "encoding", context));
+		data_config.compression = StrToCompression(GetRequired<std::string>(stream, "compression", context));
+		data_config.price_format = StrToPriceFormat(GetRequired<std::string>(stream, "price_format", context));
+		data_config.ts_format = StrToTSFormat(GetRequired<std::string>(stream, "ts_format", context)); 
 		config.data_configs.push_back(data_config);
 	};
 
@@ -161,17 +175,12 @@ AppConfig ParseConfigToObj(std::filesystem::path& config_path){
 
 std::vector<Strategy> ParseStrategies(const nlohmann::json& data) {
 	std::vector<Strategy> res;
-	if(data.contains("")){}
-
+	std::string context = "Strategy";
 	for (const auto& item : data) {
-		Strategy strat;
-		strat.name = item["name"];
-		std::vector<int> params;
-		for(const auto& param : item["params"]){
-			params.push_back(param);
-		}
-		strat.params = params;
-		strat.max_lob_lvl = item["max_lob_lvl"];
+		Strategy strat;	
+		strat.name = GetRequired<std::string>(data, "name", context);
+		strat.params = GetRequired<std::vector<int>>(data, "params", context);
+		strat.max_lob_lvl = GetRequired<std::size_t>(data, "max_lob_lvl", context);
 		res.push_back(strat);
 	}	
 	return res; 
@@ -179,19 +188,22 @@ std::vector<Strategy> ParseStrategies(const nlohmann::json& data) {
 
 std::vector<TradedInstrument> ParseTradedInstrs(const nlohmann::json& data) {
 	std::vector<TradedInstrument> res;
+	if (!data.is_array() || !data.size() > 0) throw std::runtime_error(
+		"Config Error: 'traded_instruments' must be an array with at least one element.");
+
 	for(const auto& item : data){
-		for(std::string field : kRequiredTradedInstrFields){
-			if(!data.contains(field)){
-				spdlog::error("field {} of traded instrument is not parsable ", field);	
-				throw std::runtime_error("Traded Instrument in config file is not valid: ");
-			}
-		}	
 		TradedInstrument instr;
-		instr.instrument_id = data["instrument_id"];
-		instr.instrument_type = ParseInstrType(data["instrument_type"]);
-		instr.tick_size = data["tick_size"];
-		instr.tick_value = data["tick_value"];
-		instr.margin_req = data["margin_req"];
+		std::string context = "Traded Instruments";
+		instr.instrument_id = GetRequired<uint32_t>(data, "instrument_id", 
+			"Traded Instruments");data["instrument_id"];
+		instr.instrument_type = ParseInstrType(GetRequired<std::string>(data, 
+			"instrument_type", "Traded Instruments"));
+		instr.tick_size = numericUtils::doubleToFixedPoint(GetRequired<double>( // TODO check if number is reasonable
+			data, "tick_size", "Traded Instruments"));
+		instr.tick_value = numericUtils::doubleToFixedPoint(GetRequired<double>(
+			data, "tick_value", "Traded Instruments"));
+		instr.margin_req = numericUtils::doubleToFixedPoint(GetRequired<double>(
+			data, "margin_req", "Traded Instruments"));
 
 		res.push_back(instr);
 	}
@@ -199,24 +211,88 @@ std::vector<TradedInstrument> ParseTradedInstrs(const nlohmann::json& data) {
 }
 
 RiskLimits ParseRiskLimits(const nlohmann::json& data) {
-	std::vector<std::string> absent_fields;
 	RiskLimits res;
+	std::string context = "Risk Limits";
 	for(std::string field : kRiskLimitsFields){
 		if(!data.contains(field)){
 			spdlog::warn("field {} of riskLimits is not parsable, using default risk limits ", field);	
-			AppConfig config = GetDefaultConfig();
-			return config.risk_limits;
+			return default_config.risk_limits;
+		}
+	}
+	std::string context = "Risk Limits";
+
+	res.risk_mode = ParseRiskMode(GetOptional<std::string>(data, 
+		"risk_mode", context).value_or("PercentOfAcct"));
+	res.max_position_size = numericUtils::doubleToFixedPoint(GetOptional<double>(data, 
+		"max_position_size", context).value_or(3));
+	res.max_risk_per_trade_pct = numericUtils::doubleToFixedPoint(GetOptional<double>(data, 
+		"max_risk_per_trade_pct", context).value_or(.02));
+	res.max_portfolio_delta = numericUtils::doubleToFixedPoint(GetOptional<double>(data, 
+		"max_portfolio_delta", context).value_or(0));
+	res.max_drawdown_pct = numericUtils::doubleToFixedPoint(GetOptional<double>(data, 
+		"max_drawdown_pct", context).value_or(.2));
+	res.max_delta_per_trade = numericUtils::doubleToFixedPoint(GetOptional<double>(data, 
+		"max_delta_per_trade", context).value_or(0));
+
+	return res;
+}
+
+
+template <typename T>
+T GetRequired(const nlohmann::json& j, const std::string& key, const std::string& context) {
+    if (!j.contains(key)) {
+        throw std::runtime_error(fmt::format("Config Error: Missing '{}' in {}", key, context));
+    }
+
+    const auto& val = j.at(key);
+	// Number check
+	if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T> && !std::is_same_v<T, bool>) {
+		if (val.is_number()) {
+			// Check for negative integers OR negative floats being assigned to an unsigned type
+			if ((val.is_number_integer() && !val.is_number_unsigned()) || 
+				(val.is_number_float() && val.get<double>() < 0)) {
+				throw std::runtime_error(fmt::format(
+					"Config Error: Negative value {} assigned to unsigned key '{}' in {}",
+					val.dump(), key, context
+				));
+			}
 		}
 	}
 
-	res.risk_mode = ParseRiskMode(data["risk_mode"]);
-	res.max_position_size = numericUtils::doubleToFixedPoint(data["max_position_size"]);
-	res.max_risk_per_trade_pct = numericUtils::doubleToFixedPoint(data["max_risk_per_trade_pct"]);
-	res.max_portfolio_delta = numericUtils::doubleToFixedPoint(data["max_portfolio_delta"]);
-	res.max_drawdown_pct = numericUtils::doubleToFixedPoint(data["max_drawdown_pct"]);
-	res.max_delta_per_trade = numericUtils::doubleToFixedPoint(data["max_delta_per_trade"]);
+    try {
+        return val.get<T>();
+    } catch (const nlohmann::json::exception& e) {
+        throw std::runtime_error(fmt::format(
+            "Config Error: Invalid type for '{}' in {}. Expected {}, but found {}.",
+            key, context, typeid(T).name(), val.type_name()
+        ));
+    }
+}
 
-	return res;
+template <typename T>
+std::optional<T> GetOptional(const nlohmann::json& j, const std::string& key, const std::string& context) {
+    if (!j.contains(key) || j.at(key).is_null()) {
+        return std::nullopt;
+    }
+
+    const auto& val = j.at(key);
+
+    if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T> && !std::is_same_v<T, bool>) {
+        if (val.is_number()) {
+            if ((val.is_number_integer() && !val.is_number_unsigned()) || 
+                (val.is_number_float() && val.get<double>() < 0)) {
+                spdlog::warn("Config: Key '{}' in {} is negative but expected unsigned. Using default.", key, context);
+                return std::nullopt;
+            }
+        }
+    }
+
+    try {
+        return val.get<T>();
+    } catch (const nlohmann::json::exception& e) {
+        spdlog::warn("Config: Key '{}' in {} has invalid type. Using default.", key, context);
+        return std::nullopt;
+    }
 }
 
 }

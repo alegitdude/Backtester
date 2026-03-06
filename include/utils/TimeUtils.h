@@ -1,10 +1,12 @@
 #pragma once
+#include "../core/Types.h"
 #include <string>
 #include <cstdint>
 #include <chrono>
 #include <iomanip>
 #include <sstream>
 #include <ctime>
+#include <optional>
 
 namespace backtester {
 
@@ -15,7 +17,8 @@ std::string EpochToString(uint64_t epoch_nanos,
 
 int GetTimezoneOffset(const std::string& timezone);
 
-uint64_t ParseIsoToUnix(const std::string& str);
+TimeParseResult ParseIsoToUnix(std::string_view s);
+//std::optional<uint64_t> ParseIsoToUnix(const std::string& str);
 
 inline int fast_atoi_2(const char* s) {
 return (s[0] - '0') * 10 + (s[1] - '0');
