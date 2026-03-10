@@ -10,7 +10,8 @@ namespace backtester {
 
 class StrategyManager {
  public:
-    StrategyManager(const AppConfig& strategies);
+    StrategyManager(const AppConfig& config);
+   // StrategyManager(const AppConfig& strategies);
     
     ~StrategyManager() = default;
 
@@ -24,7 +25,7 @@ class StrategyManager {
 
  private: 
     const AppConfig& config_;
-    std::vector<IStrategy*> active_strategies_;
+    std::vector<std::unique_ptr<IStrategy>> active_strategies_;
     std::unordered_map<std::string, IStrategy*> strategy_lookup_;
 };
 

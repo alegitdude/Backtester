@@ -15,8 +15,7 @@
 namespace backtester{
 	
 std::vector<Symbol> ParseDataSymbols(const std::string& filepath){
-        std::vector<Symbol> instruments;
-        
+        std::vector<Symbol> instruments;       
         std::ifstream file(filepath, std::ios::in);
 
         if (!file.is_open()) {
@@ -31,7 +30,7 @@ std::vector<Symbol> ParseDataSymbols(const std::string& filepath){
             std::string symbol, instrument, date;
             Symbol row;
 			count++;
-			if(count == 1) {continue;}
+			if(count == 1) {continue;} // Skip header line
             if (std::getline(ss, symbol, ',') &&
                 std::getline(ss, instrument, ',') &&
                 std::getline(ss, date)) { 
@@ -56,6 +55,7 @@ std::vector<Symbol> ParseDataSymbols(const std::string& filepath){
 AppConfig ParseConfigFromJson(const nlohmann::json& data){
 	AppConfig default_config = backtester::GetDefaultConfig();
 	AppConfig config;
+	
 	// MARK: Start Time
 	std::string start_str = GetRequired<std::string>(data, "start_time", "Global Settings");
 	auto start_result = time::ParseIsoToUnix(start_str); //TODO double check est

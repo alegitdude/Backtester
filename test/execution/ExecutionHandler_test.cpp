@@ -67,7 +67,7 @@ class ExecutionHandlerTest : public ::testing::Test {
     // Factory: MarketByOrderEvent
     // -------------------------------------------------------------------
     MarketByOrderEvent MakeMboTrade(int64_t price, uint32_t size,
-        uint64_t ts, OrderSide side = OrderSide::kNone) {
+        uint64_t ts, OrderSide side) {
 
         return MarketByOrderEvent(
             ts, EventType::kMarketTrade,
@@ -97,7 +97,7 @@ class ExecutionHandlerTest : public ::testing::Test {
     }
 
     MarketByOrderEvent MakeMboFill(int64_t price, uint32_t size,
-        uint64_t ts, OrderSide side = OrderSide::kNone) {
+        uint64_t ts, OrderSide side) {
 
         return MarketByOrderEvent(
             ts, EventType::kMarketFill,
@@ -107,7 +107,7 @@ class ExecutionHandlerTest : public ::testing::Test {
     }
 
     // Different instrument
-    MarketByOrderEvent MakeMboTradeOtherInstr(int64_t price, uint32_t size,
+    MarketByOrderEvent MakeMboFillOtherInstr(int64_t price, uint32_t size,
         uint64_t ts) {
 
         return MarketByOrderEvent(
@@ -120,9 +120,6 @@ class ExecutionHandlerTest : public ::testing::Test {
     // -------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------
-    // Bbo MakeBbo(int64_t bid, int64_t ask) {
-    //     return Bbo{bid, ask};
-    // }
 
     // Pop all StrategyFillEvents from the queue and return them
     std::vector<std::unique_ptr<Event>> DrainFills() {
@@ -351,7 +348,7 @@ TEST_F(ExecutionHandlerTest, LatencyGating_OrderNotLiveBeforeLatency) {
     eh.OnStrategyOrder(order, bbo, 10);
 
     // Trade at our price BEFORE we're live — should NOT fill
-    auto trade = MakeMboTrade(5000, 20, 1000 + kLatencyNs - 1);
+    auto trade = MakeMboFill(5000, 20, 1000 + kLatencyNs - 1, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_TRUE(eh.HasPendingOrders());
@@ -367,7 +364,7 @@ TEST_F(ExecutionHandlerTest, LatencyGating_OrderLiveExactlyAtLatency) {
 
     // Trade exactly at live_ts — should fill
     uint64_t live_ts = 1000 + kLatencyNs;
-    auto trade = MakeMboTrade(5000, 5, live_ts);
+    auto trade = MakeMboFill(5000, 5, live_ts, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_FALSE(eh.HasPendingOrders());
@@ -383,7 +380,7 @@ TEST_F(ExecutionHandlerTest, LatencyGating_OrderLiveAfterLatency) {
     eh.OnStrategyOrder(order, bbo, 0);
 
     // Trade well after live_ts
-    auto trade = MakeMboTrade(5000, 5, 1000 + kLatencyNs + 1'000'000'000ULL);
+    auto trade = MakeMboFill(5000, 5, 1000 + kLatencyNs + 1'000'000'000ULL, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_FALSE(eh.HasPendingOrders());
@@ -484,7 +481,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_QueueFullyDrainedThenFill) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade 35 at our level: 30 drains queue, 5 remain, 2 fill us
-    auto trade = MakeMboTrade(5000, 35, after_live);
+    auto trade = MakeMboFill(5000, 35, after_live, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_FALSE(eh.HasPendingOrders());
@@ -504,7 +501,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_ExactQueueDepthTrade_NoFill) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade exactly 30 — drains queue but no volume left for us
-    auto trade = MakeMboTrade(5000, 30, after_live);
+    auto trade = MakeMboFill(5000, 30, after_live, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_TRUE(eh.HasPendingOrders());
@@ -523,7 +520,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_PartialFill) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade 8: 5 drain queue, 3 fill us (partial — we wanted 10)
-    auto trade = MakeMboTrade(5000, 8, after_live);
+    auto trade = MakeMboFill(5000, 8, after_live, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     // Should still be pending with 7 remaining
@@ -543,19 +540,19 @@ TEST_F(ExecutionHandlerTest, TradeFill_PartialThenComplete) {
     ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
-    auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 10, 1000);
+    auto order = MakeOrderAdd(1, OrderSide::kAsk, 5025, 10, 1000);
     eh.OnStrategyOrder(order, bbo, 5);
 
     uint64_t t1 = 1000 + kLatencyNs + 1;
     uint64_t t2 = t1 + 1000;
 
     // First trade: 5 drain + 3 fill = partial
-    auto trade1 = MakeMboTrade(5000, 8, t1);
+    auto trade1 = MakeMboFill(5025, 8, t1, OrderSide::kAsk);
     eh.OnMarketEvent(trade1, bbo);
     EXPECT_EQ(eh.GetPendingOrder(1)->remaining_qty, 7);
 
     // Second trade: 7 fill the rest (queue already 0)
-    auto trade2 = MakeMboTrade(5000, 10, t2);
+    auto trade2 = MakeMboFill(5025, 10, t2, OrderSide::kAsk);
     eh.OnMarketEvent(trade2, bbo);
 
     EXPECT_FALSE(eh.HasPendingOrders());
@@ -575,7 +572,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_QueueZero_ImmediateFillOnTrade) {
 
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
-    auto trade = MakeMboTrade(5000, 5, after_live);
+    auto trade = MakeMboFill(5000, 5, after_live, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_FALSE(eh.HasPendingOrders());
@@ -594,7 +591,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_AskSide) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade at the ask level drains queue then fills us
-    auto trade = MakeMboTrade(5025, 15, after_live);
+    auto trade = MakeMboFill(5025, 15, after_live, OrderSide::kAsk);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_FALSE(eh.HasPendingOrders());
@@ -620,7 +617,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_CancelsThenTrade) {
     EXPECT_EQ(eh.GetPendingOrder(1)->qty_ahead, 10);
 
     // Trade 15: 10 drain remaining queue, 5 left, 1 fills us
-    eh.OnMarketEvent(MakeMboTrade(5000, 15, t + 2), bbo);
+    eh.OnMarketEvent(MakeMboFill(5000, 15, t + 2, OrderSide::kBid), bbo);
 
     EXPECT_FALSE(eh.HasPendingOrders());
     auto fills = DrainFills();
@@ -638,7 +635,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_MarketStrategyFillEventType_AlsoFills) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // kMarketFill should be treated same as kMarketTrade
-    auto fill = MakeMboFill(5000, 5, after_live);
+    auto fill = MakeMboFill(5000, 5, after_live, OrderSide::kBid);
     eh.OnMarketEvent(fill, bbo);
 
     EXPECT_FALSE(eh.HasPendingOrders());
@@ -660,7 +657,7 @@ TEST_F(ExecutionHandlerTest, TradeThrough_BidFilledWhenTradeBelow) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade at 4975 — below our bid, market traded through us
-    auto trade = MakeMboTrade(4975, 1, after_live);
+    auto trade = MakeMboFill(4975, 1, after_live, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_FALSE(eh.HasPendingOrders());
@@ -680,7 +677,7 @@ TEST_F(ExecutionHandlerTest, TradeThrough_AskFilledWhenTradeAbove) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade at 5050 — above our ask
-    auto trade = MakeMboTrade(5050, 1, after_live);
+    auto trade = MakeMboFill(5050, 1, after_live, OrderSide::kAsk);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_FALSE(eh.HasPendingOrders());
@@ -700,7 +697,7 @@ TEST_F(ExecutionHandlerTest, TradeThrough_TradeAtExactPrice_NotTradeThrough) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade exactly at our price — NOT a trade-through, uses queue logic
-    auto trade = MakeMboTrade(5000, 2, after_live);
+    auto trade = MakeMboFill(5000, 2, after_live, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     // 999 ahead, only 2 traded — still pending
@@ -719,7 +716,7 @@ TEST_F(ExecutionHandlerTest, TradeThrough_WrongDirection_NoFill) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade ABOVE our bid — doesn't affect us (that's the ask side trading)
-    auto trade = MakeMboTrade(5050, 100, after_live);
+    auto trade = MakeMboFill(5050, 100, after_live, OrderSide::kAsk);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_TRUE(eh.HasPendingOrders());
@@ -838,7 +835,7 @@ TEST_F(ExecutionHandlerTest, NoFill_NoPendingOrders_MarketEventIgnored) {
     ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
-    auto trade = MakeMboTrade(5000, 100, 5000);
+    auto trade = MakeMboFill(5000, 100, 5000, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_TRUE(event_queue_.IsEmpty());
@@ -854,7 +851,7 @@ TEST_F(ExecutionHandlerTest, NoFill_TradeOnDifferentInstrument) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade on a DIFFERENT instrument
-    auto trade = MakeMboTradeOtherInstr(5000, 100, after_live);
+    auto trade = MakeMboFillOtherInstr(5000, 100, after_live);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_TRUE(eh.HasPendingOrders());
@@ -871,7 +868,7 @@ TEST_F(ExecutionHandlerTest, NoFill_TradeAtDifferentPrice) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade at a different price on the same instrument
-    auto trade = MakeMboTrade(5025, 100, after_live);
+    auto trade = MakeMboFill(5025, 100, after_live, OrderSide::kAsk);
     eh.OnMarketEvent(trade, bbo);
 
     // Price 5025 is above our bid at 5000 — no trade-through (wrong direction),
@@ -890,7 +887,7 @@ TEST_F(ExecutionHandlerTest, NoFill_InsufficientVolumeToDrainQueue) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Small trade doesn't drain enough
-    auto trade = MakeMboTrade(5000, 10, after_live);
+    auto trade = MakeMboFill(5000, 10, after_live, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_TRUE(eh.HasPendingOrders());
@@ -933,7 +930,7 @@ TEST_F(ExecutionHandlerTest, MultiplePending_IndependentQueueTracking) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade at 5000 drains order1's queue but not order2's
-    auto trade = MakeMboTrade(5000, 35, after_live);
+    auto trade = MakeMboFill(5000, 35, after_live, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     // Order 1 should fill (30 ahead, trade=35, 5 overflow fills our 1)
@@ -956,7 +953,7 @@ TEST_F(ExecutionHandlerTest, MultiplePending_BothFilledByTradeThrough) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade at 4950 — below both orders, both get traded through
-    auto trade = MakeMboTrade(4950, 1, after_live);
+    auto trade = MakeMboFill(4950, 1, after_live, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_FALSE(eh.HasPendingOrders());
@@ -978,7 +975,7 @@ TEST_F(ExecutionHandlerTest, MultiplePending_SamePriceSameSide) {
 
     // Trade 15: drains 10 ahead of order1 and fills it.
     // For order2: drains 15 from 20 ahead, leaving 5.
-    auto trade = MakeMboTrade(5000, 15, after_live);
+    auto trade = MakeMboFill(5000, 15, after_live, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_EQ(eh.GetPendingOrder(1), nullptr);  // Filled
@@ -998,7 +995,7 @@ TEST_F(ExecutionHandlerTest, MultiplePending_BidAndAsk) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade at bid price fills the bid but not the ask
-    auto trade = MakeMboTrade(5000, 5, after_live);
+    auto trade = MakeMboFill(5000, 5, after_live, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_EQ(eh.GetPendingOrder(1), nullptr);   // Bid filled
@@ -1017,7 +1014,7 @@ TEST_F(ExecutionHandlerTest, StrategyFillEvent_HasCorrectFields) {
     eh.OnStrategyOrder(order, bbo, 0);
 
     uint64_t fill_ts = 1000 + kLatencyNs + 500;
-    auto trade = MakeMboTrade(5025, 10, fill_ts);
+    auto trade = MakeMboFill(5025, 10, fill_ts, OrderSide::kAsk);
     eh.OnMarketEvent(trade, bbo);
 
     auto fills = DrainFills();
@@ -1072,7 +1069,7 @@ TEST_F(ExecutionHandlerTest, StrategyFillEvent_MarketableFillTimestamp) {
 //
 //     // Ask drops to our bid price
 //     Bbo new_bbo = MakeBbo(4950, 4975);
-//     auto mbo = MakeMboTrade(4975, 1, after_live);
+//     auto mbo = MakeMboFill(4975, 1, after_live);
 //     eh.OnMarketEvent(mbo, new_bbo);
 //
 //     EXPECT_FALSE(eh.HasPendingOrders());
@@ -1092,7 +1089,7 @@ TEST_F(ExecutionHandlerTest, StrategyFillEvent_MarketableFillTimestamp) {
 //     uint64_t after_live = 1000 + kLatencyNs + 1;
 //
 //     Bbo new_bbo = MakeBbo(5050, 5075);
-//     auto mbo = MakeMboTrade(5050, 1, after_live);
+//     auto mbo = MakeMboFill(5050, 1, after_live);
 //     eh.OnMarketEvent(mbo, new_bbo);
 //
 //     EXPECT_FALSE(eh.HasPendingOrders());
@@ -1112,7 +1109,7 @@ TEST_F(ExecutionHandlerTest, StrategyFillEvent_MarketableFillTimestamp) {
 //
 //     // Ask drops but not to our price
 //     Bbo new_bbo = MakeBbo(4950, 4975);
-//     auto mbo = MakeMboTrade(4975, 1, after_live);
+//     auto mbo = MakeMboFill(4975, 1, after_live);
 //     eh.OnMarketEvent(mbo, new_bbo);
 //
 //     EXPECT_TRUE(eh.HasPendingOrders());
@@ -1129,7 +1126,7 @@ TEST_F(ExecutionHandlerTest, StrategyFillEvent_MarketableFillTimestamp) {
 //     uint64_t after_live = 1000 + kLatencyNs + 1;
 //
 //     Bbo zero_bbo = MakeBbo(0, 0);
-//     auto mbo = MakeMboTrade(5000, 1, after_live);
+//     auto mbo = MakeMboFill(5000, 1, after_live);
 //     eh.OnMarketEvent(mbo, zero_bbo);
 //
 //     EXPECT_TRUE(eh.HasPendingOrders());
@@ -1182,7 +1179,7 @@ TEST_F(ExecutionHandlerTest, EdgeCase_LargeOrderSmallTrades_IncrementalFill) {
 
     // 10 small trades of 5 each
     for (int i = 0; i < 10; ++i) {
-        auto trade = MakeMboTrade(5000, 5, t + i);
+        auto trade = MakeMboFill(5000, 5, t + i, OrderSide::kBid);
         eh.OnMarketEvent(trade, bbo);
     }
 
@@ -1210,7 +1207,7 @@ TEST_F(ExecutionHandlerTest, EdgeCase_CancelAfterPartialFill) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Partial fill of 3
-    auto trade = MakeMboTrade(5000, 3, after_live);
+    auto trade = MakeMboFill(5000, 3, after_live, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
     EXPECT_EQ(eh.GetPendingOrder(1)->remaining_qty, 7);
 
@@ -1236,7 +1233,7 @@ TEST_F(ExecutionHandlerTest, EdgeCase_ModifyAfterPartialFill) {
     uint64_t t1 = 1000 + kLatencyNs + 1;
 
     // Partial fill of 4
-    auto trade = MakeMboTrade(5000, 4, t1);
+    auto trade = MakeMboFill(5000, 4, t1, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
     EXPECT_EQ(eh.GetPendingOrder(1)->remaining_qty, 6);
 
@@ -1270,7 +1267,7 @@ TEST_F(ExecutionHandlerTest, EdgeCase_ManyOrders_CancelSome_FillRest) {
     uint64_t after_live = 1000 + kLatencyNs + 1;
 
     // Trade through all remaining (trade at 4850 is below all resting bids)
-    auto trade = MakeMboTrade(4850, 1, after_live);
+    auto trade = MakeMboFill(4850, 1, after_live, OrderSide::kBid);
     eh.OnMarketEvent(trade, bbo);
 
     EXPECT_EQ(eh.PendingOrderCount(), 0);

@@ -57,14 +57,15 @@ int Backtester::RunLoop(const AppConfig& config) {
         if(isStrategyOrderEvent){
             const StrategyOrderEvent* order_event = 
                 static_cast<const StrategyOrderEvent*>(current_event.get());
+            const BidAskPair cur_bbo = market_state_manager_.GetInstrumentBbo(
+                order_event->instrument_id);
             int64_t queue_depth = market_state_manager_.GetQueueDepth(
                 order_event->instrument_id, order_event->price);
-            const BidAskPair cur_bbo = market_state_manager_.GetInstrumentBbo(order_event->instrument_id);
 
             execution_handler_.OnStrategyOrder(*order_event, cur_bbo, queue_depth); // Execution handler will push FillEvent to queue
         } 
     
-        if(eventType >= EventType::kStrategyOrderFill){
+        if(eventType == EventType::kStrategyOrderFill){
             const StrategyFillEvent* fill_event = 
                  static_cast<const StrategyFillEvent*>(current_event.get());
 
