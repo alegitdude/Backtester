@@ -1,10 +1,7 @@
 #pragma once
 #include <cstdint>
-#include <limits>
 
 namespace backtester {
-
-static constexpr auto kUndefPrice = std::numeric_limits<std::int64_t>::max();
 
 struct LevelQueue {
     int64_t price{kUndefPrice};

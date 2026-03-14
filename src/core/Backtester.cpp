@@ -22,18 +22,21 @@ int Backtester::RunLoop(const AppConfig& config) {
 
             market_state_manager_.OnMarketEvent(*market_event);
 
-            const std::vector<BidAskPair> snapshot = market_state_manager_.GetOBSnapshot(
-                market_event->instrument_id, config.max_lob_lvl);
+            // const std::vector<BidAskPair> snapshot = market_state_manager_.GetOBSnapshot(
+            //     market_event->instrument_id, config.max_lob_lvl);
+            // const std::unordered_map<uint32_t, MarketSnapshot>& snapshots = 
+            //     market_state_manager_.GetMarketSnapshots();
 
-            auto signals = strategy_manager_.OnMarketEvent(*market_event, snapshot);
+            auto signals = strategy_manager_.OnMarketEvent(*market_event);
 
             if(signals.size() > 0){
                 for(int i = 0; i < signals.size(); i++){
                     event_queue_.PushEvent(std::move(signals[i]));
                 }
             }
-
-            execution_handler_.OnMarketEvent(*market_event, snapshot[0]);
+            
+            BidAskPair bbo = market_state_manager_.GetInstrumentBbo(market_event->instrument_id);
+            execution_handler_.OnMarketEvent(*market_event, bbo);
             
             data_reader_manager_.LoadNextEventFromSource(market_event->data_source);
         }            

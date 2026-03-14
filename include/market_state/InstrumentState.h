@@ -6,7 +6,9 @@ namespace backtester {
 
 class InstrumentState {
  public:
-    InstrumentState(uint32_t instr_id) : instrument_id(instr_id){};
+    InstrumentState(uint32_t instr_id) : instrument_id(instr_id){
+        snapshot_.instrument_id = instr_id;
+    };
 
     uint32_t instrument_id;
 
@@ -17,15 +19,15 @@ class InstrumentState {
                                                std::size_t level_count = 1) const;
 
     int64_t GetQueueDepthByPx(int64_t price) const; 
-    // double get_vwap() const { return vwap_.get_vwap(); }
-    // const Bbo& get_bbo() const { return bbo_cache_.get_bbo(); }
-    // double get_weighted_mid_price() const { return wmp_calculator_.get_wmp(); }
-    // double get_realized_volatility() const { return volatility_.get_vol(); }
+
+    const MarketSnapshot&  GetMarketSnapshot() const { return snapshot_; }
+    
     // double get_p99_latency_ns() const { return latency_tracker_.get_p99(); }
  private:
     // Key = publisher_id
     std::unordered_map<uint16_t, OrderBook> books_;
     BidAskPair instrument_Bbo_;
+    MarketSnapshot snapshot_;
 
     void UpdateInstrumentBbo();
 
@@ -37,20 +39,6 @@ class InstrumentState {
 
         return nullptr; 
     }
-    // // L1 / Microstructure
-    // BboCache bbo_cache_;
-    // WeightedMidPriceCalculator wmp_calculator_;
-    
-    // // Trade Metrics
-    // VwapCalculator vwap_;
-    // LastTradeTracker last_trade_;
-    // TotalVolumeTracker total_volume_;
-
-    // // Flow Metrics
-    // OrderFlowTracker order_flow_;
-    // RealizedVolCalculator volatility_; // trade- or midprice-driven
-
-    // // System Metrics
     // SystemLatencyTracker latency_tracker_;
 };
 

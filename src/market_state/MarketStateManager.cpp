@@ -31,6 +31,7 @@ void MarketStateManager::OnMarketEvent(const MarketByOrderEvent& event) {
         state = GetOrCreateInstrumentState(event.instrument_id);
 
         state->OnMarketEvent(event);
+        UpdateSnapshot(event.instrument_id, state);
 }
 
 const BidAskPair MarketStateManager::GetInstrumentBbo(uint32_t instr_id) const {
@@ -47,7 +48,7 @@ std::unordered_map<uint32_t, BidAskPair> MarketStateManager::GetTradedInstrsBbo(
 
 const std::vector<BidAskPair> MarketStateManager::GetOBSnapshot(
         uint32_t instrument_id, uint16_t publisher_id, 
-        std::size_t level_count) {
+        std::size_t level_count) const {
     static const std::vector<BidAskPair> EMPTY_SNAPSHOT;
     
     const InstrumentState* instrument = GetInstrumentState(instrument_id);

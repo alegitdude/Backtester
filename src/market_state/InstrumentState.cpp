@@ -14,39 +14,55 @@ void InstrumentState::OnMarketEvent(const MarketByOrderEvent& event) {
     it->second.Apply(event);
 
     UpdateInstrumentBbo();
-        // 2. Update BBO/WMP from the new book state.
-        //    (OrderBook needs to return a 'BookUpdate' struct or similar)
-    //     if (order_book_.has_changed()) {
-    //         bbo_cache_.update(order_book_.get_bbo());
-    //         wmp_calculator_.update(bbo_cache_.get_bid(), bbo_cache_.get_bid_size(),
-    //                                bbo_cache_.get_ask(), bbo_cache_.get_ask_size());
-    //     }
+    // Update VWAP - equation : cumulative_notional / cumulative_volume
+    if(event.type == EventType::kMarketTrade){
+        snapshot_.cumulative_volume += event.size;
+        snapshot_.cumulative_notional += event.price * event.size;
+        snapshot_.vwap = snapshot_.cumulative_notional / snapshot_.cumulative_volume;
 
-    //     // 3. Update trade-based metrics if this event was a trade.
-    //     if (event.action == 'F') { // 'F' for Fill/Trade
-    //         vwap_.update(event.price, event.quantity);
-    //         last_trade_.update(event.price, event.quantity);
-    //         total_volume_.update(event.quantity);
-    //         volatility_.update(event.price, event.timestamp);
-    //     }
+        snapshot_.last_trade.aggressor_side = event.side;
+        snapshot_.last_trade.price = event.side;
+        snapshot_.last_trade.size = event.size;
+        snapshot_.last_trade.timestamp = event.timestamp;
 
-    //     // 4. Update flow-based metrics on all events.
-    //     order_flow_.update(event);
-
+        snapshot_.session_high = std::max(event.price, snapshot_.session_high);
+        snapshot_.session_low = std::min(event.price, snapshot_.session_low);
+    } else if(event.type != EventType::kMarketFill) {
+        // Update WMP - equation : (bid_price * ask_size + ask_price * bid_size) / (bid_size + ask_size)
+        snapshot_.wmp = (instrument_Bbo_.bid.price * instrument_Bbo_.ask.size + instrument_Bbo_.ask.price 
+            * instrument_Bbo_.bid.size)/(instrument_Bbo_.bid.size + instrument_Bbo_.ask.size);
+    }
+    
     //     // 5. Update system stats (ALWAYS LAST)
     //     latency_tracker_.update_system_latency(event.timestamp);
 }
 
-void InstrumentState::UpdateInstrumentBbo(){
+void InstrumentState::UpdateInstrumentBbo() {
+    instrument_Bbo_.bid = {0, 0, 0};
+    instrument_Bbo_.ask = {kUndefPrice, 0, 0};
+
     for (auto& [publisher, book] : books_) {
-        instrument_Bbo_.ask.price = std::min(book.GetBbo().ask.price, 
-            instrument_Bbo_.ask.price);
-        instrument_Bbo_.bid.price = std::max(book.GetBbo().bid.price, 
-            instrument_Bbo_.bid.price);
+        BidAskPair bbo = book.GetBbo();
+
+        if (bbo.bid.price > instrument_Bbo_.bid.price) {
+            instrument_Bbo_.bid = bbo.bid;
+        } else if (bbo.bid.price == instrument_Bbo_.bid.price) {
+            instrument_Bbo_.bid.size += bbo.bid.size;
+            instrument_Bbo_.bid.count += bbo.bid.count;
+        }
+
+        if (bbo.ask.price < instrument_Bbo_.ask.price) {
+            instrument_Bbo_.ask = bbo.ask;
+        } else if (bbo.ask.price == instrument_Bbo_.ask.price) {
+            instrument_Bbo_.ask.size += bbo.ask.size;
+            instrument_Bbo_.ask.count += bbo.ask.count;
+        }
     }
-    if(instrument_Bbo_.bid.price > instrument_Bbo_.ask.price){
+    
+    if (instrument_Bbo_.bid.price > instrument_Bbo_.ask.price) {
         throw std::logic_error("bid price is higher than ask price?");
     }
+    snapshot_.bbo = instrument_Bbo_;
 }
 
 const std::vector<BidAskPair> InstrumentState::GetOBSnapshotByPub(

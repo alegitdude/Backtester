@@ -11,8 +11,7 @@ public:
     }
 
     virtual std::unique_ptr<StrategySignalEvent> OnMarketEvent(
-        const MarketByOrderEvent& event,
-        const std::vector<BidAskPair>& ob_snapshot) override {
+        const MarketByOrderEvent& event) override {
         // ... Your custom trading logic ...
         spdlog::info("Template strategy processing event...");
     }
@@ -24,10 +23,6 @@ public:
     virtual void OnEndOfDay(uint64_t timestamp) override {
         return; 
     }
-
-    std::string GetId() const { return strategy_id_; }
- protected:
-    std::string strategy_id_;  
 };
 
 // ==========================================================

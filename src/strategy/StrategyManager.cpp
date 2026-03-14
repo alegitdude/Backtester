@@ -6,15 +6,14 @@
 #include <vector>
 namespace backtester {
 
-    StrategyManager::StrategyManager(const AppConfig& config) : config_(config) {
-
-        // 1. Iterate through the strategies parsed from JSON
-        for (const auto& strat_config : config.strategies) {
+    void StrategyManager::InitiailizeStrategies(const IMarketDataProvider& provider) {
+         // 1. Iterate through the strategies parsed from JSON
+        for (const auto& strat_config : config_.strategies) {
             spdlog::info("Loading strategy: {} with {} parameters",
                 strat_config.name, strat_config.params.size());
 
             // 2. Ask the global registry to create it by its string name
-            auto strategy = StrategyRegistry::Create(strat_config.name);
+            auto strategy = StrategyRegistry::Create(strat_config.name, provider);
 
             // 3. Fail-fast if the strategy wasn't found
             if (!strategy) {
@@ -38,15 +37,14 @@ namespace backtester {
     }
 
     std::vector<std::unique_ptr<StrategySignalEvent>> StrategyManager::OnMarketEvent(
-        const MarketByOrderEvent& mbo_event, 
-        const std::vector<BidAskPair>& ob_snapshot) {
+        const MarketByOrderEvent& mbo_event) {
 
         std::vector<std::unique_ptr<StrategySignalEvent>> collected_signals;
 
         for (auto& strategy : active_strategies_) {
             // You might want to filter strategies by symbol here if they are symbol-specific
 
-            auto signal = strategy->OnMarketEvent(mbo_event, ob_snapshot);
+            auto signal = strategy->OnMarketEvent(mbo_event);
 
             if (signal) {
                 // Signal generated! Add to collection.

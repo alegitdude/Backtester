@@ -11,10 +11,9 @@ public:
     }
 
     virtual std::unique_ptr<StrategySignalEvent> OnMarketEvent(
-        const MarketByOrderEvent& event,
-        const std::vector<BidAskPair>& ob_snapshot) override {
-        
-        spdlog::info("Moving Average strategy processing event...");
+        const MarketByOrderEvent& event) override {
+    
+        //spdlog::info("Moving Average strategy processing event...");
     }
 
     virtual void OnFill(const StrategyFillEvent& fill) override {
@@ -24,10 +23,6 @@ public:
     virtual void OnEndOfDay(uint64_t timestamp) override {
         return; 
     }
-
-    std::string GetId() const { return strategy_id_; }
- protected:
-    std::string strategy_id_;  
 };
 
 // ==========================================================

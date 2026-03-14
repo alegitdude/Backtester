@@ -1,11 +1,16 @@
 #pragma once
 #include "../data_ingestion/CsvZstReader.h"
+#include "Event.h"
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <limits>
+#include <cstdint>
 
 namespace backtester {
-    
+
+static constexpr auto kUndefPrice = std::numeric_limits<std::int64_t>::max();
+
 enum class DataSchema {
     MBO,
     OHLCV
@@ -131,13 +136,6 @@ struct Position {
     }
 };
 
-// struct Bbo {
-//     int64_t bid_price = 0;
-//     int64_t ask_price = 0;
-//     // uint32_t bid_qty = 0;
-//     // uint32_t ask_qty = 0;
-// };
-
 struct PriceLevel {
     int64_t price;
     uint32_t size;
@@ -162,6 +160,25 @@ struct TimeParseResult {
     uint64_t unix_nanos = 0;
     std::string error_msg = "";
     bool success = false;
+};
+
+struct LastTrade {
+    uint64_t timestamp;
+    int64_t price;
+    uint32_t size;
+    OrderSide aggressor_side;
+};
+
+struct MarketSnapshot {
+    uint32_t instrument_id = 0;
+    BidAskPair bbo = {};
+    int64_t wmp = 0;
+    int64_t vwap = 0;
+    LastTrade last_trade = {};
+    int64_t session_high = 0;
+    int64_t session_low = kUndefPrice;
+    int64_t cumulative_volume = 0;
+    int64_t cumulative_notional = 0;
 };
 
 enum class DataInterval{

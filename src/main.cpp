@@ -121,7 +121,7 @@ int main(int argc, char* argv[]) {
 	backtester::ExecutionHandler execution_handler(event_queue, config.execution_latency_ms);
     /// Initialize Strategy Manager and Strategies
     backtester::StrategyManager strategy_manager(config);
-    strategy_manager.InitiailizeStrategies();
+    strategy_manager.InitiailizeStrategies(market_state_manager);
     
     // Read the first event from each data source and add to the EventQueue
     spdlog::info("Populating initial events from data sources...");
