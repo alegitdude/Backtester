@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
     spdlog::info("Logger Initialized");
     ///  Configuration Loading 
     spdlog::info("Loading Confgiuration File");
-    const backtester::AppConfig config = use_demo_config? backtester::GetDefaultConfig()
+    const backtester::AppConfig config = use_demo_config ? backtester::GetDefaultConfig()
         :  backtester::ParseConfigToObj(config_path);
     ///  Create central EventQueue
     backtester::EventQueue event_queue;

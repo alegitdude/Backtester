@@ -201,8 +201,14 @@ std::vector<TradedInstrument> ParseTradedInstrs(const nlohmann::json& data) {
 			"instrument_type", "Traded Instruments"));
 		instr.tick_size = numericUtils::doubleToFixedPoint(GetRequired<double>( // TODO check if number is reasonable
 			data, "tick_size", "Traded Instruments"));
+		if(instr.tick_size == 0){
+			throw std::runtime_error(fmt::format("Tick size cannot be 0, error for instrument {}", instr.instrument_id));
+		}
 		instr.tick_value = numericUtils::doubleToFixedPoint(GetRequired<double>(
 			data, "tick_value", "Traded Instruments"));
+		if(instr.tick_value == 0){
+			throw std::runtime_error(fmt::format("Tick value cannot be 0, error for instrument {}", instr.instrument_id));		
+		}
 		instr.margin_req = numericUtils::doubleToFixedPoint(GetRequired<double>(
 			data, "margin_req", "Traded Instruments"));
 

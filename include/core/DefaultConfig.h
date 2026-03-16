@@ -2,7 +2,7 @@
 
 namespace backtester{
 
-AppConfig GetDefaultConfig() {
+inline AppConfig GetDefaultConfig() {
     AppConfig res;
     res.start_time = 1762300800000000000; // Cash open 11-5-25
     res.end_time = 1762305154417285368; //

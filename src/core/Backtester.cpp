@@ -22,11 +22,6 @@ int Backtester::RunLoop(const AppConfig& config) {
 
             market_state_manager_.OnMarketEvent(*market_event);
 
-            // const std::vector<BidAskPair> snapshot = market_state_manager_.GetOBSnapshot(
-            //     market_event->instrument_id, config.max_lob_lvl);
-            // const std::unordered_map<uint32_t, MarketSnapshot>& snapshots = 
-            //     market_state_manager_.GetMarketSnapshots();
-
             auto signals = strategy_manager_.OnMarketEvent(*market_event);
 
             if(signals.size() > 0){
@@ -34,11 +29,12 @@ int Backtester::RunLoop(const AppConfig& config) {
                     event_queue_.PushEvent(std::move(signals[i]));
                 }
             }
-            
+
             BidAskPair bbo = market_state_manager_.GetInstrumentBbo(market_event->instrument_id);
             execution_handler_.OnMarketEvent(*market_event, bbo);
             
             data_reader_manager_.LoadNextEventFromSource(market_event->data_source);
+            continue;
         }            
 
         if(isStrategySignalEvent(eventType)){
@@ -54,10 +50,11 @@ int Backtester::RunLoop(const AppConfig& config) {
                 spdlog::debug("Queued order from signal at ts={}", current_time);
             } else {
                 spdlog::warn("Signal rejected by portfolio at ts={}", current_time);
-            }          
+            }    
+            continue;      
         }
         
-        if(isStrategyOrderEvent){
+        if(isStrategyOrderEvent(eventType)){
             const StrategyOrderEvent* order_event = 
                 static_cast<const StrategyOrderEvent*>(current_event.get());
             const BidAskPair cur_bbo = market_state_manager_.GetInstrumentBbo(
@@ -66,6 +63,7 @@ int Backtester::RunLoop(const AppConfig& config) {
                 order_event->instrument_id, order_event->price);
 
             execution_handler_.OnStrategyOrder(*order_event, cur_bbo, queue_depth); // Execution handler will push FillEvent to queue
+            continue;
         } 
     
         if(eventType == EventType::kStrategyOrderFill){
@@ -75,8 +73,7 @@ int Backtester::RunLoop(const AppConfig& config) {
             portfolio_manager_.ProcessFill(*fill_event);
             strategy_manager_.OnFillEvent(*fill_event); 
 
-            // // Log the trade for reporting
-            // report_generator.record_fill(current_event, portfolio_manager.get_current_pnl())
+            continue;
         }
 
         if (isControlEvent(eventType)) {

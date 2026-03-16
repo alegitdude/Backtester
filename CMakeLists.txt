@@ -47,15 +47,13 @@ add_library(CoreLogic src/data_ingestion/CsvZstReader.cpp src/market_state/Order
 src/data_ingestion/DataReaderManager.cpp src/core/EventQueue.cpp 
 src/market_state/MarketStateManager.cpp src/market_state/InstrumentState.cpp 
 src/core/ConfigParser.cpp src/utils/TimeUtils.cpp src/portfolio/PortfolioManager.cpp
-src/strategy/StrategyManager.cpp src/execution/ExecutionHandler.cpp
+src/strategy/StrategyManager.cpp src/execution/ExecutionHandler.cpp src/core/Backtester.cpp
 include/core/Constants.h src/utils/NumericUtils.cpp src/utils/StringUtils.cpp
-include/strategy/IStrategy.h include/strategy/StrategyRegistry.h )
+include/strategy/IStrategy.h include/strategy/StrategyRegistry.h include/core/DefaultConfig.h
+include/market_state/IMarketDataProvider.h src/strategy/user_strategies/MovAvgCross.cpp)
 
 
-add_executable(Backtester src/main.cpp src/data_ingestion/CsvZstReader.cpp 
-src/data_ingestion/DataReaderManager.cpp src/core/EventQueue.cpp src/core/ConfigParser.cpp 
-src/utils/TimeUtils.cpp src/core/Backtester.cpp src/market_state/MarketStateManager.cpp
-src/market_state/OrderBook.cpp src/market_state/InstrumentState.cpp)
+add_executable(Backtester src/main.cpp)
 
 file(GLOB TEST_SOURCES "test/*.cpp")
 
@@ -66,5 +64,5 @@ add_executable(tests test/execution/ExecutionHandler_test.cpp )
 target_link_libraries(CoreLogic PRIVATE databento::databento spdlog PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(unit_tests PRIVATE GTest::gtest_main CoreLogic)
 target_link_libraries(tests PUBLIC nlohmann_json::nlohmann_json PRIVATE GTest::gtest_main zstd spdlog CoreLogic)
-target_link_libraries(Backtester PRIVATE databento::databento nlohmann_json::nlohmann_json spdlog ryml::ryml)
+target_link_libraries(Backtester PRIVATE nlohmann_json::nlohmann_json zstd spdlog  -Wl,--whole-archive CoreLogic -Wl,--no-whole-archive)
 

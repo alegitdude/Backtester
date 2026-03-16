@@ -7,8 +7,7 @@ namespace backtester {
 PortfolioManager::PortfolioManager(const AppConfig& config)
     : initial_capital_(config.initial_cash), 
       current_cash_(config.initial_cash), 
-      config_(config) {
-    
+      config_(config) {    
     max_equity_seen_ = initial_capital_;
 }
 

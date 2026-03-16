@@ -39,32 +39,6 @@ std::string EpochToString(uint64_t epoch_nanos, const std::string& timezone = "U
 	return oss.str();
 };
 
-// MARK: Parse Iso To Unix
-
-// uint64_t ParseIsoToUnix(std::string str) {
-//     const char* s = str.c_str();
-//   //2022-01-03T00:00:00.000000000Z
-//   //012345678901234567890123456789
-//     struct tm t = {0};
-//     t.tm_year = fast_atoi_4(s) - 1900; // tm_year is years since 1900
-//     t.tm_mon  = fast_atoi_2(s + 5) - 1; // tm_mon is 0-11
-//     t.tm_mday = fast_atoi_2(s + 8);
-//     t.tm_hour = fast_atoi_2(s + 11);
-//     t.tm_min  = fast_atoi_2(s + 14);
-//     t.tm_sec  = fast_atoi_2(s + 17);
-//     t.tm_isdst = 0; // Not in daylight saving time 
-
-//     time_t epoch_seconds = timegm(&t);
-
-//     const char* p_nanos = s + 20; 
-//     uint32_t nanos = 0;
-
-//     for (int i = 0; i < 9; ++i) {
-//         nanos = nanos * 10 + (p_nanos[i] - '0');
-//     }
-//     return static_cast<uint64_t>(epoch_seconds) * 1'000'000'000ULL + nanos;
-// }
-
 TimeParseResult ParseIsoToUnix(std::string_view s) {
     struct tm t = {0};
     const char* data = s.data();
@@ -105,31 +79,6 @@ TimeParseResult ParseIsoToUnix(std::string_view s) {
 
     return {static_cast<uint64_t>(epoch_seconds) * 1'000'000'000ULL + nanos, "", true};
 }
-
-// std::optional<uint64_t> ParseIsoToUnix(const std::string& s) {
-//     struct tm t = {0};
-//     const char* data = s.data();
-//     auto [ptr, ec] = std::from_chars(data, data + 4, t.tm_year);
-//         if (ec != std::errc{}) {
-//         return std::nullopt;  
-//     }
-//     t.tm_year -= 1900;
-//     std::from_chars(data + 5,  data + 7, t.tm_mon);  t.tm_mon -= 1;
-//     std::from_chars(data + 8,  data + 10, t.tm_mday);
-//     std::from_chars(data + 11, data + 13, t.tm_hour);
-//     std::from_chars(data + 14, data + 16, t.tm_min);
-//     std::from_chars(data + 17, data + 19, t.tm_sec);
-
-//     time_t epoch_seconds = timegm(&t); // Use _mkgmtime on Windows
-
-//     uint32_t nanos = 0;
-//     // Check if subseconds exist before parsing
-//     if (s.length() > 20 && s[19] == '.') {
-//         std::from_chars(data + 20, data + 29, nanos);
-//     }
-
-//     return static_cast<uint64_t>(epoch_seconds) * 1'000'000'000ULL + nanos;
-// }
 
 // MARK: Get Timezone offset
 

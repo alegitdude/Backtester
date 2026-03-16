@@ -32,16 +32,28 @@ class Backtester {
 	};
 
 	inline bool isMarketEvent(EventType type) {
-    return type >= kMarketOrderAdd && type <= kMarketHeartbeat;
+    	return type == kMarketOrderAdd || 
+			type == kMarketOrderCancel || 
+			type == kMarketOrderModify || 
+			type == kMarketOrderClear  || 
+			type == kMarketHeartbeat;
 	}
 	inline bool isStrategySignalEvent(EventType type) {
-		return type >= kStrategySignal;
+		return type == kStrategySignal;
 	}
 	inline bool isStrategyOrderEvent(EventType type){
-		return type >= EventType::kStrategySignal && type <= EventType::kStrategyOrderClear;
+		return type == EventType::kStrategyOrderAdd    ||
+			type == EventType::kStrategyOrderModify    ||
+			type == EventType::kStrategyOrderCancel    ||
+			type == EventType::kStrategyOrderClear     ||
+			type == EventType::KStrategyOrderRejection ||
+			type == EventType::kStrategyOrderClear;
 	}
 	inline bool isControlEvent(EventType type) {
-		return type >= kBacktestControlStart && type <= kBacktestControlEndOfBacktest;
+		return type == kBacktestControlStart      || 
+			type == kBacktestControlEndOfBacktest ||
+			type == kBacktestControlSnapshot      ||
+			type == kBacktestControlEndOfDay;
 	}
 
 }

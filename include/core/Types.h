@@ -143,8 +143,8 @@ struct PriceLevel {
 };
 
 struct BidAskPair {
-    PriceLevel bid;
-    PriceLevel ask;
+    PriceLevel bid = {0, 0, 0};
+    PriceLevel ask = {kUndefPrice, 0, 0};
 
     bool operator==(const BidAskPair& bap2) const {
         return bid.price == bap2.bid.price &&

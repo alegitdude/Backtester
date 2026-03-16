@@ -27,10 +27,14 @@ void InstrumentState::OnMarketEvent(const MarketByOrderEvent& event) {
 
         snapshot_.session_high = std::max(event.price, snapshot_.session_high);
         snapshot_.session_low = std::min(event.price, snapshot_.session_low);
-    } else if(event.type != EventType::kMarketFill) {
+    } else if(event.type != EventType::kMarketFill) { 
         // Update WMP - equation : (bid_price * ask_size + ask_price * bid_size) / (bid_size + ask_size)
-        snapshot_.wmp = (instrument_Bbo_.bid.price * instrument_Bbo_.ask.size + instrument_Bbo_.ask.price 
-            * instrument_Bbo_.bid.size)/(instrument_Bbo_.bid.size + instrument_Bbo_.ask.size);
+        int64_t total_size = instrument_Bbo_.bid.size + instrument_Bbo_.ask.size;
+        if(total_size > 0){
+            snapshot_.wmp = (instrument_Bbo_.bid.price * instrument_Bbo_.ask.size + instrument_Bbo_.ask.price 
+                * instrument_Bbo_.bid.size)/ total_size;
+        }
+     
     }
     
     //     // 5. Update system stats (ALWAYS LAST)
