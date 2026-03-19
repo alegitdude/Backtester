@@ -13,7 +13,7 @@ int Backtester::RunLoop(const AppConfig& config) {
            event_queue_.ReadTopEvent().timestamp <= config.end_time){     
        
         auto current_event = event_queue_.PopTopEvent(); 
-        uint64_t current_time = current_event->timestamp;
+        current_time = current_event->timestamp;
         EventType eventType = current_event->type;
 
         if (isMarketEvent(eventType)) {

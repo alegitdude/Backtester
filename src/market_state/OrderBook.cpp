@@ -59,7 +59,7 @@ PriceLevel OrderBook::GetAskLevel(std::size_t idx) const {
           it->second.count  // Count
       };
     }
-    return PriceLevel{};
+    return PriceLevel {kUndefPrice, 0, 0};
 }
 
 PriceLevel OrderBook::GetBidLevelByPx(int64_t px) const {
@@ -117,7 +117,7 @@ uint32_t OrderBook::GetQueuePos(uint64_t order_id) {
 const std::vector<BidAskPair> OrderBook::GetSnapshot(std::size_t level_count) const {
     std::vector<BidAskPair> res;
     for (size_t i = 0; i < level_count; ++i) {
-        BidAskPair ba_pair{kUndefPrice, 0, 0, kUndefPrice, 0, 0};
+        BidAskPair ba_pair;;
         auto bid = GetBidLevel(i);
         if (bid.price) {
         ba_pair.bid.price = bid.price;

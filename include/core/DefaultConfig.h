@@ -44,7 +44,7 @@ inline AppConfig GetDefaultConfig() {
     stream.price_format = PriceFormat::DECIMAL;
     stream.schema = DataSchema::MBO;
     stream.ts_format = TmStampFormat::ISO;
-    stream.data_filepath = "../test/test_data/futures_mbo.csv.zst";
+    stream.data_filepath = "../test/test_data/ES-glbx-20251105_500k_rows.csv.zst";
     stream.data_symbology = {{"ESH7",42140860, "2025-11-05"},
                             {"ESM9",42005050,"2025-11-05"},
                             {"ESM6-ESH7",42008149,"2025-11-05"},

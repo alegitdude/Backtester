@@ -13,28 +13,29 @@ void InstrumentState::OnMarketEvent(const MarketByOrderEvent& event) {
     }
     it->second.Apply(event);
 
-    UpdateInstrumentBbo();
-    // Update VWAP - equation : cumulative_notional / cumulative_volume
-    if(event.type == EventType::kMarketTrade){
-        snapshot_.cumulative_volume += event.size;
-        snapshot_.cumulative_notional += event.price * event.size;
-        snapshot_.vwap = snapshot_.cumulative_notional / snapshot_.cumulative_volume;
+    if (event.price != std::numeric_limits<int64_t>::min()) {
+        // Update VWAP - equation : cumulative_notional / cumulative_volume
+        if(event.type == EventType::kMarketTrade){
+            snapshot_.cumulative_volume += event.size;
+            snapshot_.cumulative_notional += event.price * event.size;
+            snapshot_.vwap = snapshot_.cumulative_notional / snapshot_.cumulative_volume;
 
-        snapshot_.last_trade.aggressor_side = event.side;
-        snapshot_.last_trade.price = event.side;
-        snapshot_.last_trade.size = event.size;
-        snapshot_.last_trade.timestamp = event.timestamp;
+            snapshot_.last_trade.aggressor_side = event.side;
+            snapshot_.last_trade.price = event.side;
+            snapshot_.last_trade.size = event.size;
+            snapshot_.last_trade.timestamp = event.timestamp;
 
-        snapshot_.session_high = std::max(event.price, snapshot_.session_high);
-        snapshot_.session_low = std::min(event.price, snapshot_.session_low);
-    } else if(event.type != EventType::kMarketFill) { 
-        // Update WMP - equation : (bid_price * ask_size + ask_price * bid_size) / (bid_size + ask_size)
-        int64_t total_size = instrument_Bbo_.bid.size + instrument_Bbo_.ask.size;
-        if(total_size > 0){
-            snapshot_.wmp = (instrument_Bbo_.bid.price * instrument_Bbo_.ask.size + instrument_Bbo_.ask.price 
-                * instrument_Bbo_.bid.size)/ total_size;
+            snapshot_.session_high = std::max(event.price, snapshot_.session_high);
+            snapshot_.session_low = std::min(event.price, snapshot_.session_low);
+        } else if(event.type != EventType::kMarketFill) { 
+            // Update WMP - equation : (bid_price * ask_size + ask_price * bid_size) / (bid_size + ask_size)
+            int64_t total_size = instrument_Bbo_.bid.size + instrument_Bbo_.ask.size;
+            if(total_size > 0){
+                snapshot_.wmp = (instrument_Bbo_.bid.price * instrument_Bbo_.ask.size + instrument_Bbo_.ask.price 
+                    * instrument_Bbo_.bid.size)/ total_size;
+            }
+            UpdateInstrumentBbo();
         }
-     
     }
     
     //     // 5. Update system stats (ALWAYS LAST)
@@ -42,8 +43,6 @@ void InstrumentState::OnMarketEvent(const MarketByOrderEvent& event) {
 }
 
 void InstrumentState::UpdateInstrumentBbo() {
-    instrument_Bbo_.bid = {0, 0, 0};
-    instrument_Bbo_.ask = {kUndefPrice, 0, 0};
 
     for (auto& [publisher, book] : books_) {
         BidAskPair bbo = book.GetBbo();
