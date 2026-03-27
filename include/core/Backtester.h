@@ -20,6 +20,8 @@ class Backtester {
 				strategy_manager_(sm) {}
 
     int RunLoop(const AppConfig& config);
+	
+	void RecordSnapshot(u_int64_t current_time);
 
  private:
     EventQueue& event_queue_;

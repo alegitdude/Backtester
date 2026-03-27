@@ -104,7 +104,9 @@ struct AppConfig {
     uint64_t start_time; //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
     uint64_t end_time;  //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
     uint64_t execution_latency_ms = 200;
+    uint64_t snapshot_interval_ns = 1'000'000'000;
     uint64_t initial_cash = 100000;
+    double risk_free_rate = 0.05;
     std::string log_file_path;
     std::string report_output_dir;
     std::vector<Strategy> strategies;
@@ -137,14 +139,14 @@ struct Position {
 };
 
 struct PriceLevel {
-    int64_t price;
-    uint32_t size;
-    uint32_t count;
+    int64_t price = kUndefPrice;
+    uint32_t size = 0;
+    uint32_t count = 0;
 };
 
 struct BidAskPair {
-    PriceLevel bid = {0, 0, 0};
-    PriceLevel ask = {kUndefPrice, 0, 0};
+    PriceLevel bid;
+    PriceLevel ask;
 
     bool operator==(const BidAskPair& bap2) const {
         return bid.price == bap2.bid.price &&

@@ -16,11 +16,6 @@ namespace backtester {
 
 class CsvZstReaderTest : public ::testing::Test {
  protected:
-//   void SetUp() override {
-//   }
-
-//   void TearDown() override {
-//   }
   std::string path_to_test_data = "../test/test_data/";
   std::string path_to_simplezst = path_to_test_data + "simple.zst";
   std::string path_to_emptyzst = path_to_test_data + "empty.zst";
@@ -47,7 +42,7 @@ class CsvZstReaderTest : public ::testing::Test {
         compressionLevel
     );
     
-    // Check for compression errors with descriptive message
+    // Check for compression errors 
     if (ZSTD_isError(compressedSize)) {
         throw std::runtime_error(
             std::string("Zstd compression failed: ") + 

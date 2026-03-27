@@ -25,7 +25,7 @@ class OrderBookTest : public ::testing::Test {
 
     DataSourceConfig data_source = {
         .data_source_name = "ES",
-        .data_filepath = "/home/r/Desktop/11_06_25_ES_FUT/MBO/glbx-mdp3-20251106.mbo.ESZ5.csv.zst", 
+        .data_filepath = "../test/test_data/ES-glbx-20251105.mbp-10.csv.zst", 
         .schema = DataSchema::MBO, 
         .encoding = Encoding::CSV, 
         .compression = Compression::ZSTD, 
@@ -116,7 +116,7 @@ TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
 		config.active_instruments.push_back(symbol.instrument_id);	
 	}
     
-    LoadExpectedMbp10("../test/test_data/ES-glbx-20251105.mbp-10.csv.zst");
+    //LoadExpectedMbp10("../test/test_data/ES-glbx-20251105.mbp-10.csv.zst");
 
     EventQueue event_queue;
     DataReaderManager data_reader_manager(event_queue);

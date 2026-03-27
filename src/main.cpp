@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
     /// Initialize Portfolio Manager
 	backtester::PortfolioManager portfolio_manager(config);
     /// Initialize Report Generator
-	backtester::ReportGenerator report_generator;
+	backtester::ReportGenerator report_generator(config);
     /// Initialize Execution Handler
 	backtester::ExecutionHandler execution_handler(event_queue, config.execution_latency_ms);
     /// Initialize Strategy Manager and Strategies

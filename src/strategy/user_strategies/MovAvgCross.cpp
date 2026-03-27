@@ -18,7 +18,7 @@ public:
     virtual std::unique_ptr<StrategySignalEvent> OnMarketEvent(
         const MarketByOrderEvent& event) override {
         time = backtester::time::GetTimeOfDay(event.timestamp);
-        if(time.hour == 14 && !sent_signal){
+        if(time.hour == 20 && !sent_signal){
             std::unordered_map data = market_data_.GetMarketSnapshots();
             sent_signal = true;
             return MakeSignal(kBuySignal, 294973, data[294973].bbo.ask.price, 1, event.timestamp);

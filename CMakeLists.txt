@@ -48,6 +48,7 @@ src/data_ingestion/DataReaderManager.cpp src/core/EventQueue.cpp
 src/market_state/MarketStateManager.cpp src/market_state/InstrumentState.cpp 
 src/core/ConfigParser.cpp src/utils/TimeUtils.cpp src/portfolio/PortfolioManager.cpp
 src/strategy/StrategyManager.cpp src/execution/ExecutionHandler.cpp src/core/Backtester.cpp
+src/reporting/ReportGenerator.cpp
 include/core/Constants.h src/utils/NumericUtils.cpp src/utils/StringUtils.cpp
 include/strategy/IStrategy.h include/strategy/StrategyRegistry.h include/core/DefaultConfig.h
 include/market_state/IMarketDataProvider.h src/strategy/user_strategies/MovAvgCross.cpp)
@@ -59,7 +60,7 @@ file(GLOB TEST_SOURCES "test/*.cpp")
 
 add_executable(unit_tests ${TEST_SOURCES})
 
-add_executable(tests test/execution/ExecutionHandler_test.cpp )
+add_executable(tests test/utils/TimeUtils_test.cpp )
 
 target_link_libraries(CoreLogic PRIVATE databento::databento spdlog PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(unit_tests PRIVATE GTest::gtest_main CoreLogic)

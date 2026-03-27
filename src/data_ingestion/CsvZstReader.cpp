@@ -69,8 +69,7 @@ bool CsvZstReader::ReadLine(std::string& line) {
         if (output_pos_ < output_size_) {
             line.append(output_buffer_.data() + output_pos_, output_size_ - output_pos_);
             
-            // >>> CRITICAL FIX 2 (The Crash Fix) <<<
-            // You MUST mark this data as consumed.
+            // Mark this data as consumed.
             // If you don't do this, FillBuffer thinks the buffer is full of unread data,
             // returns true immediately, and you append the same text again forever.
             output_pos_ = output_size_; 
@@ -83,44 +82,6 @@ bool CsvZstReader::ReadLine(std::string& line) {
         }
     }
 }
-
-// bool CsvZstReader::ReadLine(std::string& line) {
-//     // Clear the output line to start fresh
-//     line.clear();
-    
-//     // Loop until we find a complete line or reach end of file
-//     while (true) {
-//         if (eof_reached_ && !line.empty()) {
-//             // OPTIONAL: Discard the line if it doesn't end with a newline
-//             // This prevents processing the "half-written" tail of a crash file.
-//             if (line.back() != '\n' && line.back() != '\r') {
-//                 std::cerr << "Warning: Dropping incomplete final line." << std::endl;
-//                 return false; 
-//             }
-//         }
-//         // Scan through decompressed buffer looking for newline character
-//         for (size_t i = output_pos_; i < output_size_; ++i) {
-//             if (output_buffer_[i] == '\n') {
-//                 // Found newline - extract line from buffer
-//                 line.assign(output_buffer_.data() + output_pos_, i - output_pos_);
-//                 // Move position past the newline for next read
-//                 output_pos_ = i + 1;
-//                 return true;
-//             }
-//         }
-        
-//         // No newline found - append remaining buffer data to line
-//         if (output_pos_ < output_size_) {
-//             line.append(output_buffer_.data() + output_pos_, output_size_ - output_pos_);
-//         }
-        
-//         // Need more data - decompress next chunk
-//         if (!FillBuffer()) {
-//             // No more data available - return true if we have a partial line
-//             return !line.empty(); // Return partial line if exists
-//         }
-//     }
-// }
 
 // MARK: FILLBUFFER
 // Reads compressed data from file and decompresses it into output buffer
@@ -164,7 +125,7 @@ bool CsvZstReader::FillBuffer() {
             return false;
         }
 
-        // 3. UPDATE STATE: Important! Update our class member with how much ZSTD consumed
+        // 3. UPDATE STATE: Update class member with how much ZSTD consumed
         input_pos_ = input.pos; 
 
         // If we produced output, we are done with this step

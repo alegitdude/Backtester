@@ -1,5 +1,6 @@
 #include "../../include/market_state/OrderBook.h"
 #include "../../include/core/Event.h"
+#include "spdlog/spdlog.h"
 #include <iostream>
 #include <string>
 #include <algorithm>
@@ -14,17 +15,6 @@ namespace backtester {
 /////////////////////////// Getters ///////////////////////////////
 ///////////////////////////////////////////////////////////////////
 // MARK: Getters
-
-// PriceLevel OrderBook::GetBidLevel(std::size_t idx) const {
-//     if (bids_.size() > idx) {
-//         // Reverse iterator to get highest bid prices first
-//         auto level_it = bids_.rbegin();
-//         std::advance(level_it, idx);
-//         return GetPriceLevel(level_it->first, level_it->second);
-//     }
-//     return PriceLevel{};
-// }
-
 PriceLevel OrderBook::GetBidLevel(std::size_t idx) const {
     if (bids_.size() > idx) {
       auto it = bids_.rbegin();
@@ -39,15 +29,6 @@ PriceLevel OrderBook::GetBidLevel(std::size_t idx) const {
     return PriceLevel{};
 }
 
-// PriceLevel OrderBook::GetAskLevel(std::size_t idx) const {
-//     if (offers_.size() > idx) {
-//         auto level_it = offers_.begin();
-//         std::advance(level_it, idx);
-//         //return GetPriceLevel(level_it->first, level_it->second);
-//     }
-//     return PriceLevel{};
-// }
-
 PriceLevel OrderBook::GetAskLevel(std::size_t idx) const {
    if (offers_.size() > idx) {
       auto it = offers_.begin();
@@ -59,7 +40,7 @@ PriceLevel OrderBook::GetAskLevel(std::size_t idx) const {
           it->second.count  // Count
       };
     }
-    return PriceLevel {kUndefPrice, 0, 0};
+    return PriceLevel {};
 }
 
 PriceLevel OrderBook::GetBidLevelByPx(int64_t px) const {
@@ -165,19 +146,31 @@ void OrderBook::Apply(const MarketByOrderEvent& mbo) {
                                     std::to_string(mbo.type)};
         }
     }
-    UpdateBboCache();
+    
+    if(mbo.flags & 0x80){// F_LAST
+      UpdateBboCache();
+    }
 }
 /////////// Private
 void OrderBook::UpdateBboCache() {
-  PriceLevel bid_level = GetBidLevel();
-  bbo_cache_.bid.price = bid_level.price;
-  bbo_cache_.bid.count = bid_level.count;
-  bbo_cache_.bid.size = bid_level.size;
+    BidAskPair prev_bbo = bbo_cache_;
+    if (!bids_.empty()) {
+        PriceLevel bid_level = GetBidLevel();
+        bbo_cache_.bid = {bid_level.price, bid_level.size, bid_level.count};
+    } else {
+        bbo_cache_.bid = {};
+    }
 
-  PriceLevel ask_level = GetAskLevel();
-  bbo_cache_.ask.price = ask_level.price; 
-  bbo_cache_.ask.count = ask_level.count;
-  bbo_cache_.ask.size = ask_level.size;
+    if (!offers_.empty()) {
+        PriceLevel ask_level = GetAskLevel();
+        bbo_cache_.ask = {ask_level.price, ask_level.size, ask_level.count};
+    } else {
+        bbo_cache_.ask = {};
+    }
+    if (bbo_cache_.bid.price != kUndefPrice && bbo_cache_.bid.price > bbo_cache_.ask.price) {
+        //throw std::logic_error("bid price is higher than ask price?");
+        bbo_cache_ = prev_bbo;
+    }
 }
 
 std::vector<MarketByOrderEvent>::iterator OrderBook::GetLevelOrder(

@@ -7,9 +7,10 @@ inline AppConfig GetDefaultConfig() {
     res.start_time = 1762300800000000000; // Cash open 11-5-25
     res.end_time = 1762305154417285368; //
     res.execution_latency_ms = 200;
+    res.snapshot_interval_ns = 1'000'000'000;
     res.initial_cash = 100000'000'000'000;
     res.log_file_path = "../logs";
-    res.report_output_dir = "../include/reporting";
+    res.report_output_dir = "../include/reporting/reports";
 
     Strategy mov_avg_cross;
     mov_avg_cross.name = "MovAvgCrossMin";

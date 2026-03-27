@@ -5,7 +5,7 @@ namespace backtester {
 void MarketStateManager::Initialize(const std::vector<uint32_t>& active_ids, 
     std::vector<uint32_t> traded_instr_ids) {
         traded_instr_ids_ = traded_instr_ids;
-        // 1. Reserve memory to prevent re-allocation/pointer invalidation
+        // 1. Reserve memory to prevent re-allocation
         instrument_store_.reserve(active_ids.size());
         
         // 2. Determine max ID to size the lookup table
@@ -27,11 +27,11 @@ void MarketStateManager::Initialize(const std::vector<uint32_t>& active_ids,
     }
 
 void MarketStateManager::OnMarketEvent(const MarketByOrderEvent& event) {
-        InstrumentState* state = nullptr;
-        state = GetOrCreateInstrumentState(event.instrument_id);
+    InstrumentState* state = nullptr;
+    state = GetOrCreateInstrumentState(event.instrument_id);
 
-        state->OnMarketEvent(event);
-        UpdateSnapshot(event.instrument_id, state);
+    state->OnMarketEvent(event);
+    UpdateSnapshot(event.instrument_id, state);
 }
 
 const BidAskPair MarketStateManager::GetInstrumentBbo(uint32_t instr_id) const {
