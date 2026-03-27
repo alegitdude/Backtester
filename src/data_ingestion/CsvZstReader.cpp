@@ -1,4 +1,5 @@
 #include "../../include/data_ingestion/CsvZstReader.h"
+#include "spdlog/spdlog.h"
 #include <iostream>
 // Include file stream for reading binary files
 #include <fstream>
@@ -33,7 +34,8 @@ bool CsvZstReader::Open(const std::string& filename) {
     if (!dstream_) return false;
 
     // Initialize the decompression stream and check for errors
-    return ZSTD_initDStream(dstream_) != ZSTD_isError(ZSTD_initDStream(dstream_));
+    size_t const init_result = ZSTD_initDStream(dstream_);
+    return !ZSTD_isError(init_result);
 }
 // MARK: CLOSE
 void CsvZstReader::Close() {
@@ -121,7 +123,7 @@ bool CsvZstReader::FillBuffer() {
         size_t ret = ZSTD_decompressStream(dstream_, &output, &input);
         
         if (ZSTD_isError(ret)) {
-            // Optional: Log error here
+            spdlog::warn("zstd error in FillBuffer");
             return false;
         }
 

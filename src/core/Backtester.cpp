@@ -4,48 +4,38 @@
 
 namespace backtester {
 
-void Backtester::RecordSnapshot(u_int64_t current_time) {
-    auto current_prices = market_state_manager_.GetTradedInstrsBbo();
-    int64_t equity = portfolio_manager_.GetTotalEquity(current_prices);
-    int64_t cash = portfolio_manager_.GetCash();
-    int64_t realized = portfolio_manager_.GetRealizedPnL();
-    int64_t unrealized = equity - cash;
-    int64_t drawdown = portfolio_manager_.GetMaxEquitySeen() - equity;
-
-    report_generator_.RecordEquitySnapshot(current_time, equity, cash,
-        realized, unrealized, drawdown);
-}
-
 int Backtester::RunLoop(const AppConfig& config) {
 
     spdlog::info("Starting backtest loop...");
-    u_int64_t current_time = config.start_time;
+    u_int64_t current_time;
     uint64_t last_snapshot_ts_ = 0;
-
+    u_int64_t event_tally = 0;
     while (!event_queue_.IsEmpty() &&
         event_queue_.ReadTopEvent().timestamp <= config.end_time) {
 
         auto current_event = event_queue_.PopTopEvent();
         current_time = current_event->timestamp;
         EventType eventType = current_event->type;
-
+        event_tally++;
         if (isMarketEvent(eventType)) {
             const MarketByOrderEvent* market_event =
                 static_cast<const MarketByOrderEvent*>(current_event.get());
-
+            
             market_state_manager_.OnMarketEvent(*market_event);
 
-            auto signals = strategy_manager_.OnMarketEvent(*market_event);
+            if(current_time >= config.start_time){
+                 auto signals = strategy_manager_.OnMarketEvent(*market_event);
 
-            if (signals.size() > 0) {
-                for (int i = 0; i < signals.size(); i++) {
-                    event_queue_.PushEvent(std::move(signals[i]));
+                if (signals.size() > 0) {
+                    for (int i = 0; i < signals.size(); i++) {
+                        event_queue_.PushEvent(std::move(signals[i]));
+                    }
                 }
+
+                BidAskPair bbo = market_state_manager_.GetInstrumentBbo(market_event->instrument_id);
+                execution_handler_.OnMarketEvent(*market_event, bbo);
             }
-
-            BidAskPair bbo = market_state_manager_.GetInstrumentBbo(market_event->instrument_id);
-            execution_handler_.OnMarketEvent(*market_event, bbo);
-
+           
             data_reader_manager_.LoadNextEventFromSource(market_event->data_source);
 
             if (current_time - last_snapshot_ts_ >= config.snapshot_interval_ns) {
@@ -117,9 +107,10 @@ int Backtester::RunLoop(const AppConfig& config) {
             continue;
         }
 
+        
     }
-
-
+    spdlog::info("Event tally: {}", event_tally);
+    spdlog::info("Backtest loop finished.");
     spdlog::info("Backtest loop finished.");
     spdlog::info("Starting report generator.");
     report_generator_.GenerateReport(portfolio_manager_);
@@ -131,6 +122,18 @@ int Backtester::RunLoop(const AppConfig& config) {
     spdlog::info("Backtester shutting down.");
 
     return 0;
+}
+
+void Backtester::RecordSnapshot(u_int64_t current_time) {
+    auto current_prices = market_state_manager_.GetTradedInstrsBbo();
+    int64_t equity = portfolio_manager_.GetTotalEquity(current_prices);
+    int64_t cash = portfolio_manager_.GetCash();
+    int64_t realized = portfolio_manager_.GetRealizedPnL();
+    int64_t unrealized = equity - cash;
+    int64_t drawdown = portfolio_manager_.GetMaxEquitySeen() - equity;
+
+    report_generator_.RecordEquitySnapshot(current_time, equity, cash,
+        realized, unrealized, drawdown);
 }
 
 }

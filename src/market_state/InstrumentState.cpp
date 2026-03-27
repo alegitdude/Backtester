@@ -49,10 +49,6 @@ namespace backtester {
         instrument_Bbo_.bid = {};
         instrument_Bbo_.ask = {};
 
-        if (instrument_Bbo_.bid.price >= instrument_Bbo_.ask.price) {
-            return;
-        }
-
         for (auto& [publisher, book] : books_) {
             BidAskPair bbo = book.GetBbo();
             instrument_Bbo_ = bbo;

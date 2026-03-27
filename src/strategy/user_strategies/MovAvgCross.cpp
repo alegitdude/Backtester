@@ -8,8 +8,8 @@ namespace backtester {
 class MovAvgCross : public IStrategy {
 public:
     time::TimeOfDay time; 
-    bool sent_signal = false;
-    MovAvgCross(const IMarketDataProvider& market_data_) : IStrategy(market_data_) {}
+    bool filled_signal = false;
+    MovAvgCross(const IMarketDataProvider& market_data) : IStrategy(market_data) {}
     
     virtual void Initialize(const Strategy& config) override {
         return;
@@ -18,22 +18,22 @@ public:
     virtual std::unique_ptr<StrategySignalEvent> OnMarketEvent(
         const MarketByOrderEvent& event) override {
         time = backtester::time::GetTimeOfDay(event.timestamp);
-        if(time.hour == 20 && !sent_signal){
-            std::unordered_map data = market_data_.GetMarketSnapshots();
-            sent_signal = true;
+        if(time.hour == 15 && time.minute == 30 && !filled_signal){
+            auto data = market_data_.GetMarketSnapshots();
             return MakeSignal(kBuySignal, 294973, data[294973].bbo.ask.price, 1, event.timestamp);
         }
         return nullptr;
-        //spdlog::info("Moving Average strategy processing event...");
     }
 
     virtual void OnFill(const StrategyFillEvent& fill) override {
-        return;
+        filled_signal = true;
     }
 
     virtual void OnEndOfDay(uint64_t timestamp) override {
         return; 
     }
+ private: 
+    //const IMarketDataProvider market_data_
 };
 
 // ==========================================================

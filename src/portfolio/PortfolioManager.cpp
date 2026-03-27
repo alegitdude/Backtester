@@ -306,8 +306,10 @@ int64_t PortfolioManager::GetTotalPortfolioDelta(const std::unordered_map<uint32
 
 int64_t PortfolioManager::GetCurrentDrawdown(int64_t current_equity) const {
     if (max_equity_seen_ == 0) return 0;
-    // Drawdown is a percentage, so we must cast to double here.
-    return (max_equity_seen_ - current_equity) / max_equity_seen_;
+    return static_cast<int64_t>(
+    (static_cast<__int128_t>(max_equity_seen_ - current_equity) * 1'000'000'000LL) 
+    / max_equity_seen_);
+
 }
 
 const Position& PortfolioManager::GetPositionByInstrId(uint32_t instrument_id) const {

@@ -84,7 +84,7 @@ AppConfig ParseConfigFromJson(const nlohmann::json& data){
 		"Global Settings").value_or(default_config.execution_latency_ms);   
 
 	// MARK: Initial Cash
-	config.execution_latency_ms = GetOptional<uint64_t>(data, "initial_cash",
+	config.initial_cash = GetOptional<uint64_t>(data, "initial_cash",
 		"Global Settings").value_or(default_config.initial_cash); 
 	if(config.initial_cash < 1){
 		spdlog::warn("Initial Cash below 1, using default config initial cash");
@@ -179,9 +179,9 @@ std::vector<Strategy> ParseStrategies(const nlohmann::json& data) {
 	std::string context = "Strategy";
 	for (const auto& item : data) {
 		Strategy strat;	
-		strat.name = GetRequired<std::string>(data, "name", context);
-		strat.params = GetRequired<std::vector<int>>(data, "params", context);
-		strat.max_lob_lvl = GetRequired<std::size_t>(data, "max_lob_lvl", context);
+		strat.name = GetRequired<std::string>(item, "name", context);
+		strat.params = GetRequired<std::vector<int>>(item, "params", context);
+		strat.max_lob_lvl = GetRequired<std::size_t>(item, "max_lob_lvl", context);
 		res.push_back(strat);
 	}	
 	return res; 
@@ -195,22 +195,22 @@ std::vector<TradedInstrument> ParseTradedInstrs(const nlohmann::json& data) {
 	for(const auto& item : data){
 		TradedInstrument instr;
 		std::string context = "Traded Instruments";
-		instr.instrument_id = GetRequired<uint32_t>(data, "instrument_id", 
-			"Traded Instruments");data["instrument_id"];
-		instr.instrument_type = ParseInstrType(GetRequired<std::string>(data, 
+		instr.instrument_id = GetRequired<uint32_t>(item, "instrument_id", 
+			"Traded Instruments");item["instrument_id"];
+		instr.instrument_type = ParseInstrType(GetRequired<std::string>(item, 
 			"instrument_type", "Traded Instruments"));
 		instr.tick_size = numericUtils::doubleToFixedPoint(GetRequired<double>( // TODO check if number is reasonable
-			data, "tick_size", "Traded Instruments"));
+			item, "tick_size", "Traded Instruments"));
 		if(instr.tick_size == 0){
 			throw std::runtime_error(fmt::format("Tick size cannot be 0, error for instrument {}", instr.instrument_id));
 		}
 		instr.tick_value = numericUtils::doubleToFixedPoint(GetRequired<double>(
-			data, "tick_value", "Traded Instruments"));
+			item, "tick_value", "Traded Instruments"));
 		if(instr.tick_value == 0){
 			throw std::runtime_error(fmt::format("Tick value cannot be 0, error for instrument {}", instr.instrument_id));		
 		}
 		instr.margin_req = numericUtils::doubleToFixedPoint(GetRequired<double>(
-			data, "margin_req", "Traded Instruments"));
+			item, "margin_req", "Traded Instruments"));
 
 		res.push_back(instr);
 	}

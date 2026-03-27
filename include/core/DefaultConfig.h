@@ -2,10 +2,11 @@
 
 namespace backtester{
 
+    // demo data begins ts_event 1762088406034999869
 inline AppConfig GetDefaultConfig() {
     AppConfig res;
-    res.start_time = 1762300800000000000; // Cash open 11-5-25
-    res.end_time = 1762305154417285368; //
+    res.start_time = 1762353000000000000; // Cash open 11-5-25 9:30am EST
+    res.end_time = 17623764000000000000; // 4pm EST
     res.execution_latency_ms = 200;
     res.snapshot_interval_ns = 1'000'000'000;
     res.initial_cash = 100000'000'000'000;
@@ -42,10 +43,10 @@ inline AppConfig GetDefaultConfig() {
     stream.data_source_name = "ES";
     stream.compression = Compression::ZSTD;
     stream.encoding = Encoding::CSV;
-    stream.price_format = PriceFormat::DECIMAL;
+    stream.price_format = PriceFormat::FIXPNTINT;
     stream.schema = DataSchema::MBO;
     stream.ts_format = TmStampFormat::ISO;
-    stream.data_filepath = "../test/test_data/ES-glbx-20251105_500k_rows.csv.zst";
+    stream.data_filepath = "../test/test_data/ES-glbx-20251105.mbo.csv.zst";
     stream.data_symbology = {{"ESH7",42140860, "2025-11-05"},
                             {"ESM9",42005050,"2025-11-05"},
                             {"ESM6-ESH7",42008149,"2025-11-05"},

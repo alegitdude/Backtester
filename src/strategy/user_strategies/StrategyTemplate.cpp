@@ -13,7 +13,7 @@ public:
     virtual std::unique_ptr<StrategySignalEvent> OnMarketEvent(
         const MarketByOrderEvent& event) override {
         // ... Your custom trading logic ...
-        spdlog::info("Template strategy processing event...");
+        return nullptr;
     }
 
     virtual void OnFill(const StrategyFillEvent& fill) override {

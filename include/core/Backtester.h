@@ -20,7 +20,7 @@ class Backtester {
 				strategy_manager_(sm) {}
 
     int RunLoop(const AppConfig& config);
-	
+
 	void RecordSnapshot(u_int64_t current_time);
 
  private:
@@ -38,6 +38,8 @@ class Backtester {
 			type == kMarketOrderCancel || 
 			type == kMarketOrderModify || 
 			type == kMarketOrderClear  || 
+			type == kMarketTrade 			 ||
+			type == kMarketFill        ||
 			type == kMarketHeartbeat;
 	}
 	inline bool isStrategySignalEvent(EventType type) {
@@ -47,7 +49,6 @@ class Backtester {
 		return type == EventType::kStrategyOrderAdd    ||
 			type == EventType::kStrategyOrderModify    ||
 			type == EventType::kStrategyOrderCancel    ||
-			type == EventType::kStrategyOrderClear     ||
 			type == EventType::KStrategyOrderRejection ||
 			type == EventType::kStrategyOrderClear;
 	}

@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
                 config_path = default_settings;
             }
             config_path = std::filesystem::path(arg);
-            if(config_path.extension() != "json" && config_path.extension() != "yaml"){
+            if(config_path.extension() != ".json" && config_path.extension() != ".yaml"){
                 std::cout << "Config file has wrong file extension! Needs to be json" << std::endl;
                 std::cout << arg << std::endl;
                 config_path = default_settings;
