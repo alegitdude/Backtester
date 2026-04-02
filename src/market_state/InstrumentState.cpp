@@ -13,7 +13,7 @@ namespace backtester {
         }
         it->second.Apply(event);
 
-        if (event.price != std::numeric_limits<int64_t>::min() && event.flags & 0x80) {
+        if (event.price != std::numeric_limits<int64_t>::min() ) {
             // Update VWAP - equation : cumulative_notional / cumulative_volume
             if (event.type == EventType::kMarketTrade) {
                 snapshot_.cumulative_volume += event.size;
@@ -28,7 +28,7 @@ namespace backtester {
                 snapshot_.session_high = std::max(event.price, snapshot_.session_high);
                 snapshot_.session_low = std::min(event.price, snapshot_.session_low);
             }
-            else if (event.type != EventType::kMarketFill) {
+            else if (event.type != EventType::kMarketFill && event.flags & 0x80) {
                 UpdateInstrumentBbo();
                 // Update WMP - equation : (bid_price * ask_size + ask_price * bid_size) / (bid_size + ask_size)
                 int64_t total_size = instrument_Bbo_.bid.size + instrument_Bbo_.ask.size;

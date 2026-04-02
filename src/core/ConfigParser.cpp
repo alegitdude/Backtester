@@ -209,8 +209,10 @@ std::vector<TradedInstrument> ParseTradedInstrs(const nlohmann::json& data) {
 		if(instr.tick_value == 0){
 			throw std::runtime_error(fmt::format("Tick value cannot be 0, error for instrument {}", instr.instrument_id));		
 		}
-		instr.margin_req = numericUtils::doubleToFixedPoint(GetRequired<double>(
-			item, "margin_req", "Traded Instruments"));
+		instr.init_margin_req = numericUtils::doubleToFixedPoint(GetRequired<double>(
+			item, "init_margin_req", "Traded Instruments"));
+		instr.main_margin_req = numericUtils::doubleToFixedPoint(GetRequired<double>(
+			item, "main_margin_req", "Traded Instruments"));
 
 		res.push_back(instr);
 	}

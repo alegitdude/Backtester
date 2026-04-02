@@ -26,7 +26,6 @@ class StrategyManager {
     const AppConfig& config_;
     //const IMarketDataProvider& data_provider_;
     std::vector<std::unique_ptr<IStrategy>> active_strategies_;
-    std::unordered_map<std::string, IStrategy*> strategy_lookup_;
 };
 
 }

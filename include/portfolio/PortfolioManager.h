@@ -24,6 +24,11 @@ class PortfolioManager {
 
     void ProcessFill(const StrategyFillEvent& fill);
 
+    void OpenOrIncrease(Position& pos, const TradedInstrument* instr,
+        const StrategyFillEvent& fill, int64_t fill_qty_signed);
+
+    int64_t CloseOrReduce(Position& pos, const TradedInstrument* instr,
+        const StrategyFillEvent& fill, int64_t fill_qty_signed);
     // =========================================================================
     // MARK: Metrics & PnL Accessors (All return Scaled int64_t)
     // =========================================================================
@@ -32,8 +37,8 @@ class PortfolioManager {
     int64_t GetTotalEquity(const std::unordered_map<uint32_t, BidAskPair>& latest_prices) const;
     
     // Buying Power = Equity - Margin Used
-    int64_t GetBuyingPowerAvailable(const std::unordered_map<uint32_t, BidAskPair>& latest_prices) const;
-    
+    int64_t GetBuyingPower(const std::unordered_map<uint32_t, BidAskPair>& cur_prices,
+                                                InstrumentType instr_type) const;     
     // Returns PnL for a specific position object against a current price
     int64_t GetUnrealizedPnL(const Position& pos, BidAskPair& current_price) const;
 
@@ -46,7 +51,7 @@ class PortfolioManager {
 
     // Returns a ratio (0.0 to 1.0)
     int64_t GetCurrentDrawdown(int64_t current_equity) const;
-
+    
     // =========================================================================
     // MARK: Simple Accessors
     // =========================================================================
@@ -75,13 +80,25 @@ class PortfolioManager {
         const StrategySignalEvent* signal, 
         const std::unordered_map<uint32_t, BidAskPair>& latest_prices);
 
-    std::unique_ptr<StrategyOrderEvent> HandleModifyRequest(const StrategySignalEvent* signal);
+    std::unique_ptr<StrategyOrderEvent> HandleModifyRequest(
+        const StrategySignalEvent* signal,  
+        const std::unordered_map<uint32_t, BidAskPair>& latest_prices);
     std::unique_ptr<StrategyOrderEvent> HandleCancelRequest(const StrategySignalEvent* signal);
 
     // =========================================================================
     // MARK: Helper Utilities
     // =========================================================================
+    
 
+    void ReserveMargin(int32_t order_id, uint32_t instrument_id, 
+    int64_t quantity, int64_t price);
+
+    void ReleaseMargin(int32_t order_id);
+
+    int64_t GetFuturesBuyingPower(
+        const std::unordered_map<uint32_t, BidAskPair>& cur_prices) const;
+
+    int64_t GetStockBuyingPower() const;
     // Calculates required margin/cash for a specific quantity and price
     int64_t CalculateMarginRequirement(uint32_t instrument_id, int64_t quantity, 
         int64_t price) const;
@@ -104,7 +121,9 @@ class PortfolioManager {
     int64_t current_cash_;
     int64_t total_realized_pnl_ = 0;
     int64_t max_equity_seen_ = 0; 
-
+    int64_t maintenance_margin_used_ = 0;
+    int64_t reserved_margin_used_ = 0;
+    std::unordered_map<int32_t, int64_t> reserved_margin_by_order_id_; 
     const AppConfig& config_; 
     
     std::unordered_map<uint32_t, Position> positions_;

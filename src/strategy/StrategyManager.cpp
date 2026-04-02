@@ -12,10 +12,8 @@ void StrategyManager::InitiailizeStrategies(const IMarketDataProvider& provider)
         spdlog::info("Loading strategy: {} with {} parameters",
             strat_config.name, strat_config.params.size());
 
-        // 2. Ask the global registry to create it by its string name
         auto strategy = StrategyRegistry::Create(strat_config.name, provider);
 
-        // 3. Fail-fast if the strategy wasn't found
         if (!strategy) {
             throw std::runtime_error(fmt::format(
                 "StrategyManager Error: Strategy '{}' not found in registry. "
@@ -23,11 +21,9 @@ void StrategyManager::InitiailizeStrategies(const IMarketDataProvider& provider)
                 strat_config.name
             ));
         }
-
-        // 4. Pass the parsed JSON parameters into the strategy
+        
         strategy->Initialize(strat_config);
 
-        // 5. Store the unique_ptr in our active list
         active_strategies_.push_back(std::move(strategy));
     }
 
@@ -56,10 +52,13 @@ std::vector<std::unique_ptr<StrategySignalEvent>> StrategyManager::OnMarketEvent
 }
 
 void StrategyManager::OnFillEvent(const StrategyFillEvent& fill) {
-    auto it = strategy_lookup_.find(fill.strategy_id);
-    if (it != strategy_lookup_.end()) {
-        it->second->OnFill(fill);
+    for (auto& strategy : active_strategies_) {
+        if (strategy->GetId() == fill.strategy_id) {
+            strategy->OnFill(fill);
+            return;
+        }
     }
+    spdlog::warn("StrategyManager: Fill received for unknown strategy_id '{}'", fill.strategy_id);
 }
 
 }

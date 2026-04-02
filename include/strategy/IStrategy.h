@@ -23,8 +23,8 @@ class IStrategy {
     std::string GetId() const { return strategy_id_; }
 
  protected:
-    IStrategy(const IMarketDataProvider& market_data)
-        : market_data_(market_data) {}
+    IStrategy(const std::string strategy_id, const IMarketDataProvider& market_data)
+        : strategy_id_(strategy_id), market_data_(market_data) {}
 
     std::unique_ptr<StrategySignalEvent> MakeSignal(
         SignalType signal_type,

@@ -7,7 +7,7 @@
 
 namespace backtester{
 
-using StrategyFactoryFunc = std::function<std::unique_ptr<IStrategy>(const IMarketDataProvider&)>;
+using StrategyFactoryFunc = std::function<std::unique_ptr<IStrategy>(const std::string, const IMarketDataProvider&)>;
 
 class StrategyRegistry {
 public:
@@ -16,7 +16,7 @@ public:
         auto& map = GetRegistryMap();
         auto it = map.find(name);
         if (it != map.end()) {
-            return it->second(market_data); // Call the factory function
+            return it->second(name, market_data); // Call the factory function
         }
         return nullptr;
     }
@@ -41,8 +41,8 @@ private:
     namespace { \
         static bool const registered_##ClassName = []() { \
             backtester::StrategyRegistry::Register(StringName, \
-                [](const backtester::IMarketDataProvider& md) { \
-                    return std::make_unique<ClassName>(md); \
+                [](const std::string strategy_id, const backtester::IMarketDataProvider& md) { \
+                    return std::make_unique<ClassName>(strategy_id, md); \
                 }); \
             return true; \
         }(); \

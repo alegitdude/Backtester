@@ -6,12 +6,12 @@ namespace backtester{
 inline AppConfig GetDefaultConfig() {
     AppConfig res;
     res.start_time = 1762353000000000000; // Cash open 11-5-25 9:30am EST
-    res.end_time = 17623764000000000000; // 4pm EST
+    res.end_time =   1762376400000000000; // 4pm EST
     res.execution_latency_ms = 200;
     res.snapshot_interval_ns = 1'000'000'000;
     res.initial_cash = 100000'000'000'000;
     res.log_file_path = "../logs";
-    res.report_output_dir = "../include/reporting/reports";
+    res.report_output_dir = "../reports";
 
     Strategy mov_avg_cross;
     mov_avg_cross.name = "MovAvgCrossMin";
@@ -27,7 +27,8 @@ inline AppConfig GetDefaultConfig() {
     traded_instr.instrument_type = InstrumentType::FUT;
     traded_instr.tick_size = 250000000;
     traded_instr.tick_value = 12'500'000'000;
-    traded_instr.margin_req = 16500'000000000;
+    traded_instr.init_margin_req = 20845'000000000;
+    traded_instr.main_margin_req = 17017'000000000;
     res.traded_instruments = {traded_instr};
 
     RiskLimits risk_limits;

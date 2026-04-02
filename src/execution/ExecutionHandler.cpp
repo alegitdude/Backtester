@@ -260,31 +260,6 @@ void ExecutionHandler::CheckFillsQueuePosition(const MarketByOrderEvent& mbo_eve
                 }
             }
         }
-        // if (mbo_event.type == EventType::kMarketFill && pending.qty_ahead <= mbo_event.size) {
-
-        //     int64_t trade_size = static_cast<int64_t>(mbo_event.size);
-
-        //     // if (pending.qty_ahead > 0) {
-        //     //     // Drain volume still ahead of us 
-        //     //     int64_t drained = std::min(pending.qty_ahead, trade_size);
-        //     //     pending.qty_ahead -= drained;
-        //     //     trade_size -= drained;
-        //     // }
-
-        //     if (trade_size > 0) {
-        //         // Queue is exhausted. Remaining trade volume reaches us.
-        //         uint32_t fill_qty = static_cast<uint32_t>(
-        //             std::min(trade_size,
-        //                 static_cast<int64_t>(pending.remaining_qty)));
-
-        //         EmitFill(pending, pending.price, fill_qty,
-        //             mbo_event.timestamp); // reamining qty decrement hanlded here
-
-        //         if (pending.remaining_qty == 0) {
-        //             filled_order_ids.push_back(order_id);
-        //         }
-        //     }
-        // }
     }
 
     // Remove fully filled orders outside the iteration loop

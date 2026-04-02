@@ -82,7 +82,8 @@ struct TradedInstrument {
     InstrumentType instrument_type;
     uint64_t tick_size;
     uint64_t tick_value;
-    uint64_t margin_req;
+    uint64_t init_margin_req;
+    uint64_t main_margin_req;
 };
 
 struct RiskLimits {
