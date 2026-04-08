@@ -20,7 +20,7 @@ class Backtester {
 				strategy_manager_(sm) {}
 
   int RunLoop(const AppConfig& config);
-  void CloseAllPositions(uint64_t close_ts);
+	void EmitClosingOrders(uint64_t close_ts);
 	void RecordSnapshot(u_int64_t current_time);
 
  private:

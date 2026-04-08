@@ -62,8 +62,7 @@ namespace backtester {
         // Returns signed quantity
         int64_t GetPositionQty(uint32_t instrument_id) const;
 
-        // Returns true if quantity != 0
-        bool HasPosition(uint32_t instrument_id) const;
+        bool HasAnyOpenPosition() const {return !positions_.empty() ;} 
 
         int64_t GetCash() const { return current_cash_; }
         int64_t GetRealizedPnL() const { return total_realized_pnl_; }
@@ -112,10 +111,6 @@ namespace backtester {
 
         void ReleaseMargin(int32_t order_id);
 
-        int64_t GetFuturesBuyingPower(
-            const std::unordered_map<uint32_t, BidAskPair>& cur_prices) const;
-
-        int64_t GetStockBuyingPower() const;
         // Calculates required margin/cash for a specific quantity and price
         int64_t CalculateMarginRequirement(uint32_t instrument_id, int64_t quantity,
             int64_t price) const;

@@ -96,7 +96,8 @@ class ReportGenerator {
     // Called from Backtester::RunLoop periodically to record equity state.
     // -------------------------------------------------------------------
     void RecordEquitySnapshot(uint64_t timestamp, int64_t equity, int64_t cash,
-        int64_t realized_pnl, int64_t unrealized_pnl, int64_t drawdown);
+        int64_t realized_pnl, int64_t unrealized_pnl, int64_t drawdown, 
+        bool has_open_position);
 
     // -------------------------------------------------------------------
     // Called once at the end of the backtest. Computes all metrics and

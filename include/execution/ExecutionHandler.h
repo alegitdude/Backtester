@@ -62,15 +62,15 @@ public:
     // Generates FillEvents and pushes them onto the EventQueue.
     // -------------------------------------------------------------------
     void OnMarketEvent(const MarketByOrderEvent& mbo_event, const BidAskPair& current_bbo);
-
+    std::vector<std::unique_ptr<StrategyFillEvent>> CancelAllPendingOrders(
+        uint64_t cancel_ts);
     // -------------------------------------------------------------------
     // Accessors
     // -------------------------------------------------------------------
     bool HasPendingOrders() const { return !pending_orders_.empty(); }
     size_t PendingOrderCount() const { return pending_orders_.size(); }
     const PendingOrder* GetPendingOrder(int32_t order_id) const;
-    std::vector<std::unique_ptr<StrategyFillEvent>> CancelAllPendingOrders(
-    uint64_t cancel_ts);
+    
 
  private:
     EventQueue& event_queue_;
@@ -102,7 +102,7 @@ public:
     // -------------------------------------------------------------------
     bool IsMarketable(OrderSide side, int64_t order_price,
         const BidAskPair& current_bbo) const;
-
+    int64_t GetCommissionsByInstr(uint32_t instrument_id, uint32_t fill_qty);
     void EmitFill(PendingOrder& order, int64_t fill_price,
         uint32_t fill_qty, uint64_t fill_ts);
 };

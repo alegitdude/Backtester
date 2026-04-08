@@ -32,16 +32,16 @@ FetchContent_Declare(
   GIT_TAG release-1.12.1
 )
 
-FetchContent_Declare(
-    ryml
-    GIT_REPOSITORY https://github.com/biojppm/rapidyaml.git
-    GIT_TAG v0.10.0 
-    GIT_SHALLOW FALSE [1.1]
-)
+# FetchContent_Declare(
+#     ryml
+#     GIT_REPOSITORY https://github.com/biojppm/rapidyaml.git
+#     GIT_TAG v0.10.0 
+#     GIT_SHALLOW FALSE [1.1]
+# )
 
 FetchContent_MakeAvailable(googletest)
 
-FetchContent_MakeAvailable(databento json spdlog ryml)
+FetchContent_MakeAvailable(databento json spdlog)
 
 add_library(CoreLogic src/data_ingestion/CsvZstReader.cpp src/market_state/OrderBook.cpp 
 src/data_ingestion/DataReaderManager.cpp src/core/EventQueue.cpp 
