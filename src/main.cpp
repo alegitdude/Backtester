@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
     /// Initialize Report Generator
 	backtester::ReportGenerator report_generator(config);
     /// Initialize Execution Handler
-	backtester::ExecutionHandler execution_handler(event_queue, config.execution_latency_ms);
+	backtester::ExecutionHandler execution_handler(event_queue, config);
     /// Initialize Strategy Manager and Strategies
     backtester::StrategyManager strategy_manager(config);
     strategy_manager.InitiailizeStrategies(market_state_manager);

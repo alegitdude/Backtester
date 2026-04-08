@@ -35,8 +35,6 @@ public:
     virtual void OnEndOfDay(uint64_t timestamp) override {
         return; 
     }
- private: 
-    //const IMarketDataProvider market_data_
 };
 
 // ==========================================================

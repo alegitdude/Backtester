@@ -29,7 +29,10 @@ inline AppConfig GetDefaultConfig() {
     traded_instr.tick_value = 12'500'000'000;
     traded_instr.init_margin_req = 20845'000000000;
     traded_instr.main_margin_req = 17017'000000000;
+
     res.traded_instruments = {traded_instr};
+
+    res.commission_struct;
 
     RiskLimits risk_limits;
     risk_limits.risk_mode = RiskMode::PercentOfAcct;

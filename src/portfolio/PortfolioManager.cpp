@@ -43,7 +43,8 @@ std::unique_ptr<StrategyOrderEvent> PortfolioManager::HandleAddRequest(
     const std::unordered_map<uint32_t, BidAskPair>& latest_prices) {
 
     if (!IsValidTick(signal->instrument_id, signal->price)) {
-        spdlog::warn("Portfolio: Rejected price {} - not a valid tick multiple.", signal->price);
+        spdlog::warn("Portfolio: Rejected price {} - not a valid tick multiple.", 
+            signal->price);
         return nullptr;
     }
     
@@ -83,14 +84,16 @@ std::unique_ptr<StrategyOrderEvent> PortfolioManager::HandleAddRequest(
     
     if (config_.risk_limits.max_position_size > 0 && 
         std::abs(potential_qty) > config_.risk_limits.max_position_size) {
-        spdlog::warn("Portfolio: Position limit exceeded. Current: {}, New Potential: {}", current_qty, potential_qty);
+        spdlog::warn("Portfolio: Position limit exceeded. Current: {}, New Potential: {}", 
+            current_qty, potential_qty);
         return nullptr;
     }
 
     // 5. Construct Order Event
     OrderSide side = (signal->signal_type == SignalType::kBuySignal) ? 
         OrderSide::kBid : OrderSide::kAsk;
-    ReserveMargin(signal->signal_id, signal->instrument_id, signal->quantity, signal->price);
+    ReserveMargin(signal->signal_id, signal->instrument_id, signal->quantity, 
+        signal->price);
 
     return std::make_unique<StrategyOrderEvent>(
         signal->timestamp,
@@ -183,14 +186,14 @@ std::unique_ptr<StrategyOrderEvent> PortfolioManager::HandleModifyRequest(
 std::unique_ptr<StrategyOrderEvent> PortfolioManager::HandleCancelRequest(
     const StrategySignalEvent* signal) {
 
-    // Only pending orders can be modified
+    // Only pending orders can be cancelled
     auto it = reserved_margin_by_order_id_.find(signal->signal_id);
     if (it == reserved_margin_by_order_id_.end()) {
         spdlog::warn("Portfolio: Cancel rejected. No pending order found for "
             "order_id {}.", signal->signal_id);
         return nullptr;
     }
-    
+
     OrderSide side = (signal->signal_type == SignalType::kBuySignal) ? 
         OrderSide::kBid : OrderSide::kAsk;
     ReleaseMargin(signal->signal_id); 
@@ -211,48 +214,59 @@ std::unique_ptr<StrategyOrderEvent> PortfolioManager::HandleCancelRequest(
 // =============================================================================
 
 
+
+// MARK: ProcesFill
 void PortfolioManager::ProcessFill(const StrategyFillEvent& fill) {
     ReleaseMargin(fill.order_id);
 
-    Position& pos = positions_[fill.instrument_id];
+    Position* prev_pos = FindPosition(fill.instrument_id, fill.strategy_id);
+    if (prev_pos == nullptr) {
+        // First fill for this strategy/instrument pair — create new position
+        positions_.emplace_back();
+        prev_pos = &positions_.back();
+        prev_pos->instrument_id = fill.instrument_id;
+        prev_pos->strategy_id = fill.strategy_id;
+    }
+
     const TradedInstrument* instr = GetTradedInstr(fill.instrument_id);
-    
+  
+    // fill qty is uint32_t
     int64_t fill_qty_signed = (fill.side == OrderSide::kBid) ?
         fill.fill_quantity : -static_cast<int64_t>(fill.fill_quantity);
     
     current_cash_ -= fill.commission;
 
-    bool is_opening = pos.quantity == 0 ||
-        (pos.quantity > 0 && fill_qty_signed > 0) ||
-        (pos.quantity < 0 && fill_qty_signed < 0);
+    bool is_opening = prev_pos->quantity == 0 ||
+        (prev_pos->quantity > 0 && fill_qty_signed > 0) ||
+        (prev_pos->quantity < 0 && fill_qty_signed < 0);
 
     // Detect flip: fill exceeds current position in opposite direction
     // e.g. long 2, fill -5 -> close 2, open 3 short
     bool is_flip = !is_opening && 
-        std::abs(fill_qty_signed) > std::abs(pos.quantity);
+        std::abs(fill_qty_signed) > std::abs(prev_pos->quantity);
 
     if (is_opening) {
-        OpenOrIncrease(pos, instr, fill, fill_qty_signed);
+        OpenOrIncrease(*prev_pos, instr, fill, fill_qty_signed);
     }
     else if (is_flip) {
         // Step 1: Close the entire existing position
-        int64_t close_qty_signed = -pos.quantity; // opposite sign to close fully
-        int64_t trade_pnl = CloseOrReduce(pos, instr, fill, close_qty_signed);
+        int64_t close_qty_signed = -prev_pos->quantity; // opposite sign to close fully
+        int64_t trade_pnl = CloseOrReduce(*prev_pos, instr, fill, close_qty_signed);
         total_realized_pnl_ += trade_pnl;
 
         // Step 2: Open remaining quantity in opposite direction
         // e.g. long 2, fill -5: close 2, then open 3 short
         int64_t remaining_qty_signed = fill_qty_signed + close_qty_signed;
         // pos.quantity is now 0 after close, safe to open
-        OpenOrIncrease(pos, instr, fill, remaining_qty_signed);
+        OpenOrIncrease(*prev_pos, instr, fill, remaining_qty_signed);
     }
     else {
         // Pure close/reduce
-        int64_t trade_pnl = CloseOrReduce(pos, instr, fill, fill_qty_signed);
+        int64_t trade_pnl = CloseOrReduce(*prev_pos, instr, fill, fill_qty_signed);
         total_realized_pnl_ += trade_pnl;
     }
 
-    pos.last_update_ts = fill.timestamp;
+    prev_pos->last_update_ts = fill.timestamp;
 
     TradeRecord record;
     record.timestamp = fill.timestamp;
@@ -262,6 +276,7 @@ void PortfolioManager::ProcessFill(const StrategyFillEvent& fill) {
     record.quantity = fill.fill_quantity;
     record.strategy_id = fill.strategy_id;
     record.realized_pnl = total_realized_pnl_; // or pass trade_pnl from above
+    record.commission = fill.commission;
     trade_history_.push_back(record);
 }
 
@@ -279,7 +294,6 @@ void PortfolioManager::OpenOrIncrease(Position& pos, const TradedInstrument* ins
     int64_t fill_notional = std::abs(fill_qty_signed) * fill.fill_price;
     pos.quantity += fill_qty_signed;
     pos.avg_entry_price = (current_notional + fill_notional) / std::abs(pos.quantity);
-    pos.instrument_id = fill.instrument_id;
 }
 
 int64_t PortfolioManager::CloseOrReduce(Position& pos, const TradedInstrument* instr,
@@ -335,28 +349,24 @@ int64_t PortfolioManager::GetUnrealizedPnL(const Position& pos, BidAskPair& cur_
     return pnl;
 }
 
-int64_t PortfolioManager::GetTotalEquity(const std::unordered_map<uint32_t, BidAskPair>& cur_Bbos) const {
+int64_t PortfolioManager::GetTotalEquity(
+    const std::unordered_map<uint32_t, BidAskPair>& cur_Bbos) const {
+    
     int64_t unrealized = 0;
-    
-    if(!positions_.empty()){
-        for (const auto& [id, pos] : positions_) {
-            if (pos.quantity == 0) continue;
-            
-            BidAskPair bbo = {pos.avg_entry_price, 0, 0, pos.avg_entry_price, 0, 0}; // Fallback
-            if (cur_Bbos.count(id)) {
-                bbo = cur_Bbos.at(id);
-            } 
-            
-            unrealized += GetUnrealizedPnL(pos, bbo);
-        }
-    }
-    
-    int64_t equity = current_cash_ + unrealized;
+    for (const auto& pos : positions_) {
+        if (pos.quantity == 0) continue;
 
+        auto it = cur_Bbos.find(pos.instrument_id);
+        BidAskPair bbo = (it != cur_Bbos.end()) ? it->second :
+            BidAskPair{{pos.avg_entry_price, 0, 0}, {pos.avg_entry_price, 0, 0}};
+
+        unrealized += GetUnrealizedPnL(pos, bbo);
+    }
+
+    int64_t equity = current_cash_ + unrealized;
     if (equity > max_equity_seen_) {
         const_cast<PortfolioManager*>(this)->max_equity_seen_ = equity;
     }
-
     return equity;
 }
 
@@ -365,11 +375,11 @@ int64_t PortfolioManager::GetBuyingPower(
     InstrumentType instr_type) const {
 
     int64_t futures_unrealized = 0;
-    for (const auto& [id, pos] : positions_) {
-        const TradedInstrument* instr = GetTradedInstr(id);
+    for (const auto& pos : positions_) {
+        const TradedInstrument* instr = GetTradedInstr(pos.instrument_id);
         if (instr && instr->instrument_type == InstrumentType::FUT
-            && pos.quantity != 0 && cur_prices.count(id)) {
-            BidAskPair bbo = cur_prices.at(id);
+            && pos.quantity != 0 && cur_prices.count(pos.instrument_id)) {
+            BidAskPair bbo = cur_prices.at(pos.instrument_id);
             futures_unrealized += GetUnrealizedPnL(pos, bbo);
         }
     }
@@ -379,44 +389,12 @@ int64_t PortfolioManager::GetBuyingPower(
         - maintenance_margin_used_
         - reserved_margin_used_;
 
-    // Futures get additional credit: unrealized gains can offset margin requirements
-    // allowing more futures positions to be opened. Stocks do not get this credit
-    // since unrealized gains aren't spendable until realized.
     if (instr_type == InstrumentType::FUT) {
         return std::max<int64_t>(0, base);
     } else {
         return std::max<int64_t>(0, base - futures_unrealized);
     }
 }
-
-// int64_t PortfolioManager::GetFuturesBuyingPower(
-//     const std::unordered_map<uint32_t, BidAskPair>& cur_prices) const {
-    
-//     // Futures maintenance margin can be reduced by unrealized futures gains
-//     // since CME marks to market and credits gains to your cash balance
-//     int64_t futures_unrealized = 0;
-//     for (const auto& [id, pos] : positions_) {
-//         const TradedInstrument* instr = GetTradedInstr(id);
-//         if (instr && instr->instrument_type == InstrumentType::FUT
-//             && pos.quantity != 0 && cur_prices.count(id)) {
-//             BidAskPair bbo = cur_prices.at(id);
-//             futures_unrealized += GetUnrealizedPnL(pos, bbo);
-//         }
-//     }
-
-//     return std::max<int64_t>(0, current_cash_ 
-//         + futures_unrealized
-//         - maintenance_margin_used_      
-//         - reserved_margin_used_); 
-// }
-
-// int64_t PortfolioManager::GetStockBuyingPower() const {
-//     // Stock cash is already debited from current_cash_ on purchase
-//     // so buying power is just remaining cash minus any futures margin obligations
-//     return std::max<int64_t>(0, current_cash_ 
-//         - maintenance_margin_used_ 
-//         - reserved_margin_used_);
-// }
 
 void PortfolioManager::ReserveMargin(int32_t order_id, uint32_t instrument_id, 
     int64_t quantity, int64_t price) {
@@ -433,8 +411,8 @@ void PortfolioManager::ReleaseMargin(int32_t order_id) {
 }
 
 int64_t PortfolioManager::GetDelta(uint32_t instrument_id, BidAskPair cur_Bbo) const {
-    auto it = positions_.find(instrument_id);
-    if (it == positions_.end()) return 0;
+    int64_t qty = GetPositionQty(instrument_id);
+    if (qty == 0) return 0;
 
     if (cur_Bbo.bid.price == 0 || cur_Bbo.ask.price == 0 || 
         cur_Bbo.ask.price == kUndefPrice || cur_Bbo.bid.price == kUndefPrice) return 0;
@@ -448,25 +426,25 @@ int64_t PortfolioManager::GetDelta(uint32_t instrument_id, BidAskPair cur_Bbo) c
         int64_t ticks = mid_price / traded_instr_ptr->tick_size;
         int64_t contract_value = ticks * traded_instr_ptr->tick_value;
         
-        return it->second.quantity * contract_value;
+        return qty * contract_value;
     }    
     // Stock Dollar Value = Price * Qty
-    return it->second.quantity * mid_price;
+    return qty * mid_price;
 }
 
 int64_t PortfolioManager::GetTotalPortfolioDelta(const std::unordered_map<uint32_t, 
                                                 BidAskPair>& cur_prices) const {
     int64_t total_delta = 0;
     
-    for (const auto& [id, pos] : positions_) {
+    for (const auto& pos : positions_) {
         if (pos.quantity == 0) continue;
 
         BidAskPair bbo = {pos.avg_entry_price, 0, 0, pos.avg_entry_price, 0, 0};
-        if (cur_prices.count(id)) {
-            bbo = cur_prices.at(id);
+        if (cur_prices.count(pos.instrument_id)) {
+            bbo = cur_prices.at(pos.instrument_id);
         } 
         
-        total_delta += GetDelta(id, bbo);
+        total_delta += GetDelta(pos.instrument_id, bbo);
     }
     return total_delta;
 }
@@ -485,19 +463,22 @@ int64_t PortfolioManager::GetCurrentDrawdown(int64_t current_equity) const {
 
 const Position& PortfolioManager::GetPositionByInstrId(uint32_t instrument_id) const {
     static const Position empty_pos;
-    auto it = positions_.find(instrument_id);
-    return (it != positions_.end()) ? it->second : empty_pos;
+    auto it = std::find_if(positions_.begin(), positions_.end(), 
+        [instrument_id](const Position& pos) {
+        return pos.instrument_id == instrument_id;
+    });
+    return (it != positions_.end()) ? *it : empty_pos;
 }
 
 int64_t PortfolioManager::GetPositionQty(uint32_t instrument_id) const {
-    auto it = positions_.find(instrument_id);
-    return (it != positions_.end()) ? it->second.quantity : 0;
+    const Position& pos = GetPositionByInstrId(instrument_id);
+    return pos.quantity;
 }
 
-bool PortfolioManager::HasPosition(uint32_t instrument_id) const {
-    auto it = positions_.find(instrument_id);
-    return (it != positions_.end() && it->second.quantity != 0);
-}
+// bool PortfolioManager::HasPosition(uint32_t instrument_id) const {
+//     auto it = positions_.find(instrument_id);
+//     return (it != positions_.end() && it->second.quantity != 0);
+// }
 
 int64_t PortfolioManager::CalculateMarginRequirement(uint32_t instrument_id,
      int64_t quantity, int64_t price) const {

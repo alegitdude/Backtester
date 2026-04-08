@@ -86,6 +86,13 @@ struct TradedInstrument {
     uint64_t main_margin_req;
 };
 
+struct CommissionStruct {
+    uint64_t fut_per_contract = 2'170'000'000;
+    uint64_t stock_order_min = 350'000'000;
+    uint64_t stock_per_share = 3'500'000;
+    uint64_t stock_clearing_fee = 200'000;
+};
+
 struct RiskLimits {
     RiskMode risk_mode;
     
@@ -107,6 +114,7 @@ struct AppConfig {
     uint64_t execution_latency_ms = 200;
     uint64_t snapshot_interval_ns = 1'000'000'000;
     uint64_t initial_cash = 100000;
+    CommissionStruct commission_struct;
     double risk_free_rate = 0.05;
     std::string log_file_path;
     std::string report_output_dir;
@@ -120,7 +128,9 @@ struct AppConfig {
 
 struct Position {
     uint32_t instrument_id = 0;
-    int64_t quantity = 0;   // Signed: positive = long, negative = short
+    std::string strategy_id = "";
+    int32_t last_order_id = 0;
+    int64_t quantity = 0;
     int64_t avg_entry_price = 0;
     uint64_t last_update_ts = 0;
 
@@ -196,7 +206,7 @@ enum class DataInterval{
 struct Trade {
     int64_t entryPrice, exitPrice;
     long entryTime, exitTime;
-    int quantity;
+    int64_t quantity;
 };
 
 struct DataBentoOHCLV1sRow{

@@ -44,7 +44,7 @@ struct PendingOrder {
 
 class ExecutionHandler {
 public:
-    ExecutionHandler(EventQueue& event_queue, const uint64_t execution_latency_ms);
+    ExecutionHandler(EventQueue& event_queue, const AppConfig& config);
     ~ExecutionHandler() = default;
 
     // -------------------------------------------------------------------
@@ -69,9 +69,12 @@ public:
     bool HasPendingOrders() const { return !pending_orders_.empty(); }
     size_t PendingOrderCount() const { return pending_orders_.size(); }
     const PendingOrder* GetPendingOrder(int32_t order_id) const;
+    std::vector<std::unique_ptr<StrategyFillEvent>> CancelAllPendingOrders(
+    uint64_t cancel_ts);
 
  private:
     EventQueue& event_queue_;
+    const AppConfig& config_; 
     uint64_t latency_ns_;
     FillModel fill_model_;
 

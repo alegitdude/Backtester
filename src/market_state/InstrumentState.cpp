@@ -73,7 +73,8 @@ namespace backtester {
             }
         }
 
-        if (instrument_Bbo_.bid.price != kUndefPrice && instrument_Bbo_.bid.price > instrument_Bbo_.ask.price) {
+        if (instrument_Bbo_.bid.price != kUndefPrice && instrument_Bbo_.bid.price > 
+            instrument_Bbo_.ask.price) {
             //throw std::logic_error("bid price is higher than ask price?");
             instrument_Bbo_ = prev_bbo;
         }

@@ -19,8 +19,8 @@ class Backtester {
 				report_generator_(rg), execution_handler_(eh), 
 				strategy_manager_(sm) {}
 
-    int RunLoop(const AppConfig& config);
-
+  int RunLoop(const AppConfig& config);
+  void CloseAllPositions(uint64_t close_ts);
 	void RecordSnapshot(u_int64_t current_time);
 
  private:

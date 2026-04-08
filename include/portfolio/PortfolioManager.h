@@ -9,125 +9,142 @@
 
 namespace backtester {
 
-class PortfolioManager {
- public:
-    PortfolioManager(const AppConfig& config);
-    ~PortfolioManager() = default;
+    class PortfolioManager {
+    public:
+        PortfolioManager(const AppConfig& config);
+        ~PortfolioManager() = default;
 
-    // =========================================================================
-    // MARK: Core Signal & Order Handling
-    // =========================================================================
+        // =========================================================================
+        // MARK: Core Signal & Order Handling
+        // =========================================================================
 
-    std::unique_ptr<StrategyOrderEvent> RequestOrder(
-        const StrategySignalEvent* signal, 
-        const std::unordered_map<uint32_t, BidAskPair>& latest_prices);
+        std::unique_ptr<StrategyOrderEvent> RequestOrder(
+            const StrategySignalEvent* signal,
+            const std::unordered_map<uint32_t, BidAskPair>& latest_prices);
 
-    void ProcessFill(const StrategyFillEvent& fill);
+        void ProcessFill(const StrategyFillEvent& fill);
 
-    void OpenOrIncrease(Position& pos, const TradedInstrument* instr,
-        const StrategyFillEvent& fill, int64_t fill_qty_signed);
+        void OpenOrIncrease(Position& pos, const TradedInstrument* instr,
+            const StrategyFillEvent& fill, int64_t fill_qty_signed);
 
-    int64_t CloseOrReduce(Position& pos, const TradedInstrument* instr,
-        const StrategyFillEvent& fill, int64_t fill_qty_signed);
-    // =========================================================================
-    // MARK: Metrics & PnL Accessors (All return Scaled int64_t)
-    // =========================================================================
+        int64_t CloseOrReduce(Position& pos, const TradedInstrument* instr,
+            const StrategyFillEvent& fill, int64_t fill_qty_signed);
+        // =========================================================================
+        // MARK: Metrics & PnL Accessors (All return Scaled int64_t)
+        // =========================================================================
 
-    // Equity = Cash + Unrealized PnL
-    int64_t GetTotalEquity(const std::unordered_map<uint32_t, BidAskPair>& latest_prices) const;
-    
-    // Buying Power = Equity - Margin Used
-    int64_t GetBuyingPower(const std::unordered_map<uint32_t, BidAskPair>& cur_prices,
-                                                InstrumentType instr_type) const;     
-    // Returns PnL for a specific position object against a current price
-    int64_t GetUnrealizedPnL(const Position& pos, BidAskPair& current_price) const;
+        // Equity = Cash + Unrealized PnL
+        int64_t GetTotalEquity(const std::unordered_map<uint32_t, BidAskPair>& latest_prices) const;
 
-    // Sum of Dollar Deltas for all positions
-    int64_t GetTotalPortfolioDelta(const std::unordered_map<uint32_t, BidAskPair>& latest_prices) const;
+        // Buying Power = Equity - Margin Used
+        int64_t GetBuyingPower(const std::unordered_map<uint32_t, BidAskPair>& cur_prices,
+            InstrumentType instr_type) const;
+        // Returns PnL for a specific position object against a current price
+        int64_t GetUnrealizedPnL(const Position& pos, BidAskPair& current_price) const;
 
-    // Dollar/Currency Delta for a specific instrument
-    // Futures Dollar Value = (Price / TickSize) * TickValue
-    int64_t GetDelta(uint32_t instrument_id, BidAskPair current_Bbo) const;
+        // Sum of Dollar Deltas for all positions
+        int64_t GetTotalPortfolioDelta(const std::unordered_map<uint32_t, BidAskPair>& latest_prices) const;
 
-    // Returns a ratio (0.0 to 1.0)
-    int64_t GetCurrentDrawdown(int64_t current_equity) const;
-    
-    // =========================================================================
-    // MARK: Simple Accessors
-    // =========================================================================
-    
-    // Returns the Position object (copy or const ref)
-    const Position& GetPositionByInstrId(uint32_t instrument_id) const;
-    
-    // Returns signed quantity
-    int64_t GetPositionQty(uint32_t instrument_id) const;
-    
-    // Returns true if quantity != 0
-    bool HasPosition(uint32_t instrument_id) const;
+        // Dollar/Currency Delta for a specific instrument
+        // Futures Dollar Value = (Price / TickSize) * TickValue
+        int64_t GetDelta(uint32_t instrument_id, BidAskPair current_Bbo) const;
 
-    int64_t GetCash() const { return current_cash_; }
-    int64_t GetRealizedPnL() const { return total_realized_pnl_; }
-    int64_t GetMaxEquitySeen() const { return max_equity_seen_; }
-    
-    const std::vector<TradeRecord>& GetTradeHistory() const { return trade_history_; }
+        // Returns a ratio (0.0 to 1.0)
+        int64_t GetCurrentDrawdown(int64_t current_equity) const;
 
- private:
-    // =========================================================================
-    // MARK: Internal Logic Handlers
-    // =========================================================================
+        // =========================================================================
+        // MARK: Simple Accessors
+        // =========================================================================
 
-    std::unique_ptr<StrategyOrderEvent> HandleAddRequest(
-        const StrategySignalEvent* signal, 
-        const std::unordered_map<uint32_t, BidAskPair>& latest_prices);
+        // Returns the Position object (copy or const ref)
+        const Position& GetPositionByInstrId(uint32_t instrument_id) const;
+        const std::vector<Position>& GetPositions() const { return positions_; }
+        // Returns signed quantity
+        int64_t GetPositionQty(uint32_t instrument_id) const;
 
-    std::unique_ptr<StrategyOrderEvent> HandleModifyRequest(
-        const StrategySignalEvent* signal,  
-        const std::unordered_map<uint32_t, BidAskPair>& latest_prices);
-    std::unique_ptr<StrategyOrderEvent> HandleCancelRequest(const StrategySignalEvent* signal);
+        // Returns true if quantity != 0
+        bool HasPosition(uint32_t instrument_id) const;
 
-    // =========================================================================
-    // MARK: Helper Utilities
-    // =========================================================================
-    
+        int64_t GetCash() const { return current_cash_; }
+        int64_t GetRealizedPnL() const { return total_realized_pnl_; }
+        int64_t GetMaxEquitySeen() const { return max_equity_seen_; }
 
-    void ReserveMargin(int32_t order_id, uint32_t instrument_id, 
-    int64_t quantity, int64_t price);
+        const std::vector<TradeRecord>& GetTradeHistory() const { return trade_history_; }
 
-    void ReleaseMargin(int32_t order_id);
+    private:
+        // =========================================================================
+        // MARK: Internal Logic Handlers
+        // =========================================================================
 
-    int64_t GetFuturesBuyingPower(
-        const std::unordered_map<uint32_t, BidAskPair>& cur_prices) const;
+        std::unique_ptr<StrategyOrderEvent> HandleAddRequest(
+            const StrategySignalEvent* signal,
+            const std::unordered_map<uint32_t, BidAskPair>& latest_prices);
 
-    int64_t GetStockBuyingPower() const;
-    // Calculates required margin/cash for a specific quantity and price
-    int64_t CalculateMarginRequirement(uint32_t instrument_id, int64_t quantity, 
-        int64_t price) const;
-    
-    // Validates that a price is a valid multiple of the tick size (Integer Modulo)
-    bool IsValidTick(uint32_t instrument_id, int64_t price) const;
+        std::unique_ptr<StrategyOrderEvent> HandleModifyRequest(
+            const StrategySignalEvent* signal,
+            const std::unordered_map<uint32_t, BidAskPair>& latest_prices);
+        std::unique_ptr<StrategyOrderEvent> HandleCancelRequest(const StrategySignalEvent* signal);
 
-    inline const TradedInstrument* GetTradedInstr(uint32_t instrument_id) const{
-        for (auto& instr : config_.traded_instruments) {
-            if (instr.instrument_id == instrument_id) return &instr;
-        } 
-        return nullptr;
-    }
+        // =========================================================================
+        // MARK: Helper Utilities
+        // =========================================================================
+        inline Position* FindPosition(uint32_t instrument_id, const std::string& strategy_id) {
+            for (auto& pos : positions_) {
+                if (pos.instrument_id == instrument_id && pos.strategy_id == strategy_id) {
+                    return &pos;
+                }
+            }
+            return nullptr;
+        }
 
-    // =========================================================================
-    // MARK: Member Variables
-    // =========================================================================
+        inline const Position* FindPosition(uint32_t instrument_id,
+            const std::string& strategy_id) const {
+            for (const auto& pos : positions_) {
+                if (pos.instrument_id == instrument_id && pos.strategy_id == strategy_id) {
+                    return &pos;
+                }
+            }
+            return nullptr;
+        }
 
-    int64_t initial_capital_;
-    int64_t current_cash_;
-    int64_t total_realized_pnl_ = 0;
-    int64_t max_equity_seen_ = 0; 
-    int64_t maintenance_margin_used_ = 0;
-    int64_t reserved_margin_used_ = 0;
-    std::unordered_map<int32_t, int64_t> reserved_margin_by_order_id_; 
-    const AppConfig& config_; 
-    
-    std::unordered_map<uint32_t, Position> positions_;
-    std::vector<TradeRecord> trade_history_;
-};
+        void ReserveMargin(int32_t order_id, uint32_t instrument_id,
+            int64_t quantity, int64_t price);
+
+        void ReleaseMargin(int32_t order_id);
+
+        int64_t GetFuturesBuyingPower(
+            const std::unordered_map<uint32_t, BidAskPair>& cur_prices) const;
+
+        int64_t GetStockBuyingPower() const;
+        // Calculates required margin/cash for a specific quantity and price
+        int64_t CalculateMarginRequirement(uint32_t instrument_id, int64_t quantity,
+            int64_t price) const;
+
+        // Validates that a price is a valid multiple of the tick size (Integer Modulo)
+        bool IsValidTick(uint32_t instrument_id, int64_t price) const;
+
+        inline const TradedInstrument* GetTradedInstr(uint32_t instrument_id) const {
+            for (auto& instr : config_.traded_instruments) {
+                if (instr.instrument_id == instrument_id) return &instr;
+            }
+            return nullptr;
+        }
+
+        // =========================================================================
+        // MARK: Member Variables
+        // =========================================================================
+
+        int64_t initial_capital_;
+        int64_t current_cash_;
+        int64_t total_realized_pnl_ = 0;
+        int64_t max_equity_seen_ = 0;
+        int64_t maintenance_margin_used_ = 0;
+        int64_t reserved_margin_used_ = 0;
+        std::unordered_map<int32_t, int64_t> reserved_margin_by_order_id_;
+        const AppConfig& config_;
+
+        std::vector<Position> positions_;
+        std::vector<TradeRecord> trade_history_;
+    };
 
 }
