@@ -1,16 +1,13 @@
 #!/bin/bash
-echo "Here"
-# 1. Location-agnostic root finding
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-# 2. Paths pointing to the new benchmark data folder
 DATA_DIR="$PROJECT_ROOT/benchmarks/reader_perf_data"
 PERF_DATA_FILE="$DATA_DIR/perf.data"
 SVG_OUTPUT="$DATA_DIR/reader_flame.svg"
 
-# 3. Sanity check
 if [ ! -f "$PERF_DATA_FILE" ]; then
     echo "ERROR: No perf.data found at $PERF_DATA_FILE"
     echo "Make sure you ran the profiling script first."
@@ -25,5 +22,5 @@ perf script -i "$PERF_DATA_FILE" | ./FlameGraph/stackcollapse-perf.pl | ./FlameG
 
 echo "------------------------------------------------"
 echo "Flame Graph generated successfully!"
-echo "Open this file in your browser: $SVG_OUTPUT"
+echo "$SVG_OUTPUT"
 echo "------------------------------------------------"
