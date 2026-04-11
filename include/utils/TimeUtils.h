@@ -12,6 +12,10 @@ namespace backtester {
 
 namespace time {
 
+constexpr uint64_t k1MinuteNs = 60'000'000'000LL;
+constexpr uint64_t k2MinuteNs = 120'000'000'000LL;
+constexpr uint64_t k5MinuteNs = 300'000'000'000LL;
+
 struct TimeOfDay {
     uint8_t hour;
     uint8_t minute;

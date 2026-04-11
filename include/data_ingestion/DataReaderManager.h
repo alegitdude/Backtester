@@ -12,14 +12,13 @@ class EventQueue;
 
 class DataReaderManager {
  public:
-    explicit DataReaderManager(EventQueue& queue) : event_queue_(queue) {}
+    DataReaderManager() = default;
 
     bool RegisterAndInitStreams(const std::vector<DataSourceConfig>& file_paths);
-    bool LoadNextEventFromSource(const std::string& source_name);
+    std::unique_ptr<MarketByOrderEvent> LoadNextEventFromSource(const std::string& source_name);
 
  private:
     std::unordered_map<std::string, DataStream>readers_;
-    EventQueue& event_queue_;
     
     std::unique_ptr<MarketByOrderEvent> ParseMboLineToEvent(
         const std::string& symbol, 

@@ -10,11 +10,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
 
-FetchContent_Declare(
-    databento
-    GIT_REPOSITORY https://github.com/databento/databento-cpp
-    GIT_TAG HEAD
-)
+# FetchContent_Declare(
+#     databento
+#     GIT_REPOSITORY https://github.com/databento/databento-cpp
+#     GIT_TAG HEAD
+# )
+
 FetchContent_Declare(
   json
   URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
@@ -41,7 +42,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(googletest)
 
-FetchContent_MakeAvailable(databento json spdlog)
+FetchContent_MakeAvailable(json spdlog)
 
 add_library(CoreLogic src/data_ingestion/CsvZstReader.cpp src/market_state/OrderBook.cpp 
 src/data_ingestion/DataReaderManager.cpp src/core/EventQueue.cpp 
@@ -56,14 +57,14 @@ include/market_state/IMarketDataProvider.h src/strategy/user_strategies/MovAvgCr
 
 add_executable(Backtester src/main.cpp)
 
-file(GLOB TEST_SOURCES "test/*.cpp")
-
-add_executable(unit_tests ${TEST_SOURCES})
-
 add_executable(tests test/utils/TimeUtils_test.cpp )
 
-target_link_libraries(CoreLogic PRIVATE databento::databento spdlog PUBLIC nlohmann_json::nlohmann_json)
-target_link_libraries(unit_tests PRIVATE GTest::gtest_main CoreLogic)
-target_link_libraries(tests PUBLIC nlohmann_json::nlohmann_json PRIVATE GTest::gtest_main zstd spdlog CoreLogic)
-target_link_libraries(Backtester PRIVATE nlohmann_json::nlohmann_json zstd spdlog  -Wl,--whole-archive CoreLogic -Wl,--no-whole-archive)
 
+target_link_libraries(CoreLogic PRIVATE spdlog::spdlog zstd PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(tests PUBLIC nlohmann_json::nlohmann_json PRIVATE GTest::gtest_main zstd spdlog CoreLogic)
+target_link_libraries(Backtester PRIVATE spdlog::spdlog nlohmann_json::nlohmann_json -Wl,--whole-archive CoreLogic -Wl,--no-whole-archive)
+
+add_executable(reader_perf_harness benchmarks/CsvZst_Ingestion_Harness.cpp src/data_ingestion/CsvZstReader.cpp 
+src/data_ingestion/DataReaderManager.cpp)
+target_link_libraries(reader_perf_harness PRIVATE spdlog::spdlog zstd)
+target_compile_options(reader_perf_harness PRIVATE -O3 -g -fno-omit-frame-pointer)

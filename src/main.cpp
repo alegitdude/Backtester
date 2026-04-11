@@ -99,14 +99,15 @@ int main(int argc, char* argv[]) {
     ///  Configuration Loading 
     spdlog::info("Loading Confgiuration File");
     const backtester::AppConfig config = use_demo_config ? backtester::GetDefaultConfig()
-        :  backtester::ParseConfigToObj(config_path);
+        : backtester::ParseConfigToObj(config_path);
     ///  Create central EventQueue
     backtester::EventQueue event_queue;
     /// Initialize DataReaderManager
-	backtester::DataReaderManager data_reader_manager(event_queue);
+	backtester::DataReaderManager data_reader_manager;
     /// Initialize Market State Manager
     backtester::MarketStateManager market_state_manager;
-    std::vector<uint32_t> traded_instr_ids;
+
+    std::vector<uint32_t> traded_instr_ids; // TODO clunky??
     traded_instr_ids.reserve(config.traded_instruments.size());
     std::transform(config.traded_instruments.begin(), config.traded_instruments.end(), 
         std::back_inserter(traded_instr_ids), [](const auto& obj) { return obj.instrument_id; });
@@ -123,9 +124,10 @@ int main(int argc, char* argv[]) {
     backtester::StrategyManager strategy_manager(config);
     strategy_manager.InitiailizeStrategies(market_state_manager);
     
-    // Read the first event from each data source and add to the EventQueue
-    spdlog::info("Populating initial events from data sources...");
-    data_reader_manager.RegisterAndInitStreams(config.data_configs);
+    if(!data_reader_manager.RegisterAndInitStreams(config.data_configs)){
+        throw std::runtime_error("Problem parsing data configuration, check logs");
+        return 1;
+    };
     
     // Initialize Backtester class
     backtester::Backtester backtester(event_queue, data_reader_manager, market_state_manager,

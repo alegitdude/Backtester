@@ -43,9 +43,6 @@ bool DataReaderManager::RegisterAndInitStreams(
         // 3. Store the active reader 
         readers_[source_name] = {std::move(reader), source};
 
-        // 4. Load the very first event to start the queue
-        if(!LoadNextEventFromSource(source_name)) 
-             spdlog::warn("Symbol " + source_name + " has no events.");
     }
 
     std::cout << "Data readers initialized" << std::endl;;      
@@ -54,9 +51,9 @@ bool DataReaderManager::RegisterAndInitStreams(
 
 // MARK: LoadNextEventForSymbol
 
-bool DataReaderManager::LoadNextEventFromSource(const std::string& source_name) {
+std::unique_ptr<MarketByOrderEvent> DataReaderManager::LoadNextEventFromSource(const std::string& source_name) {
     if(readers_.find(source_name) == readers_.end()){
-        return false;  // Reader was already closed or not registered
+        return nullptr;  // Reader was already closed or not registered
     }       
 
     CsvZstReader& reader = *readers_[source_name].reader;
@@ -66,24 +63,19 @@ bool DataReaderManager::LoadNextEventFromSource(const std::string& source_name) 
         spdlog::info("End of data for symbol: " + source_name);
         // readers_.erase(symbol); TODO
         reader.Close(); 
-        return false;
+        return nullptr;
     }
 
     std::unique_ptr<MarketByOrderEvent> event_ptr;
     if(readers_[source_name].config.schema == DataSchema::MBO){
-       event_ptr = ParseMboLineToEvent(source_name, raw_line);
+       return ParseMboLineToEvent(source_name, raw_line);
     // } else if (readers_[symbol].schema == DataSchema::OHLCV){ // TODO
     //     event_ptr = ParseOhlcvLineToEvent(symbol, raw_line);
     } else {
         throw std::runtime_error("Invalid data schema ");
     }
 
-    if(event_ptr != nullptr){
-        event_queue_.PushEvent(std::move(event_ptr));
-        return true;
-    }
-  
-    return false;
+    return nullptr;
 };
 
 // MARK:  ParseMboLineToEvent

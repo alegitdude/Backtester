@@ -9,7 +9,8 @@ class MovAvgCross : public IStrategy {
 public:
     time::TimeOfDay time; 
     bool filled_signal = false;
-    MovAvgCross(const std::string& strategy_id, const IMarketDataProvider& market_data) : IStrategy(strategy_id, market_data) {}
+    MovAvgCross(const std::string& strategy_id, const IMarketDataProvider& market_data) : 
+        IStrategy(strategy_id, market_data) {}
     
     virtual void Initialize(const Strategy& config) override {
         return;

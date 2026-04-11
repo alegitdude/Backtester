@@ -5,6 +5,17 @@
 namespace backtester {
 
     int Backtester::RunLoop(const AppConfig& config) {
+        
+        spdlog::info("Populating initial events from data sources...");
+        for (const DataSourceConfig& source : config.data_configs) {
+            auto event_ptr = data_reader_manager_.LoadNextEventFromSource(
+                source.data_source_name);
+            if(event_ptr){
+                event_queue_.PushEvent(std::move(event_ptr));
+            } else {
+                spdlog::warn("Symbol "+ source.data_source_name + " has no events.");
+            }   
+        }
 
         spdlog::info("Starting backtest loop...");
         u_int64_t current_time;
@@ -38,7 +49,11 @@ namespace backtester {
                 }
 
                 if (!backtest_complete) {
-                    data_reader_manager_.LoadNextEventFromSource(market_event->data_source);
+                    auto event_ptr = data_reader_manager_.LoadNextEventFromSource(
+                        market_event->data_source);
+                    if (event_ptr) {
+                        event_queue_.PushEvent(std::move(event_ptr));
+                    }
                 }
             }
 
@@ -100,12 +115,12 @@ namespace backtester {
                 }
             }
 
-            if ((event_queue_.IsEmpty() || current_time > config.end_time) && 
+            if ((event_queue_.IsEmpty() || current_time > config.end_time) &&
                 !backtest_complete) {
                 event_queue_.PushEvent(std::make_unique<Event>(current_time,
                     EventType::kBacktestControlEndOfBacktest));
             }
-            if (current_time >= config.start_time && 
+            if (current_time >= config.start_time &&
                 current_time - last_snapshot_ts_ >= config.snapshot_interval_ns) {
                 RecordSnapshot(current_time);
                 last_snapshot_ts_ = current_time;
