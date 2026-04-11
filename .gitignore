@@ -9,3 +9,4 @@ test/test_data/ES-glbx-20251105.mbp-10.csv.zst
 test/test_data/ES-glbx-20251105.mbo.csv.zst
 test/test_data/no-access.txt
 .venv
+.editorconfig
