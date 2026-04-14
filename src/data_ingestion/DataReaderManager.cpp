@@ -40,8 +40,8 @@ bool DataReaderManager::RegisterAndInitStreams(
             spdlog::error(failure + "at " + data_filepath);
             return false;
         }
-        // 3. Store the active reader 
-        readers_[source_name] = {std::move(reader), source};
+        // Store the active reader 
+        readers_.push_back({std::move(reader), source});
 
     }
 
@@ -52,23 +52,25 @@ bool DataReaderManager::RegisterAndInitStreams(
 // MARK: LoadNextEventForSymbol
 
 std::unique_ptr<MarketByOrderEvent> DataReaderManager::LoadNextEventFromSource(const std::string& source_name) {
-    if(readers_.find(source_name) == readers_.end()){
-        return nullptr;  // Reader was already closed or not registered
-    }       
+    auto it = std::find_if(readers_.begin(), readers_.end(), [source_name] (DataStream& stream ){
+        return stream.config.data_source_name == source_name;
+    });
+    if(it == readers_.end()){
+        return nullptr;
+    }
 
-    CsvZstReader& reader = *readers_[source_name].reader;
     std::string raw_line;
 
-    if(!reader.ReadLine(raw_line)){
+    if(!it->reader->ReadLine(raw_line)){
         spdlog::info("End of data for symbol: " + source_name);
         // readers_.erase(symbol); TODO
-        reader.Close(); 
+        it->reader->Close(); 
         return nullptr;
     }
 
     std::unique_ptr<MarketByOrderEvent> event_ptr;
-    if(readers_[source_name].config.schema == DataSchema::MBO){
-       return ParseMboLineToEvent(source_name, raw_line);
+    if(it->config.schema == DataSchema::MBO){
+       return ParseMboLineToEvent(it, raw_line);
     // } else if (readers_[symbol].schema == DataSchema::OHLCV){ // TODO
     //     event_ptr = ParseOhlcvLineToEvent(symbol, raw_line);
     } else {
@@ -81,10 +83,10 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::LoadNextEventFromSource(c
 // MARK:  ParseMboLineToEvent
 
 std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
-    const std::string& data_source_name, 
+    const std::vector<backtester::DataStream>::iterator it, 
     const std::string& line) {
 
-    DataSourceConfig config = readers_[data_source_name].config;
+    //DataSourceConfig config = readers_[data_source_name].config;
 
     std::string_view current_view(line);
     size_t pos = 0;
@@ -140,7 +142,7 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
                 if(action == EventType::kMarketOrderClear) { price = 0; break;} 
                 if (token.empty()) throw std::runtime_error("Field 8 empty.");
 
-                if(config.price_format == PriceFormat::DECIMAL){
+                if(it->config.price_format == PriceFormat::DECIMAL){
                     double raw_price;
                     std::from_chars(token.data(), token.data() + token.size(), raw_price);
                     raw_price *= 1000000000;
@@ -205,7 +207,7 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
             ts_in_delta,
             sequence,
             symbol,
-            data_source_name
+            it->config.data_source_name
         );
 
     return event_ptr;

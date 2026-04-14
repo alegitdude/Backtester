@@ -18,10 +18,10 @@ class DataReaderManager {
     std::unique_ptr<MarketByOrderEvent> LoadNextEventFromSource(const std::string& source_name);
 
  private:
-    std::unordered_map<std::string, DataStream>readers_;
+    std::vector<DataStream>readers_;
     
     std::unique_ptr<MarketByOrderEvent> ParseMboLineToEvent(
-        const std::string& symbol, 
+        const std::vector<backtester::DataStream>::iterator it, 
         const std::string& line
     );
 
