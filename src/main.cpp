@@ -1,4 +1,3 @@
-//#include "core/EventQueue.cpp"
 #include "../include/core/Backtester.h"
 #include "../include/core/ConfigParser.h"
 #include "../include/core/Types.h"

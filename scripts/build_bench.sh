@@ -7,11 +7,11 @@ cd "$PROJECT_ROOT"
 mkdir -p build
 cd build
 cmake ..
-make reader_perf_harness
+make orderbook_perf_harness
 
 if [ $? -eq 0 ]; then
     echo "------------------------------------------------"
-    echo "Build successful: $PROJECT_ROOT/build/reader_perf_harness"
+    echo "Build successful: $PROJECT_ROOT/build/orderbook_perf_harness"
     echo "------------------------------------------------"
 else
     echo "Build failed."

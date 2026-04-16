@@ -68,3 +68,10 @@ add_executable(reader_perf_harness benchmarks/CsvZst_Ingestion_Harness.cpp src/d
 src/data_ingestion/DataReaderManager.cpp)
 target_link_libraries(reader_perf_harness PRIVATE spdlog::spdlog zstd)
 target_compile_options(reader_perf_harness PRIVATE -O3 -g -fno-omit-frame-pointer)
+
+add_executable(orderbook_perf_harness benchmarks/OrderBook_Perf_Harness.cpp src/market_state/InstrumentState.cpp 
+src/market_state/MarketStateManager.cpp src/market_state/OrderBook.cpp src/core/EventQueue.cpp 
+src/data_ingestion/CsvZstReader.cpp src/data_ingestion/DataReaderManager.cpp
+include/core/Types.h)
+target_link_libraries(orderbook_perf_harness PRIVATE spdlog::spdlog zstd)
+target_compile_options(orderbook_perf_harness PRIVATE -O3 -g -fno-omit-frame-pointer)

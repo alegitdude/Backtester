@@ -4,7 +4,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-DATA_DIR="$PROJECT_ROOT/benchmarks/reader_perf_data"
+DATA_DIR="$PROJECT_ROOT/benchmarks/orderbook_perf_harness"
 PERF_DATA_FILE="$DATA_DIR/perf.data"
 SVG_OUTPUT="$DATA_DIR/reader_flame.svg"
 

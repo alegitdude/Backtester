@@ -3,10 +3,10 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-BINARY="$PROJECT_ROOT/build/reader_perf_harness"
+BINARY="$PROJECT_ROOT/build/orderbook_perf_harness"
 DATA_FILE="../test/test_data/ES-glbx-20251105.mbo.csv.zst" 
 
-OUTPUT_DIR="$PROJECT_ROOT/benchmarks/reader_perf_data"
+OUTPUT_DIR="$PROJECT_ROOT/benchmarks/orderbook_perf_harness"
 PERF_DATA_FILE="$OUTPUT_DIR/perf.data"
 
 if [ ! -f "$BINARY" ]; then
