@@ -7,7 +7,7 @@
 
 ---
 
-## [Baseline] Initial Implementation
+## [Baseline] Initial Data Ingestion Implementation
 **Date:** April 11, 2026
 **Commit:** `3a8a473`
 
@@ -79,3 +79,42 @@ total_volume: 28907885
 
        7.430790000 seconds user
        0.068071000 seconds sys
+```
+
+## [Baseline] Initial Orderbook Implementation
+**Date:** April 16, 2026
+**Commit:** `6c6738e`
+
+### Results
+* **Throughput:** 5.27355 Million messages / second
+* **Time to Process 16M messages:** 3.06415s
+* **Bottlenecks Identified:** The Flame Graph shows on orderbook operations Cancel and Modify, significant time
+  used to erase entries from the vector of orders. Likely need a different data structure for storing orders. Also on Add operations, significant CPU usage to insert into the vector. Need to possibly rethink these operations. Additionally, a huge number of cache misses. Need to identifiy a way to better utilize the cache for these operations. 
+
+### Raw Perf Output
+```text
+Processed 16158945 events in 3.06415s
+Throughput: 5.27355 M/s
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.209 MB /home/r/Desktop/Backtester/benchmarks/orderbook_perf_harness/perf.data (1561 samples) ]
+
+Cached 16158945 events.
+Benchmarking MarketStateManager::OnMarketEvent...
+Processed 16158945 events in 3.08385s
+Throughput: 5.23986 M/s
+
+ Performance counter stats for './orderbook_perf_harness ../test/test_data/ES-glbx-20251105.mbo.csv.zst':
+
+    16,080,091,896      task-clock                       #    1.000 CPUs utilized             
+    49,557,869,775      cycles                           #    3.082 GHz                         (83.33%)
+   106,145,741,833      instructions                     #    2.14  insn per cycle              (83.33%)
+     1,384,212,092      cache-references                 #   86.082 M/sec                       (83.33%)
+       167,281,581      cache-misses                     #   12.08% of all cache refs           (83.33%)
+    24,387,943,398      branches                         #    1.517 G/sec                       (83.33%)
+       288,094,989      branch-misses                    #    1.18% of all branches             (83.33%)
+
+      16.086082064 seconds time elapsed
+
+      13.910550000 seconds user
+       2.171305000 seconds sys
+```
