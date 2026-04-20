@@ -80,7 +80,7 @@ namespace backtester {
                 const BidAskPair cur_bbo = market_state_manager_.GetInstrumentBbo(
                     order_event->instrument_id);
                 int64_t queue_depth = market_state_manager_.GetQueueDepth(
-                    order_event->instrument_id, order_event->price);
+                    order_event->instrument_id, order_event->side, order_event->price);
 
                 execution_handler_.OnStrategyOrder(*order_event, cur_bbo, queue_depth); // Execution handler will push FillEvent to queue
 

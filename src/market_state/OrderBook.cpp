@@ -7,19 +7,19 @@
 
 
 namespace backtester {
-  int64_t OrderBook::GetMidPrice() const{
+  int64_t OrderBook::GetMidPrice() const {
     return ((bbo_cache_.ask.price - bbo_cache_.bid.price) / 2) + bbo_cache_.bid.price;
   }
 
-///////////////////////////////////////////////////////////////////
-/////////////////////////// Getters ///////////////////////////////
-///////////////////////////////////////////////////////////////////
-// MARK: Getters
-PriceLevel OrderBook::GetBidLevel(std::size_t idx) const {
+  ///////////////////////////////////////////////////////////////////
+  /////////////////////////// Getters ///////////////////////////////
+  ///////////////////////////////////////////////////////////////////
+  // MARK: Getters
+  PriceLevel OrderBook::GetBidLevel(std::size_t idx) const {
     if (bids_.size() > idx) {
       auto it = bids_.rbegin();
       std::advance(it, idx);
-    
+
       return PriceLevel{
           it->first,        // Price
           it->second.size,  // Size
@@ -27,265 +27,251 @@ PriceLevel OrderBook::GetBidLevel(std::size_t idx) const {
       };
     }
     return PriceLevel{};
-}
+  }
 
-PriceLevel OrderBook::GetAskLevel(std::size_t idx) const {
-   if (offers_.size() > idx) {
-      auto it = offers_.begin();
+  PriceLevel OrderBook::GetAskLevel(std::size_t idx) const {
+    if (offers_.size() > idx) {
+      auto it = offers_.rbegin();
       std::advance(it, idx);
-    
+
       return PriceLevel{
           it->first,        // Price
           it->second.size,  // Size
           it->second.count  // Count
       };
     }
-    return PriceLevel {};
-}
-
-PriceLevel OrderBook::GetBidLevelByPx(int64_t px) const {
-    auto level_it = bids_.find(px);
-    if (level_it == bids_.end()) {
-        std::string str = std::to_string(px);
-        throw std::invalid_argument{"No bid level at " + str};
-    }
-    return GetPriceLevel(level_it->second);
-}
-
-PriceLevel OrderBook::GetAskLevelByPx(int64_t price) const {
-    auto level_it = offers_.find(price);
-    if (level_it == offers_.end()) {
-        throw std::invalid_argument{"No ask level at " + std::to_string(price)};
-    }
-    return GetPriceLevel(level_it->second);
-}
-
-PriceLevel OrderBook::GetLevelByPx(int64_t price) const {
-  if(price > GetMidPrice()){
-    return GetAskLevelByPx(price);
+    return PriceLevel{};
   }
-  return GetBidLevelByPx(price);
-}
 
-const MarketByOrderEvent& OrderBook::GetOrder(uint64_t order_id) {
-    auto order_it = orders_by_id_.find(order_id);
-    if (order_it == orders_by_id_.end()) {
-        throw std::invalid_argument{"No order with ID " +
-                                    std::to_string(order_id)};
+  PriceLevel OrderBook::GetLevelByPx(OrderSide side, int64_t price) const {
+    if (side == OrderSide::kAsk) {
+      auto rit = GetLevelIt(offers_, price, asks_compare_);
+      if (rit == offers_.rend() || rit->first != price) {
+        return PriceLevel{};
+      }
+      else {
+        return { rit->first, rit->second.size, rit->second.count };
+      }
     }
-    auto& level = GetLevel(order_it->second.side, order_it->second.price);
-    return *GetLevelOrder(level.orders, order_id);
-}
+    else {
+      auto rit = GetLevelIt(bids_, price, bids_compare_);
+      if (rit == bids_.rend() || rit->first != price) {
+        return PriceLevel{};
+      }
+      else {
+        return { rit->first, rit->second.size, rit->second.count };
+      }
+    }
+  }
 
-uint32_t OrderBook::GetQueuePos(uint64_t order_id) {
-    auto order_it = orders_by_id_.find(order_id);
-    if (order_it == orders_by_id_.end()) {
-        throw std::invalid_argument{"No order with ID " +
-                                    std::to_string(order_id)};
-    }
-    const auto& levelQueue = GetLevel(order_it->second.side, order_it->second.price);
-    uint32_t prior_size = 0;
-    for (const auto& order : levelQueue.orders) {
-        if (order.order_id == order_id) {
-        break;
-        }
-        prior_size += order.size;
-    }
-    return prior_size;
-}
-
-// MARK: GETSNAPSHOT
-const std::vector<BidAskPair> OrderBook::GetSnapshot(std::size_t level_count) const {
+  // MARK: GETSNAPSHOT
+  const std::vector<BidAskPair> OrderBook::GetSnapshot(std::size_t level_count) const {
     std::vector<BidAskPair> res;
     for (size_t i = 0; i < level_count; ++i) {
-        BidAskPair ba_pair;;
-        auto bid = GetBidLevel(i);
-        if (bid.price) {
+      BidAskPair ba_pair;
+      auto bid = GetBidLevel(i);
+      if (bid.price) {
         ba_pair.bid.price = bid.price;
         ba_pair.bid.size = bid.size;
         ba_pair.bid.count = bid.count;
-        }
-        auto ask = GetAskLevel(i);
-        if (ask.price) {
+      }
+      auto ask = GetAskLevel(i);
+      if (ask.price) {
         ba_pair.ask.price = ask.price;
         ba_pair.ask.size = ask.size;
         ba_pair.ask.count = ask.count;
-        }
-        res.emplace_back(ba_pair);
+      }
+      res.emplace_back(ba_pair);
     }
     return res;
-}
+  }
 
-// MARK: Apply
+  // MARK: Apply
 
-void OrderBook::Apply(const MarketByOrderEvent& mbo) {
+  void OrderBook::Apply(const MarketByOrderEvent& mbo) {
     switch (mbo.type) {
-        case EventType::kMarketOrderClear: {
-            Clear();
-            break;
-        }
-        case EventType::kMarketOrderAdd: {
-            Add(mbo);
-            break;
-        }
-        case EventType::kMarketOrderCancel: {
-            Cancel(mbo);
-            break;
-        }
-        case EventType::kMarketOrderModify: {
-            Modify(mbo);
-            break;
-        }
-        case EventType::kMarketTrade:
-        case EventType::kMarketFill:
-        case EventType::kMarketNone: {
-            break;
-        }
-        default: {
-        throw std::invalid_argument{std::string{"Unknown action: "} +
-                                    std::to_string(mbo.type)};
-        }
+    case EventType::kMarketOrderClear: {
+      Clear();
+      break;
     }
-    
-    if(mbo.flags & 0x80){// F_LAST
+    case EventType::kMarketOrderAdd: {
+      Add(mbo);
+      break;
+    }
+    case EventType::kMarketOrderCancel: {
+      Cancel(mbo);
+      break;
+    }
+    case EventType::kMarketOrderModify: {
+      Modify(mbo);
+      break;
+    }
+    case EventType::kMarketTrade:
+    case EventType::kMarketFill:
+    case EventType::kMarketNone: {
+      break;
+    }
+    default: {
+      throw std::invalid_argument{ std::string{"Unknown action: "} +
+                                  std::to_string(mbo.type) };
+    }
+    }
+
+    if (mbo.flags & 0x80) {// F_LAST
       UpdateBboCache();
     }
-}
-/////////// Private
-void OrderBook::UpdateBboCache() {
+  }
+  /////////// Private
+  void OrderBook::UpdateBboCache() {
     BidAskPair prev_bbo = bbo_cache_;
     if (!bids_.empty()) {
-        PriceLevel bid_level = GetBidLevel();
-        bbo_cache_.bid = {bid_level.price, bid_level.size, bid_level.count};
-    } else {
-        bbo_cache_.bid = {};
+      PriceLevel bid_level = GetBidLevel();
+      bbo_cache_.bid = { bid_level.price, bid_level.size, bid_level.count };
+    }
+    else {
+      bbo_cache_.bid = {};
     }
 
     if (!offers_.empty()) {
-        PriceLevel ask_level = GetAskLevel();
-        bbo_cache_.ask = {ask_level.price, ask_level.size, ask_level.count};
-    } else {
-        bbo_cache_.ask = {};
+      PriceLevel ask_level = GetAskLevel();
+      bbo_cache_.ask = { ask_level.price, ask_level.size, ask_level.count };
+    }
+    else {
+      bbo_cache_.ask = {};
     }
     if (bbo_cache_.bid.price != kUndefPrice && bbo_cache_.bid.price > bbo_cache_.ask.price) {
-        //throw std::logic_error("bid price is higher than ask price?");
-        bbo_cache_ = prev_bbo;
+      //throw std::logic_error("bid price is higher than ask price?");
+      bbo_cache_ = prev_bbo;
     }
-}
-
-std::vector<MarketByOrderEvent>::iterator OrderBook::GetLevelOrder(
-       std::vector<MarketByOrderEvent>& level_orders, uint64_t order_id) {
-
-  auto order_it = std::find_if(level_orders.begin(), level_orders.end(),
-                                [order_id](const MarketByOrderEvent& order) {
-                                  return order.order_id == order_id;
-                                });
-  if (order_it == level_orders.end()) {
-    throw std::invalid_argument{"No order with ID " + std::to_string(order_id)};
   }
-  return order_it;
-}
 
-LevelQueue& OrderBook::GetLevel(OrderSide side, int64_t price) {
-  SideLevels& levels = GetSideLevels(side);
-  auto level_it = levels.find(price);
-  if (level_it == levels.end()) {
-    throw std::invalid_argument{
-        std::string{"Received event for unknown level "} +
-        std::to_string(side) + " " + std::to_string(price)};
+  std::vector<MarketByOrderEvent>::iterator OrderBook::GetLevelOrder(
+    std::vector<MarketByOrderEvent>& level_orders, uint64_t order_id) {
+
+    auto order_it = std::find_if(level_orders.begin(), level_orders.end(),
+      [order_id](const MarketByOrderEvent& order) {
+        return order.order_id == order_id;
+      });
+    if (order_it == level_orders.end()) {
+      throw std::invalid_argument{ "No order with ID " + std::to_string(order_id) };
+    }
+    return order_it;
   }
-  return level_it->second;
-}
 
   ///////////////////////////////////////////////////////////////////
   //////////////////// OrderBook Operations /////////////////////////
   ///////////////////////////////////////////////////////////////////
-void OrderBook::Clear() {
-  orders_by_id_.clear();
-  offers_.clear();
-  bids_.clear();
-}
 
-void OrderBook::Add(MarketByOrderEvent mbo) { 
-//Not using normalized/aggregate sets so should not encounter TOB flags  
-    LevelQueue& level = GetOrInsertLevel(mbo.side, mbo.price);
-    level.orders.emplace_back(mbo);
+  // MARK: Clear
+  void OrderBook::Clear() {
+    orders_by_id_.clear();
+    offers_.clear();
+    bids_.clear();
+  }
+
+  // MARK: Add
+  void OrderBook::Add(const MarketByOrderEvent& mbo) {
+    if (mbo.side == OrderSide::kBid)
+      Add(bids_, bids_compare_, mbo);
+    else
+      Add(offers_, asks_compare_, mbo);
+  }
+
+  template <class Compare>
+  void OrderBook::Add(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo) {
+    //Not using normalized/aggregate sets so should not encounter TOB flags  
+    auto [it, inserted] = orders_by_id_.try_emplace(mbo.order_id,
+      PriceSideSize{ mbo.price, mbo.side, mbo.size });
+    if (!inserted) [[unlikely]] {
+      throw std::invalid_argument{ "Received duplicated order ID " +
+                                 std::to_string(mbo.order_id) };
+    }
+    else {
+      orders_by_id_[mbo.order_id] = { mbo.price, mbo.side, mbo.size };
+    }
+    LevelQueue& level = GetOrInsertLevel(levels, mbo.price, comp);
     level.count++;
     level.size += mbo.size;
-    auto res = orders_by_id_.emplace(mbo.order_id,
-                                    PriceAndSide{mbo.price, mbo.side});
-    if (!res.second) {
-    throw std::invalid_argument{"Received duplicated order ID " +
-                                std::to_string(mbo.order_id)};
+  }
+
+  // MARK: Cancel
+  void OrderBook::Cancel(const MarketByOrderEvent& mbo) {
+    if (mbo.side == OrderSide::kBid)
+      Cancel(bids_, bids_compare_, mbo);
+    else
+      Cancel(offers_, asks_compare_, mbo);
+  }
+
+  template <class Compare>
+  void OrderBook::Cancel(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo) {
+    auto order_it = orders_by_id_.find(mbo.order_id);
+    if (order_it == orders_by_id_.end()) [[unlikely]] {
+      throw std::invalid_argument{ "Received cancel order ID " +
+        std::to_string(mbo.order_id) };
+    } //TODO
+    auto level_it = GetLevelIt(levels, order_it->second.price, comp);
+    if (level_it == levels.rend()) [[unlikely]] {
+      throw std::invalid_argument{ "Received cancel order ID " +
+        std::to_string(mbo.order_id) };
+    } //TODO
+
+    level_it->second.size -= mbo.size;
+
+    order_it->second.size -= mbo.size;
+    if (order_it->second.size == 0) {
+      orders_by_id_.erase(mbo.order_id);
+      level_it->second.count--;
+      if (level_it->second.count == 0) {     
+        levels.erase(std::next(level_it).base());
+      }
     }
-}
-  
-
-void OrderBook::Cancel(MarketByOrderEvent mbo) {
-  LevelQueue& level = GetLevel(mbo.side, mbo.price);
-  auto order_it = GetLevelOrder(level.orders, mbo.order_id);
-  if (order_it->size < mbo.size) {
-    throw std::logic_error{
-        "Tried to cancel more size than existed for order ID " +
-        std::to_string(mbo.order_id)};
   }
 
-  order_it->size -= mbo.size;
-  level.size -= mbo.size;
-  if (order_it->size == 0) {
-    level.count--;
-    orders_by_id_.erase(mbo.order_id);
-    level.orders.erase(order_it);
-    if (level.orders.empty()) {
-      RemoveLevel(mbo.side, mbo.price);
+  // MARK: Modify
+  void OrderBook::Modify(const MarketByOrderEvent& mbo) {
+    auto orders_it = orders_by_id_.find(mbo.order_id);
+    if (orders_it == orders_by_id_.end()) [[unlikely]] {
+      Add(mbo);
+      return;
     }
-  }
-}
-
-void OrderBook::Modify(MarketByOrderEvent mbo) {
-  auto price_side_it = orders_by_id_.find(mbo.order_id);
-  if (price_side_it == orders_by_id_.end()) {
-    // If order not found, treat it as an add
-    Add(mbo);
-    return;
-  }
-  if (price_side_it->second.side != mbo.side) {
-    throw std::logic_error{"Order " + std::to_string(mbo.order_id) +
-                            " changed side"};
-  }
-
-  auto prev_price = price_side_it->second.price;
-  LevelQueue& prev_level = GetLevel(mbo.side, prev_price);
-  auto level_order_it = GetLevelOrder(prev_level.orders, mbo.order_id);
-  auto prev_size = level_order_it->size;
-
-  if (prev_price != mbo.price) { // changed price
-    price_side_it->second.price = mbo.price;
-    prev_level.orders.erase(level_order_it);
-    prev_level.count--;
-    prev_level.size -= prev_size;
-
-    if (prev_level.orders.empty()) {
-      RemoveLevel(mbo.side, prev_price);
+    if (orders_it->second.side != mbo.side) [[unlikely]] {
+      [&] () __attribute__((noinline, cold)) {
+        throw std::logic_error{ "Order " + std::to_string(mbo.order_id) + " changed side" };
+      }();
     }
-    LevelQueue& level = GetOrInsertLevel(mbo.side, mbo.price);
-    // Changing price loses priority
-    level.orders.emplace_back(mbo);
-    level.count++;
-    level.size += mbo.size;
 
-  } else if (prev_size < mbo.size) { // increase size
-    LevelQueue& level = prev_level;
-    // Increasing size loses priority
-    level.size += (mbo.size - prev_size);
-    level.orders.erase(level_order_it);
-    level.orders.emplace_back(mbo);
-    
-  } else { //decrease size
-    level_order_it->size = mbo.size;
-    prev_level.size -= (prev_size - mbo.size);
-  } 
-}
+    if (mbo.side == OrderSide::kBid)
+      Modify(bids_, bids_compare_, mbo, orders_it);
+    else
+      Modify(offers_, asks_compare_, mbo, orders_it);
+  }
+
+  template <class Compare>
+  void OrderBook::Modify(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo, OrderBook::Orders::iterator prev_order_it) {
+    auto prev_lvl_it = GetLevelIt(levels, prev_order_it->second.price, comp);
+    // TODO check for prev_lvl_it != rend()
+    LevelQueue& prev_level = prev_lvl_it->second;
+    if (prev_order_it->second.price != mbo.price) {
+      // delete from old level
+      prev_level.count--;
+      prev_level.size -= prev_order_it->second.size;
+      if (prev_level.count == 0) {   
+        levels.erase(std::next(prev_lvl_it).base());
+      }
+
+      // insert into new level
+      LevelQueue& new_level = GetOrInsertLevel(levels, mbo.price, comp);
+      new_level.count++;
+      new_level.size += mbo.size;
+    }
+    else if (prev_order_it->second.size < mbo.size) { // increase — lose priority
+      prev_level.size += (mbo.size - prev_order_it->second.size);
+    }
+    else { // decrease — keep priority
+      prev_level.size -= (prev_order_it->second.size - mbo.size);
+    }
+    prev_order_it->second = { mbo.price, mbo.side, mbo.size };
+  }
 
 };
 

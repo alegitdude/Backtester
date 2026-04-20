@@ -8,111 +8,117 @@
 #include <vector>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 #include "OBTypes.h"
 
 namespace backtester {
-
-class OrderBook {
- public:
-    inline const BidAskPair GetBbo() {return bbo_cache_;}
-    int64_t GetMidPrice() const;
-
-    PriceLevel GetBidLevel(std::size_t idx = 0) const;
-    PriceLevel GetAskLevel(std::size_t idx = 0) const;
-    PriceLevel GetBidLevelByPx(int64_t price) const;
-    PriceLevel GetAskLevelByPx(int64_t price) const;
-    PriceLevel GetLevelByPx(int64_t price) const;
-    const MarketByOrderEvent& GetOrder(uint64_t order_id);
-    uint32_t GetQueuePos(uint64_t order_id);
-
-    const std::vector<BidAskPair> GetSnapshot(std::size_t level_count = 1) const ;
-    void OnEvent(const MarketByOrderEvent& mbo) {Apply(mbo);};
-    void Apply(const MarketByOrderEvent& mbo);
-
-private:
-    BidAskPair bbo_cache_;
-    ///Level orders -> SideLevels -> bids or offers: map of price with vector or mbo msgs
-    //using LevelOrders = std::vector<MarketByOrderEvent>;
-    using SideLevels = std::map<int64_t, LevelQueue>;
-
-    SideLevels offers_;
-    SideLevels bids_;
-
-    struct PriceAndSide {
-        int64_t price;
-        OrderSide side;
-    };
-    using Orders = std::unordered_map<uint64_t, PriceAndSide>;
-
-    Orders orders_by_id_;
-
-    const uint8_t F_TOB = 64; // The numerical value for F_TOB
-    inline bool IsTOB(uint8_t flags_value) {
-        return (flags_value & F_TOB) != 0;
-    }   
-
-    /////////////////////////////////////////////////////////
-    /////////////////// Methods /////////////////////////////
-    /////////////////////////////////////////////////////////
-
-    inline PriceLevel GetPriceLevel(const LevelQueue& level) const {
-        return PriceLevel{
-                level.price,        
-                level.size,  
-                level.count  
-      };    
-    }
-
-    inline LevelQueue& GetOrInsertLevel(OrderSide side, int64_t price) {
-        SideLevels &levels = GetSideLevels(side);
-        if(levels[price].price != price){
-            levels[price].price = price;
+    struct BidPriceLess {  
+        bool operator()(const std::pair<int64_t, LevelQueue>& p, int64_t price) const {
+            return p.first <= price;
         }
-        return levels[price];
-    }
+    };
+    struct AskPriceGreater {  
+        bool operator()(const std::pair<int64_t, LevelQueue>& p, int64_t price) const {
+            return p.first >= price;
+        }
+    };
 
-    inline SideLevels& GetSideLevels(OrderSide side){
-      switch (side) {
-          case OrderSide::kAsk: {
-              return offers_;
-          } 
-          case OrderSide::kBid: {
-              return bids_;
-          }
-          case OrderSide::kNone:
-          default: {
-              throw std::invalid_argument{"Invalid side"};
-          }
-      }
-    }
+    class OrderBook {
+    public:
+        inline const BidAskPair GetBbo() { return bbo_cache_; }
+        int64_t GetMidPrice() const;
 
-    void UpdateBboCache();
+        PriceLevel GetBidLevel(std::size_t idx = 0) const;
+        PriceLevel GetAskLevel(std::size_t idx = 0) const;
+        PriceLevel GetLevelByPx(OrderSide side, int64_t price) const;
+        //uint32_t GetQueuePos(uint64_t order_id); TODO
 
-    LevelQueue& GetLevel(OrderSide side, int64_t price);
+        const std::vector<BidAskPair> GetSnapshot(std::size_t level_count = 1) const;
+        void OnEvent(const MarketByOrderEvent& mbo) { Apply(mbo); };
+        void Apply(const MarketByOrderEvent& mbo);
 
-    //static PriceLevel GetPriceLevel(int64_t price, const LevelOrders& level);
+    private:
+        [[no_unique_address]] BidPriceLess    bids_compare_;
+        [[no_unique_address]] AskPriceGreater asks_compare_;
 
-    static std::vector<MarketByOrderEvent>::iterator GetLevelOrder(
-        std::vector<MarketByOrderEvent>& level,
-        uint64_t order_id);
+        BidAskPair bbo_cache_;
+        using SideLevels = std::vector<std::pair<int64_t, LevelQueue>>;
 
-    inline void RemoveLevel(OrderSide side, int64_t price) {
-        SideLevels &levels = GetSideLevels(side);
-        levels.erase(price);
-    }
+        SideLevels offers_;
+        SideLevels bids_;
 
-    ///////////////////////////////////////////////////////////////////
-    //////////////////// OrderBook Operations /////////////////////////
-    ///////////////////////////////////////////////////////////////////
+        struct PriceSideSize {
+            int64_t price;
+            OrderSide side;
+            uint32_t size;
+        };
+        using Orders = std::unordered_map<uint64_t, PriceSideSize>;
 
-    void Clear();
+        Orders orders_by_id_;
 
-    void Add(MarketByOrderEvent mbo);
+        const uint8_t F_TOB = 64; // The numerical value for F_TOB
+        inline bool IsTOB(uint8_t flags_value) {
+            return (flags_value & F_TOB) != 0;
+        }
 
-    void Cancel(MarketByOrderEvent mbo);
+        /////////////////////////////////////////////////////////
+        /////////////////// Methods /////////////////////////////
+        /////////////////////////////////////////////////////////
 
-    void Modify(MarketByOrderEvent mbo); 
-    
-};
+        template <class Levels, class Compare>
+        inline auto GetLevelIt(Levels& levels, int64_t price, Compare comp) const {
+            return std::find_if(levels.rbegin(), levels.rend(),
+                [price, comp](const auto& p) {
+                    return comp(p, price);
+                });
+        }
+
+        template <class Levels, class Compare>
+        inline LevelQueue& GetOrInsertLevel(Levels& levels, int64_t price, Compare comp) {
+
+            // auto it = std::find_if(levels.begin(), levels.end(), [comp, price](std::pair<int64_t, LevelQueue>& p) {
+            //     return comp(p, price);
+            //     });
+            auto rit = std::find_if(levels.rbegin(), levels.rend(),
+                [price, comp](const auto& p) {
+                    return comp(p, price);
+                });
+
+            if (rit != levels.rend() && rit->first == price) /*[[__builtin_expect]] */ {
+                return rit->second;
+            }
+            else {
+                return levels.insert(rit.base(), { price, LevelQueue{} })->second;
+            }
+        }
+
+        void UpdateBboCache();
+
+        static std::vector<MarketByOrderEvent>::iterator GetLevelOrder(
+            std::vector<MarketByOrderEvent>& level,
+            uint64_t order_id);
+
+        ///////////////////////////////////////////////////////////////////
+        //////////////////// OrderBook Operations /////////////////////////
+        ///////////////////////////////////////////////////////////////////
+
+        void Clear();
+
+        void Add(const MarketByOrderEvent& mbo);
+
+        template <class Compare>
+        void Add(SideLevels& level, Compare comp, const MarketByOrderEvent& mbo);
+
+        void Cancel(const MarketByOrderEvent& mbo);
+
+        template <class Compare>
+        void Cancel(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo);
+
+        void Modify(const MarketByOrderEvent& mbo);
+
+        template <class Compare>
+        void Modify(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo, OrderBook::Orders::iterator prev_price);
+
+    };
 
 }

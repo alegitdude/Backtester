@@ -57,7 +57,7 @@ include/market_state/IMarketDataProvider.h src/strategy/user_strategies/MovAvgCr
 
 add_executable(Backtester src/main.cpp)
 
-add_executable(tests test/utils/TimeUtils_test.cpp )
+add_executable(tests test/market_state/OrderBook_test.cpp )
 
 
 target_link_libraries(CoreLogic PRIVATE spdlog::spdlog zstd PUBLIC nlohmann_json::nlohmann_json)

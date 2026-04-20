@@ -116,16 +116,24 @@ TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
 		config.active_instruments.push_back(symbol.instrument_id);	
 	}
     
-    //LoadExpectedMbp10("../test/test_data/ES-glbx-20251105.mbp-10.csv.zst");
+    LoadExpectedMbp10("../test/test_data/ES-glbx-20251105.mbp-10.csv.zst");
 
     EventQueue event_queue;
-    DataReaderManager data_reader_manager(event_queue);
+    DataReaderManager data_reader_manager;
     MarketStateManager market_state_manager;
     std::vector<uint32_t> traded_instrs = {1};
     market_state_manager.Initialize(config.active_instruments, traded_instrs);
     
     ASSERT_TRUE(data_reader_manager.RegisterAndInitStreams(config.data_configs));
-
+    for (const DataSourceConfig& source : config.data_configs) {
+        auto event_ptr = data_reader_manager.LoadNextEventFromSource(
+            source.data_source_name);
+        if(event_ptr){
+            event_queue.PushEvent(std::move(event_ptr));
+        } else {
+            std::cout << "No events loaded";
+        }   
+    }
     size_t events_processed = 0;
     size_t snapshots_compared = 0;
 
@@ -141,8 +149,10 @@ TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
             static_cast<const MarketByOrderEvent*>(current_event.get());    
             
             market_state_manager.OnMarketEvent(*market_event);
-            data_reader_manager.LoadNextEventFromSource(market_event->data_source);
-            
+            auto event_ptr = data_reader_manager.LoadNextEventFromSource(market_event->data_source);
+            if (event_ptr) {
+                event_queue.PushEvent(std::move(event_ptr));
+            }
             bool has_last_flag = (market_event->flags & 0x80) != 0;  // F_LAST = 128
             uint32_t instr_id = market_event->instrument_id;
 

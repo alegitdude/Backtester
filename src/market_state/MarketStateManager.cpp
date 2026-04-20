@@ -56,9 +56,9 @@ const std::vector<BidAskPair> MarketStateManager::GetOBSnapshot(
         : EMPTY_SNAPSHOT;
 }
 
-const int64_t MarketStateManager::GetQueueDepth(uint32_t instr_id, int64_t price) const{
+const int64_t MarketStateManager::GetQueueDepth(uint32_t instr_id, OrderSide side, int64_t price) const{
     const InstrumentState* instrument_state = GetInstrumentState(instr_id);
-    return instrument_state->GetQueueDepthByPx(price);
+    return instrument_state->GetQueueDepthByPx(side, price);
 }
 
 }

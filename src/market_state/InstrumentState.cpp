@@ -51,7 +51,6 @@ namespace backtester {
 
         for (auto& [publisher, book] : books_) {
             BidAskPair bbo = book.GetBbo();
-            instrument_Bbo_ = bbo;
             if (bbo.bid.price != 0 && bbo.bid.price != kUndefPrice) {
                 if (bbo.bid.price > instrument_Bbo_.bid.price) {
                     instrument_Bbo_.bid = bbo.bid;
@@ -90,10 +89,10 @@ namespace backtester {
         return book ? book->GetSnapshot(level_count) : EMPTY_SNAPSHOT;
     }
 
-    int64_t InstrumentState::GetQueueDepthByPx(int64_t price) const {
+    int64_t InstrumentState::GetQueueDepthByPx(OrderSide side, int64_t price) const {
         int64_t total_depth = 0;
         for (auto& [publisher, book] : books_) {
-            PriceLevel price_level = book.GetLevelByPx(price);
+            PriceLevel price_level = book.GetLevelByPx(side, price);
             total_depth += price_level.size;
         }
         return total_depth;
