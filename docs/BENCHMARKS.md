@@ -80,6 +80,7 @@ total_volume: 28907885
        7.430790000 seconds user
        0.068071000 seconds sys
 ```
+# Performance Optimization Log: Orderbook Operations
 
 ## [Baseline] Initial Orderbook Implementation
 **Date:** April 16, 2026
@@ -117,4 +118,42 @@ Throughput: 5.23986 M/s
 
       13.910550000 seconds user
        2.171305000 seconds sys
+```
+## OB Levels are sorted vectors worst->best with level searching from end of vector
+**Date:** April 19, 2026
+**Commit:** `beb262c`
+
+### Results
+* **Throughput:** 11.1948 Million messages / second
+* **Time to Process 16M messages:** 1.46501s
+* **Bottlenecks Identified:** 
+
+### Raw Perf Output
+```text
+Cached 16158945 events.
+Benchmarking MarketStateManager::OnMarketEvent...
+Processed 16158945 events in 1.44343s
+Throughput: 11.1948 M/s
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.149 MB /home/r/Desktop/Backtester/benchmarks/orderbook_perf_harness/perf.data (1072 samples) ]
+
+Cached 16158945 events.
+Benchmarking MarketStateManager::OnMarketEvent...
+Processed 16158945 events in 1.46501s
+Throughput: 11.0299 M/s
+
+ Performance counter stats for './orderbook_perf_harness ../test/test_data/ES-glbx-20251105.mbo.csv.zst':
+
+    10,919,167,966      task-clock                       #    0.999 CPUs utilized             
+    43,161,504,405      cycles                           #    3.953 GHz                         (83.33%)
+    96,960,338,212      instructions                     #    2.25  insn per cycle              (83.33%)
+     1,014,259,823      cache-references                 #   92.888 M/sec                       (83.34%)
+        77,639,181      cache-misses                     #    7.65% of all cache refs           (83.34%)
+    22,148,937,695      branches                         #    2.028 G/sec                       (83.33%)
+       237,172,224      branch-misses                    #    1.07% of all branches             (83.33%)
+
+      10.925993988 seconds time elapsed
+
+       9.346007000 seconds user
+       1.574664000 seconds sys
 ```
