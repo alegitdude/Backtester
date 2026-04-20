@@ -126,7 +126,7 @@ Throughput: 5.23986 M/s
 ### Results
 * **Throughput:** 11.1948 Million messages / second
 * **Time to Process 16M messages:** 1.46501s
-* **Bottlenecks Identified:** 
+* **Bottlenecks Identified:** Updating Instrument BBO taking too much cpu power, need to find a way to optimize the loop or different caching strategy
 
 ### Raw Perf Output
 ```text
