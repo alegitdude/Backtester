@@ -25,21 +25,33 @@ class InstrumentState {
     // double get_p99_latency_ns() const { return latency_tracker_.get_p99(); }
  private:
     // Key = publisher_id
-    std::unordered_map<uint16_t, OrderBook> books_;
+    //std::unordered_map<uint16_t, OrderBook> books_;
+    std::vector<OrderBook> books_;
     BidAskPair instrument_Bbo_;
     MarketSnapshot snapshot_;
 
     void UpdateInstrumentBbo();
 
     const inline OrderBook* GetOrderBook(uint16_t publisher_id) const {
-        auto it = books_.find(publisher_id);
-        if (it != books_.end()) {
-            return &it->second;
-        }
-
-        return nullptr; 
+        auto it = std::find_if(books_.begin(), books_.end(), [publisher_id] (const OrderBook& ob) {
+            return publisher_id == ob.publisher_id;
+        });
+        return (it != books_.end()) ? &(*it) : nullptr;
     }
-    // SystemLatencyTracker latency_tracker_;
+
+    inline OrderBook& GetOrInsertOrderBook(uint16_t publisher_id) {
+        auto it = std::find_if(books_.begin(), books_.end(), [publisher_id] (const OrderBook& ob) {
+            return publisher_id == ob.publisher_id;
+        });
+        
+        if(LIKELY (it != books_.end())){
+            return *it;
+        }
+        else {
+            auto& ob = books_.emplace_back(publisher_id);
+            return ob;
+        }
+    }
 };
 
 }

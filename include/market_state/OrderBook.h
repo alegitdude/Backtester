@@ -25,6 +25,8 @@ namespace backtester {
 
     class OrderBook {
     public:
+        OrderBook(uint16_t publisher_id);
+        uint16_t publisher_id;
         inline const BidAskPair GetBbo() { return bbo_cache_; }
         int64_t GetMidPrice() const;
 
@@ -76,9 +78,6 @@ namespace backtester {
         template <class Levels, class Compare>
         inline LevelQueue& GetOrInsertLevel(Levels& levels, int64_t price, Compare comp) {
 
-            // auto it = std::find_if(levels.begin(), levels.end(), [comp, price](std::pair<int64_t, LevelQueue>& p) {
-            //     return comp(p, price);
-            //     });
             auto rit = std::find_if(levels.rbegin(), levels.rend(),
                 [price, comp](const auto& p) {
                     return comp(p, price);

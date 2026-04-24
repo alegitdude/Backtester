@@ -5,15 +5,16 @@ namespace backtester {
 
     void InstrumentState::OnMarketEvent(const MarketByOrderEvent& event) {
 
-        auto it = books_.find(event.publisher_id);
+        OrderBook& book = GetOrInsertOrderBook(event.publisher_id);
+        book.Apply(event);
 
-        // If this is the first time seeing this publisher, create the book
-        if (it == books_.end()) {
-            it = books_.emplace(event.publisher_id, OrderBook()).first;
-        }
-        it->second.Apply(event);
+        // bool isTopOfBook =
+        //     (event.side == kBid && (instrument_Bbo_.bid.price == kUndefPrice ||
+        //          event.price >= instrument_Bbo_.bid.price)) ||
+        //     (event.side == kAsk && (instrument_Bbo_.ask.price == kUndefPrice ||
+        //          event.price <= instrument_Bbo_.ask.price));
 
-        if (event.price != std::numeric_limits<int64_t>::min() ) {
+        if (event.price != std::numeric_limits<int64_t>::min()) {
             // Update VWAP - equation : cumulative_notional / cumulative_volume
             if (event.type == EventType::kMarketTrade) {
                 snapshot_.cumulative_volume += event.size;
@@ -30,6 +31,7 @@ namespace backtester {
             }
             else if (event.type != EventType::kMarketFill && event.flags & 0x80) {
                 UpdateInstrumentBbo();
+               
                 // Update WMP - equation : (bid_price * ask_size + ask_price * bid_size) / (bid_size + ask_size)
                 int64_t total_size = instrument_Bbo_.bid.size + instrument_Bbo_.ask.size;
                 if (total_size > 0 && instrument_Bbo_.bid.price != kUndefPrice &&
@@ -39,9 +41,6 @@ namespace backtester {
                 }
             }
         }
-
-        //     // 5. Update system stats (ALWAYS LAST)
-        //     latency_tracker_.update_system_latency(event.timestamp);
     }
 
     void InstrumentState::UpdateInstrumentBbo() {
@@ -49,10 +48,11 @@ namespace backtester {
         instrument_Bbo_.bid = {};
         instrument_Bbo_.ask = {};
 
-        for (auto& [publisher, book] : books_) {
+        for (auto& book : books_) {
             BidAskPair bbo = book.GetBbo();
             if (bbo.bid.price != 0 && bbo.bid.price != kUndefPrice) {
-                if (bbo.bid.price > instrument_Bbo_.bid.price) {
+
+                if (bbo.bid.price > instrument_Bbo_.bid.price || instrument_Bbo_.bid.price == kUndefPrice) {
                     instrument_Bbo_.bid = bbo.bid;
                 }
                 else if (bbo.bid.price == instrument_Bbo_.bid.price) {
@@ -72,11 +72,11 @@ namespace backtester {
             }
         }
 
-        if (instrument_Bbo_.bid.price != kUndefPrice && instrument_Bbo_.bid.price > 
-            instrument_Bbo_.ask.price) {
-            //throw std::logic_error("bid price is higher than ask price?");
-            instrument_Bbo_ = prev_bbo;
-        }
+        // if (instrument_Bbo_.bid.price != kUndefPrice && instrument_Bbo_.bid.price >
+        //     instrument_Bbo_.ask.price) {
+        //     //throw std::logic_error("bid price is higher than ask price?");
+        //     instrument_Bbo_ = prev_bbo;
+        // }
         snapshot_.bbo = instrument_Bbo_;
     }
 
@@ -86,12 +86,18 @@ namespace backtester {
         static const std::vector<BidAskPair> EMPTY_SNAPSHOT;
 
         const OrderBook* book = GetOrderBook(publisher_id);
+        // for(auto& book : books_){
+        //     if(book.publisher_id == publisher_id){
+        //         return book.GetSnapshot(level_count);
+        //     }
+        // }
         return book ? book->GetSnapshot(level_count) : EMPTY_SNAPSHOT;
+        //return EMPTY_SNAPSHOT;
     }
 
     int64_t InstrumentState::GetQueueDepthByPx(OrderSide side, int64_t price) const {
         int64_t total_depth = 0;
-        for (auto& [publisher, book] : books_) {
+        for (auto& book : books_) {
             PriceLevel price_level = book.GetLevelByPx(side, price);
             total_depth += price_level.size;
         }

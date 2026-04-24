@@ -179,6 +179,9 @@ TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
                 if(expected_mbp10_[instr_id].empty()){
                     expected_mbp10_.erase(instr_id);
                 }
+                BidAskPair state_bbo = market_state_manager.GetInstrumentBbo(market_event->instrument_id);
+                EXPECT_EQ(state_bbo, actual_levels[0])
+                    << "dang";
                 snapshots_compared++;               
             }                        
         } 

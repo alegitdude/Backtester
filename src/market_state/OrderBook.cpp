@@ -7,6 +7,8 @@
 
 
 namespace backtester {
+  OrderBook::OrderBook(uint16_t publisher_id) : publisher_id(publisher_id) {};
+
   int64_t OrderBook::GetMidPrice() const {
     return ((bbo_cache_.ask.price - bbo_cache_.bid.price) / 2) + bbo_cache_.bid.price;
   }
@@ -139,10 +141,10 @@ namespace backtester {
     else {
       bbo_cache_.ask = {};
     }
-    if (bbo_cache_.bid.price != kUndefPrice && bbo_cache_.bid.price > bbo_cache_.ask.price) {
-      //throw std::logic_error("bid price is higher than ask price?");
-      bbo_cache_ = prev_bbo;
-    }
+    // if (bbo_cache_.bid.price != kUndefPrice && bbo_cache_.bid.price > bbo_cache_.ask.price) {
+    //   //throw std::logic_error("bid price is higher than ask price?");
+    //   bbo_cache_ = prev_bbo;
+    // }
   }
 
   std::vector<MarketByOrderEvent>::iterator OrderBook::GetLevelOrder(
@@ -182,7 +184,7 @@ namespace backtester {
     //Not using normalized/aggregate sets so should not encounter TOB flags  
     auto [it, inserted] = orders_by_id_.try_emplace(mbo.order_id,
       PriceSideSize{ mbo.price, mbo.side, mbo.size });
-    if (!inserted) [[unlikely]] {
+    if (UNLIKELY (!inserted)) {
       throw std::invalid_argument{ "Received duplicated order ID " +
                                  std::to_string(mbo.order_id) };
     }
@@ -205,15 +207,15 @@ namespace backtester {
   template <class Compare>
   void OrderBook::Cancel(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo) {
     auto order_it = orders_by_id_.find(mbo.order_id);
-    if (order_it == orders_by_id_.end()) [[unlikely]] {
-      throw std::invalid_argument{ "Received cancel order ID " +
+    if (UNLIKELY ((order_it == orders_by_id_.end()))) {
+      throw std::invalid_argument{ "Received cancel order not in orders " +
         std::to_string(mbo.order_id) };
-    } //TODO
+    } //TODO better text
     auto level_it = GetLevelIt(levels, order_it->second.price, comp);
-    if (level_it == levels.rend()) [[unlikely]] {
-      throw std::invalid_argument{ "Received cancel order ID " +
+    if (UNLIKELY (level_it == levels.rend())) {
+      throw std::invalid_argument{ "Received cancel with price not in OB " +
         std::to_string(mbo.order_id) };
-    } //TODO
+    } //TODO better text
 
     level_it->second.size -= mbo.size;
 
@@ -230,11 +232,11 @@ namespace backtester {
   // MARK: Modify
   void OrderBook::Modify(const MarketByOrderEvent& mbo) {
     auto orders_it = orders_by_id_.find(mbo.order_id);
-    if (orders_it == orders_by_id_.end()) [[unlikely]] {
+    if  (UNLIKELY (orders_it == orders_by_id_.end())) {
       Add(mbo);
       return;
     }
-    if (orders_it->second.side != mbo.side) [[unlikely]] {
+    if (UNLIKELY (orders_it->second.side != mbo.side)) {
       [&] () __attribute__((noinline, cold)) {
         throw std::logic_error{ "Order " + std::to_string(mbo.order_id) + " changed side" };
       }();

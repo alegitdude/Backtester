@@ -27,8 +27,7 @@ void MarketStateManager::Initialize(const std::vector<uint32_t>& active_ids,
     }
 
 void MarketStateManager::OnMarketEvent(const MarketByOrderEvent& event) {
-    InstrumentState* state = nullptr;
-    state = GetOrCreateInstrumentState(event.instrument_id);
+    InstrumentState* state = GetOrCreateInstrumentState(event.instrument_id);
 
     state->OnMarketEvent(event);
     UpdateSnapshot(event.instrument_id, state);
