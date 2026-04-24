@@ -157,3 +157,42 @@ Throughput: 11.0299 M/s
        9.346007000 seconds user
        1.574664000 seconds sys
 ```
+
+## Implemented LIKELY/UNLIKELY in branches and books are now stored in vectors
+**Date:** April 24, 2026
+**Commit:** `b11be3b`
+
+### Results
+* **Throughput:** 11.3051 - 11.5048 Million messages / second
+* **Time to Process 16M messages:** 1.42934s - 1.40454s
+* **Bottlenecks Identified:** orders_by_id still taking up large amounts of cpu cycles, hashtable operations are large percentage of apply operations especially in the Cancel method. This could possibly explain the large percentage of cache misses, which really needs addressing. Also need to figure out how to get updating the instrument bbo_cache to be less expensive/less frequent
+
+### Raw Perf Output
+```text
+Cached 16158945 events.
+Benchmarking MarketStateManager::OnMarketEvent...
+Processed 16158945 events in 1.42934s
+Throughput: 11.3051 M/s
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.173 MB /home/r/Desktop/Backtester/benchmarks/orderbook_perf_harness/perf.data (1279 samples) ]
+
+Cached 16158945 events.
+Benchmarking MarketStateManager::OnMarketEvent...
+Processed 16158945 events in 1.40454s
+Throughput: 11.5048 M/s
+
+ Performance counter stats for './orderbook_perf_harness ../test/test_data/ES-glbx-20251105.mbo.csv.zst':
+
+    14,411,253,978      task-clock                       #    1.000 CPUs utilized             
+    43,425,872,366      cycles                           #    3.013 GHz                         (83.32%)
+    96,600,023,684      instructions                     #    2.22  insn per cycle              (83.34%)
+     1,023,563,501      cache-references                 #   71.025 M/sec                       (83.33%)
+        77,749,717      cache-misses                     #    7.60% of all cache refs           (83.34%)
+    22,181,845,174      branches                         #    1.539 G/sec                       (83.33%)
+       237,529,840      branch-misses                    #    1.07% of all branches             (83.34%)
+
+      14.416618411 seconds time elapsed
+
+      12.342509000 seconds user
+       2.070582000 seconds sys
+```
