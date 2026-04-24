@@ -83,7 +83,7 @@ namespace backtester {
                     return comp(p, price);
                 });
 
-            if (rit != levels.rend() && rit->first == price) /*[[__builtin_expect]] */ {
+            if (LIKELY (rit != levels.rend() && rit->first == price)) {
                 return rit->second;
             }
             else {

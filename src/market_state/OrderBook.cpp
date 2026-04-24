@@ -7,7 +7,9 @@
 
 
 namespace backtester {
-  OrderBook::OrderBook(uint16_t publisher_id) : publisher_id(publisher_id) {};
+  OrderBook::OrderBook(uint16_t publisher_id) : publisher_id(publisher_id) {
+    orders_by_id_.reserve(10000);
+  };
 
   int64_t OrderBook::GetMidPrice() const {
     return ((bbo_cache_.ask.price - bbo_cache_.bid.price) / 2) + bbo_cache_.bid.price;

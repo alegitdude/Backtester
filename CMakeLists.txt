@@ -33,13 +33,6 @@ FetchContent_Declare(
   GIT_TAG release-1.12.1
 )
 
-# FetchContent_Declare(
-#     ryml
-#     GIT_REPOSITORY https://github.com/biojppm/rapidyaml.git
-#     GIT_TAG v0.10.0 
-#     GIT_SHALLOW FALSE [1.1]
-# )
-
 FetchContent_MakeAvailable(googletest)
 
 FetchContent_MakeAvailable(json spdlog)
