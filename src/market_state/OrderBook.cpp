@@ -7,9 +7,7 @@
 
 
 namespace backtester {
-  OrderBook::OrderBook(uint16_t publisher_id) : publisher_id(publisher_id) {
-    orders_by_id_.reserve(10000);
-  };
+  OrderBook::OrderBook(uint16_t publisher_id) : publisher_id(publisher_id) {};
 
   int64_t OrderBook::GetMidPrice() const {
     return ((bbo_cache_.ask.price - bbo_cache_.bid.price) / 2) + bbo_cache_.bid.price;
@@ -168,7 +166,7 @@ namespace backtester {
 
   // MARK: Clear
   void OrderBook::Clear() {
-    orders_by_id_.clear();
+    orders_by_id_.Clear();
     offers_.clear();
     bids_.clear();
   }
@@ -184,14 +182,10 @@ namespace backtester {
   template <class Compare>
   void OrderBook::Add(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo) {
     //Not using normalized/aggregate sets so should not encounter TOB flags  
-    auto [it, inserted] = orders_by_id_.try_emplace(mbo.order_id,
-      PriceSideSize{ mbo.price, mbo.side, mbo.size });
-    if (UNLIKELY (!inserted)) {
+    auto inserted = orders_by_id_.Insert(mbo.order_id, mbo.price, mbo.side, mbo.size);
+    if (UNLIKELY(!inserted)) {
       throw std::invalid_argument{ "Received duplicated order ID " +
                                  std::to_string(mbo.order_id) };
-    }
-    else {
-      orders_by_id_[mbo.order_id] = { mbo.price, mbo.side, mbo.size };
     }
     LevelQueue& level = GetOrInsertLevel(levels, mbo.price, comp);
     level.count++;
@@ -208,24 +202,24 @@ namespace backtester {
 
   template <class Compare>
   void OrderBook::Cancel(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo) {
-    auto order_it = orders_by_id_.find(mbo.order_id);
-    if (UNLIKELY ((order_it == orders_by_id_.end()))) {
+    auto order_it = orders_by_id_.Find(mbo.order_id);
+    if (UNLIKELY(!order_it)) {
       throw std::invalid_argument{ "Received cancel order not in orders " +
         std::to_string(mbo.order_id) };
     } //TODO better text
-    auto level_it = GetLevelIt(levels, order_it->second.price, comp);
-    if (UNLIKELY (level_it == levels.rend())) {
+    auto level_it = GetLevelIt(levels, order_it->price, comp);
+    if (UNLIKELY(level_it == levels.rend())) {
       throw std::invalid_argument{ "Received cancel with price not in OB " +
         std::to_string(mbo.order_id) };
     } //TODO better text
 
     level_it->second.size -= mbo.size;
 
-    order_it->second.size -= mbo.size;
-    if (order_it->second.size == 0) {
-      orders_by_id_.erase(mbo.order_id);
+    order_it->size -= mbo.size;
+    if (order_it->size == 0) {
+      orders_by_id_.Erase(mbo.order_id);
       level_it->second.count--;
-      if (level_it->second.count == 0) {     
+      if (level_it->second.count == 0) {
         levels.erase(std::next(level_it).base());
       }
     }
@@ -233,17 +227,16 @@ namespace backtester {
 
   // MARK: Modify
   void OrderBook::Modify(const MarketByOrderEvent& mbo) {
-    auto orders_it = orders_by_id_.find(mbo.order_id);
-    if  (UNLIKELY (orders_it == orders_by_id_.end())) {
+    auto orders_it = orders_by_id_.Find(mbo.order_id);
+    if (UNLIKELY(!orders_it)) {
       Add(mbo);
       return;
     }
-    if (UNLIKELY (orders_it->second.side != mbo.side)) {
+    if (UNLIKELY(orders_it->side != mbo.side)) {
       [&] () __attribute__((noinline, cold)) {
         throw std::logic_error{ "Order " + std::to_string(mbo.order_id) + " changed side" };
       }();
     }
-
     if (mbo.side == OrderSide::kBid)
       Modify(bids_, bids_compare_, mbo, orders_it);
     else
@@ -251,15 +244,15 @@ namespace backtester {
   }
 
   template <class Compare>
-  void OrderBook::Modify(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo, OrderBook::Orders::iterator prev_order_it) {
-    auto prev_lvl_it = GetLevelIt(levels, prev_order_it->second.price, comp);
+  void OrderBook::Modify(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo, backtester::OrderTable<65536UL>::Order* prev_order_ptr) {
+    auto prev_lvl_it = GetLevelIt(levels, prev_order_ptr->price, comp);
     // TODO check for prev_lvl_it != rend()
     LevelQueue& prev_level = prev_lvl_it->second;
-    if (prev_order_it->second.price != mbo.price) {
+    if (prev_order_ptr->price != mbo.price) {
       // delete from old level
       prev_level.count--;
-      prev_level.size -= prev_order_it->second.size;
-      if (prev_level.count == 0) {   
+      prev_level.size -= prev_order_ptr->size;
+      if (prev_level.count == 0) {
         levels.erase(std::next(prev_lvl_it).base());
       }
 
@@ -268,13 +261,13 @@ namespace backtester {
       new_level.count++;
       new_level.size += mbo.size;
     }
-    else if (prev_order_it->second.size < mbo.size) { // increase — lose priority
-      prev_level.size += (mbo.size - prev_order_it->second.size);
+    else if (prev_order_ptr->size < mbo.size) { // increase — lose priority
+      prev_level.size += (mbo.size - prev_order_ptr->size);
     }
     else { // decrease — keep priority
-      prev_level.size -= (prev_order_it->second.size - mbo.size);
+      prev_level.size -= (prev_order_ptr->size - mbo.size);
     }
-    prev_order_it->second = { mbo.price, mbo.side, mbo.size };
+    *prev_order_ptr = { mbo.order_id, mbo.price, mbo.side, mbo.size };
   }
 
 };
