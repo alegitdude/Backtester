@@ -196,3 +196,42 @@ Throughput: 11.5048 M/s
       12.342509000 seconds user
        2.070582000 seconds sys
 ```
+
+## Replaced unordered_map with probing table w/backshift deletion for order maintenance 
+**Date:** May 5, 2026
+**Commit:** `81fc075`
+
+### Results
+* **Throughput:** 15.7863 - 15.9005 Million messages / second
+* **Time to Process 16M messages:** 1.0236s - 1.01625s
+* **Bottlenecks Identified:**  Need to figure out how to get updating the instrument bbo_cache to be less expensive/less frequent, possibly return a bool that TOB is updated? Taking up ~24% of total OnMarketEvent method. Also cache-misses are still too high.
+
+### Raw Perf Output
+```text
+Cached 16158945 events.
+Benchmarking MarketStateManager::OnMarketEvent...
+Processed 16158945 events in 1.01625s
+Throughput: 15.9005 M/s
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.172 MB /home/r/Desktop/Backtester/benchmarks/orderbook_perf_harness/perf.data (1284 samples) ]
+
+Cached 16158945 events.
+Benchmarking MarketStateManager::OnMarketEvent...
+Processed 16158945 events in 1.0236s
+Throughput: 15.7863 M/s
+
+ Performance counter stats for './orderbook_perf_harness ../test/test_data/ES-glbx-20251105.mbo.csv.zst':
+
+    13,732,410,914      task-clock                       #    1.000 CPUs utilized             
+    41,266,541,145      cycles                           #    3.005 GHz                         (83.33%)
+    94,724,420,318      instructions                     #    2.30  insn per cycle              (83.32%)
+       957,845,306      cache-references                 #   69.751 M/sec                       (83.34%)
+        58,843,945      cache-misses                     #    6.14% of all cache refs           (83.33%)
+    21,865,570,639      branches                         #    1.592 G/sec                       (83.34%)
+       244,297,049      branch-misses                    #    1.12% of all branches             (83.33%)
+
+      13.737871362 seconds time elapsed
+
+      11.687111000 seconds user
+       2.046319000 seconds sys
+```
