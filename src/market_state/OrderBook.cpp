@@ -19,13 +19,14 @@ namespace backtester {
   // MARK: Getters
   PriceLevel OrderBook::GetBidLevel(std::size_t idx) const {
     if (bids_.size() > idx) {
-      auto it = bids_.rbegin();
-      std::advance(it, idx);
+      // auto it = bids_.rbegin();
+      // std::advance(it, idx);
+      auto& lvl = bids_[bids_.size() - 1 - idx];
 
       return PriceLevel{
-          it->first,        // Price
-          it->second.size,  // Size
-          it->second.count  // Count
+          lvl.first,        // Price
+          lvl.second.size,  // Size
+          lvl.second.count  // Count
       };
     }
     return PriceLevel{};
@@ -33,13 +34,13 @@ namespace backtester {
 
   PriceLevel OrderBook::GetAskLevel(std::size_t idx) const {
     if (offers_.size() > idx) {
-      auto it = offers_.rbegin();
-      std::advance(it, idx);
-
+      // auto it = offers_.rbegin();
+      // std::advance(it, idx);
+      auto& lvl = offers_[offers_.size() - 1 - idx];
       return PriceLevel{
-          it->first,        // Price
-          it->second.size,  // Size
-          it->second.count  // Count
+          lvl.first,        // Price
+          lvl.second.size,  // Size
+          lvl.second.count  // Count
       };
     }
     return PriceLevel{};
@@ -126,7 +127,7 @@ namespace backtester {
   /////////// Private
   void OrderBook::UpdateBboCache() {
     BidAskPair prev_bbo = bbo_cache_;
-    if (!bids_.empty()) {
+    if (LIKELY(!bids_.empty())) {
       PriceLevel bid_level = GetBidLevel();
       bbo_cache_.bid = { bid_level.price, bid_level.size, bid_level.count };
     }
@@ -134,7 +135,7 @@ namespace backtester {
       bbo_cache_.bid = {};
     }
 
-    if (!offers_.empty()) {
+    if (LIKELY(!offers_.empty())) {
       PriceLevel ask_level = GetAskLevel();
       bbo_cache_.ask = { ask_level.price, ask_level.size, ask_level.count };
     }
@@ -206,12 +207,12 @@ namespace backtester {
     if (UNLIKELY(!order_it)) {
       throw std::invalid_argument{ "Received cancel order not in orders " +
         std::to_string(mbo.order_id) };
-    } //TODO better text
+    } 
     auto level_it = GetLevelIt(levels, order_it->price, comp);
     if (UNLIKELY(level_it == levels.rend())) {
       throw std::invalid_argument{ "Received cancel with price not in OB " +
         std::to_string(mbo.order_id) };
-    } //TODO better text
+    } 
 
     level_it->second.size -= mbo.size;
 

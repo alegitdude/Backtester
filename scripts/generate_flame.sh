@@ -6,7 +6,7 @@ cd "$PROJECT_ROOT"
 
 DATA_DIR="$PROJECT_ROOT/benchmarks/orderbook_perf_harness"
 PERF_DATA_FILE="$DATA_DIR/perf.data"
-SVG_OUTPUT="$DATA_DIR/reader_flame.svg"
+SVG_OUTPUT="$DATA_DIR/reader_ob_flame.svg"
 
 if [ ! -f "$PERF_DATA_FILE" ]; then
     echo "ERROR: No perf.data found at $PERF_DATA_FILE"

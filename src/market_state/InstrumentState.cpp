@@ -31,7 +31,7 @@ namespace backtester {
             }
             else if (event.type != EventType::kMarketFill && event.flags & 0x80) {
                 UpdateInstrumentBbo();
-               
+                           
                 // Update WMP - equation : (bid_price * ask_size + ask_price * bid_size) / (bid_size + ask_size)
                 int64_t total_size = instrument_Bbo_.bid.size + instrument_Bbo_.ask.size;
                 if (total_size > 0 && instrument_Bbo_.bid.price != kUndefPrice &&
@@ -43,7 +43,7 @@ namespace backtester {
         }
     }
 
-    void InstrumentState::UpdateInstrumentBbo() {
+    void InstrumentState::UpdateInstrumentBbo() {      
         BidAskPair prev_bbo = instrument_Bbo_;
         instrument_Bbo_.bid = {};
         instrument_Bbo_.ask = {};
@@ -86,13 +86,7 @@ namespace backtester {
         static const std::vector<BidAskPair> EMPTY_SNAPSHOT;
 
         const OrderBook* book = GetOrderBook(publisher_id);
-        // for(auto& book : books_){
-        //     if(book.publisher_id == publisher_id){
-        //         return book.GetSnapshot(level_count);
-        //     }
-        // }
         return book ? book->GetSnapshot(level_count) : EMPTY_SNAPSHOT;
-        //return EMPTY_SNAPSHOT;
     }
 
     int64_t InstrumentState::GetQueueDepthByPx(OrderSide side, int64_t price) const {
