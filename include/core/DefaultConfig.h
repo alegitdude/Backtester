@@ -15,7 +15,8 @@ inline AppConfig GetDefaultConfig() {
 
     Strategy mov_avg_cross;
     mov_avg_cross.name = "MovAvgCrossMin";
-    mov_avg_cross.params = {2, 5};
+    mov_avg_cross.params = {5, 10};
+    mov_avg_cross.traded_instr_id = 294973;
     mov_avg_cross.max_lob_lvl = 1;
     std::vector<Strategy> strategies = {mov_avg_cross};
     res.strategies = strategies;

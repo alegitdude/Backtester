@@ -37,6 +37,9 @@ FetchContent_MakeAvailable(googletest)
 
 FetchContent_MakeAvailable(json spdlog)
 
+file(GLOB USER_STRATEGY_SOURCES CONFIGURE_DEPENDS
+     "src/strategy/user_strategies/*.cpp")
+
 add_library(CoreLogic src/data_ingestion/CsvZstReader.cpp src/market_state/OrderBook.cpp 
 src/data_ingestion/DataReaderManager.cpp src/core/EventQueue.cpp 
 src/market_state/MarketStateManager.cpp src/market_state/InstrumentState.cpp 
@@ -45,7 +48,7 @@ src/strategy/StrategyManager.cpp src/execution/ExecutionHandler.cpp src/core/Bac
 src/reporting/ReportGenerator.cpp
 include/core/Constants.h src/utils/NumericUtils.cpp src/utils/StringUtils.cpp
 include/strategy/IStrategy.h include/strategy/StrategyRegistry.h include/core/DefaultConfig.h
-include/market_state/IMarketDataProvider.h src/strategy/user_strategies/MovAvgCross.cpp)
+include/market_state/IMarketDataProvider.h ${USER_STRATEGY_SOURCES})
 
 
 add_executable(Backtester src/main.cpp)

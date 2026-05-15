@@ -80,6 +80,7 @@ struct DataStream {
 struct Strategy {
     std::string name;
     std::vector<int> params;
+    uint32_t traded_instr_id;
     std::size_t max_lob_lvl; // If strat only needs current price, lvl is 1, 
                      // otherwise how many levels strat is doing calculations on
 };

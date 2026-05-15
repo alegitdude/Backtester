@@ -70,6 +70,7 @@ namespace backtester {
                     spdlog::debug("Queued order from signal at ts={}", current_time);
                 }
                 else {
+                    // TODO tell strats the order was rejected
                     spdlog::warn("Signal rejected by portfolio at ts={}", current_time);
                 }
             }

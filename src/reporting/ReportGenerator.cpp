@@ -252,9 +252,9 @@ namespace backtester {
         s.total_volume_traded = total_volume;
 
         // Win rate
-        if (s.total_trades > 0) {
-            s.win_rate_pct = static_cast<double>(s.winning_trades) /
-                static_cast<double>(s.total_trades);
+        uint32_t closed_trades = s.winning_trades + s.losing_trades;
+        if (closed_trades > 0) {
+            s.win_rate_pct = static_cast<double>(s.winning_trades) / closed_trades;
         }
 
         // Average win / loss
@@ -275,7 +275,7 @@ namespace backtester {
         if (gross_loss > 0) {
             s.profit_factor = static_cast<double>(gross_profit) /
                 static_cast<double>(gross_loss);
-        } 
+        }
         else if (gross_profit > 0) {
             s.profit_factor = std::numeric_limits<double>::infinity();
         }

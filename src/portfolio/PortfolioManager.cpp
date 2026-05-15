@@ -249,6 +249,8 @@ namespace backtester {
         bool is_flip = !is_opening &&
             std::abs(fill_qty_signed) > std::abs(prev_pos->quantity);
 
+        int64_t trade_pnl = 0;
+
         if (is_opening) {
             OpenOrIncrease(*prev_pos, instr, fill, fill_qty_signed);
         }
@@ -266,7 +268,7 @@ namespace backtester {
         }
         else {
             // Pure close/reduce
-            int64_t trade_pnl = CloseOrReduce(*prev_pos, instr, fill, fill_qty_signed);
+            trade_pnl = CloseOrReduce(*prev_pos, instr, fill, fill_qty_signed);
             total_realized_pnl_ += trade_pnl;
         }
 
@@ -279,7 +281,7 @@ namespace backtester {
         record.price = fill.fill_price;
         record.quantity = fill.fill_quantity;
         record.strategy_id = fill.strategy_id;
-        record.realized_pnl = total_realized_pnl_; // or pass trade_pnl from above
+        record.realized_pnl = trade_pnl;
         record.commission = fill.commission;
         trade_history_.push_back(record);
     }

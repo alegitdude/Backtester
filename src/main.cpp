@@ -44,10 +44,10 @@ void SetupLogging() {
     std::time_t currentTime_t = std::chrono::system_clock::to_time_t(now);
     std::string time_string = std::ctime(&currentTime_t);
 
-    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("../logs/" + time_string + ".simulation.log", true);
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("../logs/" + time_string + ".log", true);
     auto logger = std::make_shared<spdlog::logger>("main_logger", file_sink);
     spdlog::set_default_logger(logger);
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::debug);
     spdlog::flush_on(spdlog::level::info);
 }
 
