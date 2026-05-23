@@ -39,7 +39,7 @@ namespace backtester {
                     auto signals = strategy_manager_.OnMarketEvent(*market_event);
 
                     if (signals.size() > 0) {
-                        for (int i = 0; i < signals.size(); i++) {
+                        for (size_t i = 0; i < signals.size(); i++) {
                             event_queue_.PushEvent(std::move(signals[i]));
                         }
                     }

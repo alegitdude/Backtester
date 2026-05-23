@@ -262,7 +262,7 @@ namespace backtester {
 
             // Step 2: Open remaining quantity in opposite direction
             // e.g. long 2, fill -5: close 2, then open 3 short
-            int64_t remaining_qty_signed = fill_qty_signed + close_qty_signed;
+            int64_t remaining_qty_signed = fill_qty_signed - close_qty_signed;
             // pos.quantity is now 0 after close, safe to open
             OpenOrIncrease(*prev_pos, instr, fill, remaining_qty_signed);
         }
@@ -312,7 +312,7 @@ namespace backtester {
             int64_t price_diff = (pos.quantity > 0) ?
                 (fill.fill_price - pos.avg_entry_price) :
                 (pos.avg_entry_price - fill.fill_price);
-            int64_t ticks_captured = price_diff / instr->tick_size;
+            int64_t ticks_captured = price_diff / static_cast<int64_t>(instr->tick_size);
             trade_pnl = ticks_captured * instr->tick_value * quantity_closed;
             current_cash_ += trade_pnl;
             maintenance_margin_used_ -= instr->main_margin_req * quantity_closed;
@@ -325,21 +325,20 @@ namespace backtester {
         }
 
         pos.quantity += fill_qty_signed;
-        if (pos.quantity == 0) {
-            if (pos.quantity == 0) {
-                uint32_t closed_instr_id = pos.instrument_id;
-                std::string closed_strat_id = pos.strategy_id;
-                positions_.erase(
-                    std::remove_if(positions_.begin(), positions_.end(),
-                        [&](const Position& p) {
-                            return p.instrument_id == closed_instr_id &&
-                                p.strategy_id == closed_strat_id;
-                        }),
-                    positions_.end()
-                );
-            }
+        
+        if (pos.quantity == 0 && fill.fill_quantity == std::abs(fill_qty_signed)) {
+            uint32_t closed_instr_id = pos.instrument_id;
+            std::string closed_strat_id = pos.strategy_id;
+            positions_.erase(
+                std::remove_if(positions_.begin(), positions_.end(),
+                    [&](const Position& p) {
+                        return p.instrument_id == closed_instr_id &&
+                            p.strategy_id == closed_strat_id;
+                    }),
+                positions_.end()
+            );
         }
-
+        
         return trade_pnl;
     }
     // =============================================================================
@@ -356,7 +355,7 @@ namespace backtester {
             int64_t price_diff = (pos.quantity > 0) ? (cur_Bbo.bid.price - pos.avg_entry_price)
                 : (pos.avg_entry_price - cur_Bbo.ask.price);
 
-            int64_t ticks = price_diff / traded_instr_ptr->tick_size;
+            int64_t ticks = price_diff / static_cast<int64_t>(traded_instr_ptr->tick_size);
             pnl = ticks * traded_instr_ptr->tick_value * std::abs(pos.quantity);
         }
         else {
@@ -475,7 +474,7 @@ namespace backtester {
     // =============================================================================
 
     int64_t PortfolioManager::GetCurrentDrawdown(int64_t current_equity) const {
-        if (max_equity_seen_ == 0) return 0;
+        if (max_equity_seen_ == 0 || current_equity > max_equity_seen_) return 0;
         return static_cast<int64_t>(
             (static_cast<__int128_t>(max_equity_seen_ - current_equity) * 1'000'000'000LL)
             / max_equity_seen_);

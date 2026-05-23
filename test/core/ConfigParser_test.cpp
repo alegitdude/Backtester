@@ -39,20 +39,31 @@ TEST_F(ConfigParserTest, ParsesValidConfigWithAllFields) {
     nlohmann::json valid_config = {
         {"start_time", "2024-01-01T09:30:00Z"},
         {"end_time", "2024-01-01T16:00:00Z"},
-        {"execution_latency", 100},
+        {"execution_latency_ms", 100},
         {"initial_cash", 50000},
         {"log_file_path", "../../logs"},
         {"report_output_dir", "../../reports"},
         {"strategies", {{
 			{"name", "MovAvgCrossMin"},
-			{"params", {5, 20}},
+			{"params", {5, 10}},
     		{"max_lob_lvl", 1}
 		}}},
-        {"traded_instrument" , {
+        {"traded_instruments" , {{
 			{"instrument_id" , 294973},
+            {"instrument_type" , "FUT"},
 			{"tick_size" , 0.25},
     		{"tick_value" , 12.50},
-    		{"margin_req", 16500}
+            {"traded_instr_id" , 294973},
+    		{"init_margin_req", 20845},
+            {"main_margin_req", 17017}
+		}}},
+        {"risk_limits" , {
+			{"risk_mode" , "PercentOfAcct"},
+			{"max_position_size" , 3},
+			{"max_risk_per_trade_pct" , "-0.02"}, 
+			{"max_portfolio_delta" , 0},
+			{"max_drawdown_pct" , .1},
+			{"max_delta_per_trade" , 0}
 		}},
         {"data_streams", {{
 				{"data_source_name" , "ES"},
@@ -62,18 +73,19 @@ TEST_F(ConfigParserTest, ParsesValidConfigWithAllFields) {
 				{"schema" , "MBO"},
 				{"compression" , "ZSTD"},
 				{"price_format" , "decimal"},
-				{"timestamp_format" , "iso"}			
+				{"timestamp_format" , "unix"}			
 			}}}
     };
     
     AppConfig result = ParseConfigFromJson(valid_config);
+    // MARK: answers
     DataSourceConfig stream;
     stream.data_source_name = "ES";
     stream.compression = Compression::ZSTD;
     stream.encoding = Encoding::CSV;
     stream.price_format = PriceFormat::DECIMAL;
     stream.schema = DataSchema::MBO;
-    stream.ts_format = TmStampFormat::ISO;
+    stream.ts_format = TmStampFormat::UNIX;
     stream.data_filepath = "../test/test_data/futures_mbo.csv.zst";
     stream.data_symbology = {{"ESH7",42140860, "2025-11-05"},
                             {"ESM9",42005050,"2025-11-05"},
@@ -124,12 +136,13 @@ TEST_F(ConfigParserTest, ParsesValidConfigWithAllFields) {
         42004613, 42140864, 42009476, 17740, 42140874, 42004653, 42000746, 42018129, 42140861,
         42004904, 42140870, 42008091, 42002687, 42011265};
     std::vector<Strategy> strategies = {{.name = "MovAvgCrossMin", 
-                                         .params = std::vector<int> {2, 5}, 
+                                         .params = std::vector<int> {5, 10}, 
                                          .max_lob_lvl = 1 }};
     TradedInstrument traded_instrument = {.instrument_id = 294973,
                                          .tick_size = 250000000,
                                          .tick_value = 12'500000000,
-                                         .margin_req = 16500'000000000};                              
+                                         .init_margin_req = 20845'000000000,
+                                         .main_margin_req = 17017'000000000};                              
                                         
     EXPECT_EQ(result.start_time, 1704101400000000000);
     EXPECT_EQ(result.end_time, 1704124800000000000);
@@ -142,7 +155,8 @@ TEST_F(ConfigParserTest, ParsesValidConfigWithAllFields) {
     EXPECT_EQ(result.strategies[0].max_lob_lvl, strategies[0].max_lob_lvl);
 
     EXPECT_EQ(result.traded_instruments[0].instrument_id, traded_instrument.instrument_id);
-    EXPECT_EQ(result.traded_instruments[0].margin_req, traded_instrument.margin_req);
+    EXPECT_EQ(result.traded_instruments[0].init_margin_req, traded_instrument.init_margin_req);
+    EXPECT_EQ(result.traded_instruments[0].main_margin_req, traded_instrument.main_margin_req);
     EXPECT_EQ(result.traded_instruments[0].tick_size, traded_instrument.tick_size);
     EXPECT_EQ(result.traded_instruments[0].tick_value, traded_instrument.tick_value);
     EXPECT_EQ(result.active_instruments, expected_instrs);

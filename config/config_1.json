@@ -11,23 +11,25 @@
 			"instrument_id" : 294973,
 			"instrument_type" : "FUT",
 			"tick_size" : 0.25,
-    		"tick_value" : 12.50,
-    		"margin_req": 16500
+    	"tick_value" : 12.50,
+    	"init_margin_req" : 20845,
+			"main_margin_req" : 17017 
 		}],
 
 		"strategies" : [{
 			"name" : "MovAvgCrossMin",
-			"params" : [5, 20],
-    		"max_lob_lvl" : 1
+			"params" : [5, 10],
+			"traded_instr_id" : 294973,
+    	"max_lob_lvl" : 1
 		}],
 		
 		"risk_limits" : {
 			"risk_mode" : "PercentOfAcct",
-			"max_position_size" : "3",
+			"max_position_size" : 3,
 			"max_risk_per_trade_pct" : ".02", 
-			"max_portfolio_delta" : "0",
-			"max_drawdown_pct" : ".40",
-			"max_delta_per_trade" : "0"
+			"max_portfolio_delta" : 0,
+			"max_drawdown_pct" : ".10",
+			"max_delta_per_trade" : 0
 		},
 		"data_streams" : [
 			{

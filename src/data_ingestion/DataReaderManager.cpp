@@ -86,8 +86,6 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
     const std::vector<backtester::DataStream>::iterator it, 
     const std::string& line) {
 
-    //DataSourceConfig config = readers_[data_source_name].config;
-
     std::string_view current_view(line);
     size_t pos = 0;
 

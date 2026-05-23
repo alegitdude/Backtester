@@ -7,7 +7,7 @@
 
 namespace backtester {
 
-const Position kEmptyPosition = {0, 0, 0, 0};
+const Position kEmptyPosition = {0, "0", 0, 0, 0};
 
 class PortfolioManagerTest : public ::testing::Test {
  protected:
@@ -29,7 +29,8 @@ class PortfolioManagerTest : public ::testing::Test {
             .instrument_type = InstrumentType::FUT,
             .tick_size = 250'000'000,
             .tick_value = 12'500'000'000, // $50 per point 
-            .margin_req = 5000'000'000'000 
+            .init_margin_req = 20845'000000000,
+            .main_margin_req = 17017'000000000
         }};
         config_fut_.risk_limits.max_position_size = 10'000'000'000;
         config_fut_.risk_limits.max_drawdown_pct = 0'100'000'000; 
@@ -42,7 +43,8 @@ class PortfolioManagerTest : public ::testing::Test {
             .instrument_type = InstrumentType::STOCK,
             .tick_size = 0'010'000'000,
             .tick_value = 0'010'000'000, // 1:1 value
-            .margin_req = 0   // Cash account 
+            .init_margin_req = 0,
+            .main_margin_req = 0  // Cash account 
         }};
     }
 
@@ -73,10 +75,10 @@ TEST_F(PortfolioManagerTest, InitializationTest_Fut) {
     EXPECT_EQ(pm.GetCash(), kInitialCash);
     EXPECT_EQ(pm.GetRealizedPnL(), 0);
     EXPECT_EQ(pm.GetUnrealizedPnL(kEmptyPosition, kEmptyBbo), 0);
-    EXPECT_FALSE(pm.HasPosition(kFutInstrumentId));
+    EXPECT_FALSE(pm.HasAnyOpenPosition());
     EXPECT_EQ(pm.GetPositionQty(kFutInstrumentId), 0);
     // Initial buying power should be Initial Cash (no margin used)
-    EXPECT_EQ(pm.GetBuyingPowerAvailable(cur_Bbos), kInitialCash);
+    EXPECT_EQ(pm.GetBuyingPower(cur_Bbos, config_fut_.traded_instruments[0].instrument_type), kInitialCash);
     EXPECT_EQ(pm.GetPositionByInstrId(1), kEmptyPosition);
     EXPECT_EQ(pm.GetDelta(kFutInstrumentId, kEmptyBbo), 0);
     EXPECT_EQ(pm.GetTotalPortfolioDelta(cur_Bbos), 0);
@@ -225,7 +227,7 @@ TEST_F(PortfolioManagerTest, Execution_OpenAndClose_Loss) {
     pm.ProcessFill(*fill_close);
 
     EXPECT_EQ(pm.GetPositionQty(kFutInstrumentId), 0);
-    EXPECT_EQ(pm.GetRealizedPnL(), -250'000'000'000);
+    EXPECT_EQ(pm.GetRealizedPnL(), -250'000000000);
     EXPECT_EQ(pm.GetCash(), kInitialCash - 250'000'000'000);
 }
 
@@ -315,12 +317,12 @@ TEST_F(PortfolioManagerTest, Metrics_Drawdown_PreventsTrading) {
     // Total Loss: 100,000.
     // Equity = 100k - 100k = 0.
     // Drawdown = 100%.
-    BidAskPair ba_pair = {3799'000'000'000, 1, 1, 3800'000'000'000, 1, 1};
+    BidAskPair ba_pair = {3800'000'000'000, 1, 1, 3800'250'000'000, 1, 1};
     
     int64_t equity = pm.GetTotalEquity({{kFutInstrumentId, ba_pair}});
     int64_t dd = pm.GetCurrentDrawdown(equity);
     
-    EXPECT_NEAR(dd, 1, 1); // 100% drawdown
+    EXPECT_NEAR(dd, 1'000'000'000, 1); // 100% drawdown
 
     // 3. Try to open new trade
     auto signal = CreateSignal(1000, 5, 1, SignalType::kBuySignal, 3800'000'000'000, 50);
@@ -333,9 +335,9 @@ TEST_F(PortfolioManagerTest, Metrics_BuyingPower_Dynamic) {
     PortfolioManager pm(config_fut_);
     BidAskPair ba_pair = {4000'000'000'000, 1, 1, 4001'000'000'000, 1, 1};
     // Initial BP = 100k
-    EXPECT_EQ(pm.GetBuyingPowerAvailable({{kFutInstrumentId, ba_pair}}), 100000'000'000'000);
+    EXPECT_EQ(pm.GetBuyingPower({{kFutInstrumentId, ba_pair}}, InstrumentType::FUT), 100000'000'000'000);
 
-    // Buy 1 @ 4000 (Margin 5k)
+    // Buy 1 @ 4000 (Maintenance margin 17017)
     auto fill_long = std::make_unique<StrategyFillEvent>(
         100,
         1,
@@ -347,15 +349,15 @@ TEST_F(PortfolioManagerTest, Metrics_BuyingPower_Dynamic) {
     );
     pm.ProcessFill(*fill_long);
     
-    // BP = 100k - 5k = 95k
-    EXPECT_EQ(pm.GetBuyingPowerAvailable({{kFutInstrumentId, ba_pair}}), 95000'000'000'000);
+    // BP = 100k - 17017 = 95k
+    EXPECT_EQ(pm.GetBuyingPower({{kFutInstrumentId, ba_pair}}, InstrumentType::FUT), 82983'000'000'000);
     
     // Price drops, causing Unrealized Loss of $2000
-    // Equity = 98k. Margin Used = 5k.
-    // BP = 98k - 5k = 93k.
+    // Equity = 98k. Margin Used = 17017.
+    // BP = 98k - 17017 = 93k.
     // 4000 - 40pts = 3960. (40 * 50 = 2000 loss)
     BidAskPair ba_bad = {3960'000'000'000, 1, 1, 3961'000'000'000, 1, 1};
-    EXPECT_EQ(pm.GetBuyingPowerAvailable({{kFutInstrumentId, ba_bad}}), 93000'000'000'000);
+    EXPECT_EQ(pm.GetBuyingPower({{kFutInstrumentId, ba_bad}}, InstrumentType::FUT), 80983'000'000'000);
 }
 
 } 

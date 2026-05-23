@@ -7,29 +7,6 @@
 
 namespace backtester {
 
-const std::vector<std::string> kRequiredConfigFields = {
-    "start_time",
-    "end_time", 
-    "traded_instrument",
-    "data_streams",
-    "strategies"
-};
-
-const std::vector<std::string> kOptionalConfigFields = {
-    "execution_latency",
-    "initial_cash",
-    "log_file_path",
-    "report_output_dir"
-};
-
-const std::vector<std::string> kRequiredTradedInstrFields = {
-	"instrument_id",
-  "instrument_type",
-  "tick_size",
-  "tick_value",
-  "margin_requirement"
-};
-
 const std::vector<std::string> kRiskLimitsFields = {
   "risk_mode",
   "max_position_size",
@@ -37,20 +14,6 @@ const std::vector<std::string> kRiskLimitsFields = {
   "max_portfolio_delta",
   "max_drawdown_pct",
   "max_delta_per_trade" 
-};
-
-const std::vector<std::string> kRequiredDataStreamFields = {
-    "symbology_filepath",
-    "data_filepath",
-    "schema",
-    "encoding",
-    "compression",
-    "price_format",
-    "timestamp_format"
-};
-
-const std::vector<std::string> kOptionalDataStreamFields = {
-    "data_source_name"
 };
 
 AppConfig ParseConfigToObj(std::filesystem::path& config_path); 

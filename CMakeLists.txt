@@ -53,13 +53,22 @@ include/market_state/IMarketDataProvider.h ${USER_STRATEGY_SOURCES})
 
 add_executable(Backtester src/main.cpp)
 
-add_executable(tests test/market_state/OrderBook_test.cpp )
+#add_executable(tests test/portfolio/PortfolioManager_test.cpp)
+add_executable(tests
+    test/market_state/OrderBook_test.cpp
+    test/core/ConfigParser_test.cpp
+    test/data_ingestion/CsvZstReader_test.cpp
+    test/portfolio/PortfolioManager_test.cpp
+    test/utils/TimeUtils_test.cpp
+)
 
+#gtest_discover_tests(tests)
 
 target_link_libraries(CoreLogic PRIVATE spdlog::spdlog zstd PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(tests PUBLIC nlohmann_json::nlohmann_json PRIVATE GTest::gtest_main zstd spdlog CoreLogic)
 target_link_libraries(Backtester PRIVATE spdlog::spdlog nlohmann_json::nlohmann_json -Wl,--whole-archive CoreLogic -Wl,--no-whole-archive)
 
+## Harnesses
 add_executable(reader_perf_harness benchmarks/CsvZst_Ingestion_Harness.cpp src/data_ingestion/CsvZstReader.cpp 
 src/data_ingestion/DataReaderManager.cpp)
 target_link_libraries(reader_perf_harness PRIVATE spdlog::spdlog zstd)
