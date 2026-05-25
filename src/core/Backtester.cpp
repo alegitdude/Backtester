@@ -18,9 +18,9 @@ namespace backtester {
         }
 
         spdlog::info("Starting backtest loop...");
-        u_int64_t current_time;
+        uint64_t current_time;
         uint64_t last_snapshot_ts_ = 0;
-        u_int64_t event_tally = 0;
+        uint64_t event_tally = 0;
         bool backtest_complete = false;
 
         while (!event_queue_.IsEmpty()) {
@@ -176,7 +176,7 @@ namespace backtester {
         }
     }
 
-    void Backtester::RecordSnapshot(u_int64_t current_time) {
+    void Backtester::RecordSnapshot(uint64_t current_time) {
         auto current_prices = market_state_manager_.GetTradedInstrsBbo();
         int64_t equity = portfolio_manager_.GetTotalEquity(current_prices);
         int64_t cash = portfolio_manager_.GetCash();

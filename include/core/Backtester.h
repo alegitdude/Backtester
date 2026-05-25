@@ -21,7 +21,7 @@ class Backtester {
 
   int RunLoop(const AppConfig& config);
 	void EmitClosingOrders(uint64_t close_ts);
-	void RecordSnapshot(u_int64_t current_time);
+	void RecordSnapshot(uint64_t current_time);
 
  private:
     EventQueue& event_queue_;

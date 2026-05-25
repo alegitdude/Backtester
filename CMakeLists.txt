@@ -53,16 +53,15 @@ include/market_state/IMarketDataProvider.h ${USER_STRATEGY_SOURCES})
 
 add_executable(Backtester src/main.cpp)
 
-#add_executable(tests test/portfolio/PortfolioManager_test.cpp)
+# add_executable(tests test/market_state/OrderBook_test.cpp)
 add_executable(tests
-    test/market_state/OrderBook_test.cpp
     test/core/ConfigParser_test.cpp
     test/data_ingestion/CsvZstReader_test.cpp
     test/portfolio/PortfolioManager_test.cpp
     test/utils/TimeUtils_test.cpp
+    test/market_state/OrderBook_test.cpp
 )
-
-#gtest_discover_tests(tests)
+target_compile_options(tests PRIVATE -O3)
 
 target_link_libraries(CoreLogic PRIVATE spdlog::spdlog zstd PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(tests PUBLIC nlohmann_json::nlohmann_json PRIVATE GTest::gtest_main zstd spdlog CoreLogic)

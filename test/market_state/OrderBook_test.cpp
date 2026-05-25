@@ -6,7 +6,7 @@
 #include "../../include/core/ConfigParser.h"
 #include "../../include/core/Types.h"
 #include <gtest/gtest.h>
-#include <deque>
+#include <array>
 #include <charconv>
 
 namespace backtester {
@@ -15,13 +15,13 @@ struct ExpectedMBP10 {
     uint64_t ts_event;
     int64_t price;
     uint32_t sequence_id;
-    std::vector<BidAskPair> levels; 
-};    
+    std::array<BidAskPair, 10> levels; 
+};  
 
 class OrderBookTest : public ::testing::Test {
  protected:
     // instrument_id for key
-    std::unordered_map<uint32_t, std::deque<ExpectedMBP10>> expected_mbp10_;
+    std::unordered_map<uint32_t, std::pair<size_t, std::vector<ExpectedMBP10>>> expected_mbp10_map_;
 
     DataSourceConfig data_source = {
         .data_source_name = "ES",
@@ -69,15 +69,15 @@ class OrderBookTest : public ::testing::Test {
             uint32_t instrument_id;
             ParseField(fields[4], instrument_id);
 
-            auto& instr_queue = expected_mbp10_[instrument_id];
-            instr_queue.emplace_back(); 
-            auto& snapshot = instr_queue.back();
+            auto& idx_vec_pair = expected_mbp10_map_[instrument_id];
+            idx_vec_pair.first = 0;
+            idx_vec_pair.second.emplace_back(); 
+            auto& snapshot = idx_vec_pair.second.back();
 
             ParseField(fields[1], snapshot.ts_event);
             ParseField(fields[8], snapshot.price);
             ParseField(fields[12], snapshot.sequence_id);
-
-            snapshot.levels.assign(10, {kUndefPrice, 0, 0, kUndefPrice, 0, 0});
+            snapshot.levels.fill({kUndefPrice, 0, 0, kUndefPrice, 0, 0});
             for (int i = 0; i < 10; ++i) {
                 int base = 13 + i * 6;
                 if(fields[base] != ""){
@@ -137,7 +137,7 @@ TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
     size_t events_processed = 0;
     size_t snapshots_compared = 0;
 
-    std::cout << "mbp10:" << expected_mbp10_.size() << std::endl;
+    std::cout << "mbp10:" << expected_mbp10_map_.size() << std::endl;
 
     while(!event_queue.IsEmpty()){      
         auto current_event = event_queue.PopTopEvent(); 
@@ -157,27 +157,33 @@ TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
             uint32_t instr_id = market_event->instrument_id;
 
             bool can_compare;
-            if(!expected_mbp10_.count(instr_id)){
+            if(!expected_mbp10_map_.count(instr_id)){
                 can_compare = false;
             } else {
+                auto& instr_queue = expected_mbp10_map_[instr_id];
                 can_compare = has_last_flag && 
-                current_time == expected_mbp10_[instr_id].front().ts_event &&
-                market_event->sequence == expected_mbp10_[instr_id].front().sequence_id &&
-                market_event->price == expected_mbp10_[instr_id].front().price;
+                current_time == instr_queue.second[instr_queue.first].ts_event &&
+                market_event->sequence == instr_queue.second[instr_queue.first].sequence_id &&
+                market_event->price == instr_queue.second[instr_queue.first].price;
             }
 
             if (can_compare) {
-                const auto& expected_levels = expected_mbp10_[instr_id].front().levels;
-                const auto actual_levels = market_state_manager.GetOBSnapshot(
+                auto& idx_vec_pair = expected_mbp10_map_[instr_id];
+                const auto& expected_levels = idx_vec_pair.second[idx_vec_pair.first].levels;
+                const auto& actual_levels = market_state_manager.GetOBSnapshot(
                     market_event->instrument_id, market_event->publisher_id, 10);
+                for(size_t i = 0; i < 10; i++){
+                    EXPECT_EQ(actual_levels[i], expected_levels[i])
+                        << "Mismatch at ts_event = " << idx_vec_pair.second[idx_vec_pair.first].ts_event
+                        << " after " << events_processed << " MBO events";
+                }
+                //EXPECT_EQ(actual_levels, expected_levels)
+                    // << "Mismatch at ts_event = " << idx_vec_pair.second[idx_vec_pair.first].ts_event
+                    // << " after " << events_processed << " MBO events";
                 
-                EXPECT_EQ(actual_levels, expected_levels)
-                    << "Mismatch at ts_event = " << expected_mbp10_[instr_id].front().ts_event
-                    << " after " << events_processed << " MBO events";
-                
-                expected_mbp10_[instr_id].pop_front();
-                if(expected_mbp10_[instr_id].empty()){
-                    expected_mbp10_.erase(instr_id);
+                idx_vec_pair.first++;
+                if(idx_vec_pair.first > idx_vec_pair.second.size() - 1){
+                    expected_mbp10_map_.erase(instr_id);
                 }
                 BidAskPair state_bbo = market_state_manager.GetInstrumentBbo(market_event->instrument_id);
                 EXPECT_EQ(state_bbo, actual_levels[0])
@@ -188,7 +194,7 @@ TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
         events_processed++;
     }
     std::cout << events_processed << std::endl;
-    EXPECT_TRUE(expected_mbp10_.empty());
+    EXPECT_TRUE(expected_mbp10_map_.empty());
 }
 
 }
