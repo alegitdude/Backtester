@@ -1,28 +1,4 @@
 #!/usr/bin/env python3
-"""
-Oracle barrier test for MovAvgCross.
- 
-Reads two things:
-  1. The backtester's spdlog output, to extract each (entry_ts, entry_price, side)
-     and pair it with the next exit so we know which entry actually closed.
-  2. The raw MBO trade tape (.csv.zst), filtered to action == 'T' rows.
- 
-For each entry, scans the trade tape forward from entry_ts and reports which
-barrier — take-profit (kTakeProfitPoints in the strategy's direction) or
-stop-loss (kStopLossPoints against) — is crossed FIRST by a trade print.
- 
-If the simulator reports 23 winners and 0 losers but the oracle says ~half the
-entries should have hit the stop first, the bug is in the executor's fill
-logic. If the oracle agrees 23/23 are wins, the data genuinely supported every
-position and the simulator is correct (or biased in a different way).
- 
-Usage:
-    pip install zstandard
-    python oracle_barrier_test.py <log_file> <mbo.csv.zst> [--instr 294973]
- 
-Defaults to ES futures contract 294973 and the strategy's hardcoded 5/7 point
-barriers; override with --tp-points / --sl-points / --instr if needed.
-"""
 import argparse
 import io
 import re
@@ -121,11 +97,7 @@ def parse_fills(log_path: str, instr_id: int) -> list[Entry]:
 def iter_trades(mbo_path: str, instr_id: int):
     """
     Streams the MBO csv.zst, yielding (ts_event_ns, price_fp) for trades on the
-    target instrument. Assumes Databento MBO schema; price column is decimal so
-    we scale to fixed-point on the fly.
- 
-    Yielding tuples (not dicts) and skipping unrelated rows early matters — the
-    full ES tape is ~16M rows.
+    target instrument. Assumes Databento MBO schema; 
     """
     dctx = zstd.ZstdDecompressor()
     with open(mbo_path, "rb") as fh:
