@@ -1,9 +1,11 @@
 #include "../../include/data_ingestion/DataReaderManager.h"
 #include "../../include/core/Types.h"
 #include "../../include/core/EventQueue.h" 
+#include "../../include/utils/TimeUtils.h"
 #include "spdlog/spdlog.h"
 #include <filesystem>
 #include <charconv>
+#include <string>
 
 namespace backtester{
 
@@ -104,13 +106,33 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
 
         switch (i) {
             case 1: // ts_recv (uint64_t)
-                if (token.empty()) throw std::runtime_error("Field 1 empty."); /////// TODO iso or unix conditional
-                std::from_chars(token.data(), token.data() + token.size(), ts_recv);
+                if (token.empty()) throw std::runtime_error("Field 1 empty."); 
+                if(it->config.ts_format == TmStampFormat::UNIX){
+                    std::from_chars(token.data(), token.data() + token.size(), ts_recv);
+                } else {
+                    auto result = backtester::time::ParseIsoToUnix(token);
+                    if(!result.success){
+                        spdlog::error("Error parsing ts_recv: {}", result.error_msg);
+                        auto error = "Error parsing ts_recv" + std::string(token) + result.error_msg;
+                        throw std::runtime_error(error);
+                    }
+                    ts_recv = result.unix_nanos;
+                }
                 break;
 
             case 2: // ts_event (uint64_t)
-                if (token.empty()) throw std::runtime_error("Field 2 empty."); /////// TODO iso or unix conditional
-                std::from_chars(token.data(), token.data() + token.size(), ts_event);
+                if (token.empty()) throw std::runtime_error("Field 2 empty."); 
+                if(it->config.ts_format == TmStampFormat::UNIX){
+                    std::from_chars(token.data(), token.data() + token.size(), ts_event);
+                } else {
+                    auto result = backtester::time::ParseIsoToUnix(token);
+                    if(!result.success){
+                        spdlog::error("Error parsing ts_event: {}", result.error_msg);
+                        auto error = "Error parsing ts_event" + std::string(token) + result.error_msg;
+                        throw std::runtime_error(error);
+                    }
+                    ts_event = result.unix_nanos;
+                }
                 break;
                 
             case 3: // rtype (uint16_t)
@@ -171,7 +193,17 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
 
             case 13: // ts_in_delta (int32_t)
                 if (token.empty()) throw std::runtime_error("Field 13 empty.");
-                std::from_chars(token.data(), token.data() + token.size(), ts_in_delta);
+                if(it->config.ts_format == TmStampFormat::UNIX){
+                    std::from_chars(token.data(), token.data() + token.size(), ts_in_delta);
+                } else {
+                    auto result = backtester::time::ParseIsoToUnix(token);
+                    if(!result.success){
+                        spdlog::error("Error parsing ts_in_delta: {}", result.error_msg);
+                        auto error = "Error parsing ts_in_delta" + std::string(token) + result.error_msg;
+                        throw std::runtime_error(error);
+                    }
+                    ts_in_delta = result.unix_nanos;
+                }
                 break;
 
             case 14: // sequence (uint32_t)
