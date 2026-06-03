@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.ticker as mtick
 
-#CSV_FILE_NAME = '../docs/sample_movAvg_report/equity_curve.csv'
 CSV_FILE_NAME = '../reports/equity_curve.csv'
 OUTPUT_IMAGE_NAME = '../reports/equity_curve_plot.png'
 

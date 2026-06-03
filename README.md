@@ -19,6 +19,7 @@ A single-threaded, event-driven backtesting framework in C++17 for futures and e
 - [Modeling Assumptions](#modeling-assumptions)
 - [Scope & Limitations](#scope--limitations)
 - [Project Layout](#project-layout)
+- [Analysis & Visualization](#analysis--visualization)
 ---
  
 ## Highlights
@@ -212,7 +213,27 @@ test/                     GoogleTest suites mirroring src/
 benchmarks/               Standalone perf harnesses for the reader and orderbook
 config/                   Sample JSON configs
 ```
- 
+## Analysis & Visualization
+
+After a backtest, the `scripts/create_equity_curve_graph.py` script renders the equity
+curve from `reports/equity_curve.csv` into the reports folder:
+
+```bash
+# From the project root
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r scripts/requirements.txt
+
+python3 scripts/create_equity_curve_graph.py
+```
+
+A virtual environment isn't strictly required, but is recommended to avoid
+polluting your system Python. The same script run without a venv just needs
+`pip install -r scripts/requirements.txt --user`.
+
+A sample chart from the demo run is committed at
+[`docs/sample_movAvg_report/equity_curve_plot.png`](docs/sample_movAvg_report/equity_curve_plot.png).
+
 ## License
  
 MIT — see `LICENSE`.
