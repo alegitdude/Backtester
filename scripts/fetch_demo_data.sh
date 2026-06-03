@@ -3,7 +3,7 @@
 set -euo pipefail
 
 DEST_DIR="$(dirname "$0")/../test/test_data"
-RELEASE_URL="https://github.com/YOURUSER/YOURREPO/releases/download/demo-data"
+RELEASE_URL="https://github.com/alegitdude/Backtester/releases/tag/demo-data"
 
 mkdir -p "$DEST_DIR"
 
