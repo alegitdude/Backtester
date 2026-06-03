@@ -127,7 +127,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build . -j
  
 # Fetch the demo dataset (342 MB ES futures MBO, hosted on GitHub Releases)
-./scripts/fetch_demo_data.sh
+../scripts/fetch_demo_data.sh
 
 # Run
 ./Backtester ../config/demo.json
