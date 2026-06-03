@@ -119,13 +119,16 @@ Tested on Ubuntu 22.04 / 24.04 with `g++` ≥ 11.
 ```bash
 # Dependencies
 sudo apt install cmake libzstd-dev g++
- 
+
 # Build
-git clone <repo-url> backtester && cd backtester
+git clone https://github.com/alegitdude/Backtester backtester && cd backtester
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build . -j
  
+# Fetch the demo dataset (342 MB ES futures MBO, hosted on GitHub Releases)
+./scripts/fetch_demo_data.sh
+
 # Run
 ./Backtester ../config/demo.json
  
@@ -138,6 +141,12 @@ ctest --output-on-failure
 ```
  
 `nlohmann/json`, `spdlog`, and `googletest` are fetched automatically by CMake.
+
+### Demo dataset
+The benchmark and demo configurations use a full session of
+ES futures MBO data from Databento (16.1M messages, 342 MB compressed,
+November 5, 2025). The file is hosted on the GitHub Releases page
+and fetched by ./scripts/fetch_demo_data.sh to keep the repo lightweight.
 
 ## Configuration
 
