@@ -8,7 +8,7 @@ namespace backtester {
 namespace numericUtils{
     
 long long doubleToFixedPoint(double val) {
-    const double scale = 1'000'000'000.0;
+    constexpr double scale = 1'000'000'000.0;
     
     // 1. Check for NaN
     if (std::isnan(val)) throw std::invalid_argument("NaN cannot be converted");

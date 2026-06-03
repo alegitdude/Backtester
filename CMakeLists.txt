@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.10.0)
 project(Backtester VERSION 0.1.0 LANGUAGES C CXX)
 
-# add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
-# add_link_options(-fsanitize=address)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -33,9 +30,7 @@ FetchContent_Declare(
   GIT_TAG release-1.12.1
 )
 
-FetchContent_MakeAvailable(googletest)
-
-FetchContent_MakeAvailable(json spdlog)
+FetchContent_MakeAvailable(googletest spdlog json)
 
 file(GLOB USER_STRATEGY_SOURCES CONFIGURE_DEPENDS
      "src/strategy/user_strategies/*.cpp")
@@ -53,7 +48,6 @@ include/market_state/IMarketDataProvider.h ${USER_STRATEGY_SOURCES})
 
 add_executable(Backtester src/main.cpp)
 
-# add_executable(tests test/market_state/OrderBook_test.cpp)
 add_executable(tests
     test/core/ConfigParser_test.cpp
     test/data_ingestion/CsvZstReader_test.cpp

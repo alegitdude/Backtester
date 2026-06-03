@@ -95,10 +95,10 @@ struct TradedInstrument {
 };
 
 struct CommissionStruct {
-    uint64_t fut_per_contract = 2'170'000'000;
-    uint64_t stock_order_min = 350'000'000;
-    uint64_t stock_per_share = 3'500'000;
-    uint64_t stock_clearing_fee = 200'000;
+    uint64_t fut_per_contract;
+    uint64_t stock_order_min;
+    uint64_t stock_per_share;
+    uint64_t stock_clearing_fee;
 };
 
 struct RiskLimits {
@@ -119,11 +119,11 @@ struct RiskLimits {
 struct AppConfig {
     uint64_t start_time; //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
     uint64_t end_time;  //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
-    uint64_t execution_latency_ms = 200;
-    uint64_t snapshot_interval_ns = 1'000'000'000;
-    uint64_t initial_cash = 100000;
+    uint64_t execution_latency_ms;
+    uint64_t snapshot_interval_ns;
+    uint64_t initial_cash;
     CommissionStruct commission_struct;
-    double risk_free_rate = 0.05;
+    double risk_free_rate;
     std::string log_file_path;
     std::string report_output_dir;
     std::vector<Strategy> strategies;

@@ -15,6 +15,7 @@ A single-threaded, event-driven backtesting framework in C++17 for futures and e
 - [Performance](#performance)
 - [Validation](#validation)
 - [Quickstart](#quickstart)
+- [Configuration](#configuration)
 - [Modeling Assumptions](#modeling-assumptions)
 - [Scope & Limitations](#scope--limitations)
 - [Project Layout](#project-layout)
@@ -126,7 +127,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build . -j
  
 # Run
-./Backtester ../config/config_1.json
+./Backtester ../config/demo.json
  
 # Tests
 ctest --output-on-failure
@@ -137,6 +138,26 @@ ctest --output-on-failure
 ```
  
 `nlohmann/json`, `spdlog`, and `googletest` are fetched automatically by CMake.
+
+## Configuration
+
+Backtests are configured via a JSON file passed to the executable. The full
+schema — every field, its type, units, defaults, and validation rules — is
+documented in [`config/README.md`](./config/README.md).
+
+A working example lives in [`config/demo.json`](./config/demo.json), which
+also serves as the configuration for the sample reports found in `./docs/sample_movAvg_report`.
+
+Brief overview of the top-level fields:
+
+- `start_time` / `end_time` — ISO-8601 UTC bounds of the simulated session
+- `traded_instruments` — instruments the strategy is allowed to trade,
+  with tick size, tick value, and margin requirements
+- `strategies` — which strategy classes to instantiate and their parameters
+- `risk_limits` — drawdown circuit breaker, position-size caps, etc.
+- `data_streams` — paths to MBO `.csv.zst` files and their schema/format flags
+
+See [`config/README.md`](./config/README.md) for the full reference.
  
 ## Modeling Assumptions
  

@@ -19,24 +19,9 @@
 #include <fstream>
 
 namespace PrintHelper {
-    inline void BacktestStart(){
+    inline void BacktestStart() {
         std::cout << "Backtester Program Started" << std::endl;
-    };
-    inline void CantOpenConfig(){
-        std::cout << "Could not open config, check path" << std::endl;
-    };
-    inline void BadFilePath(){
-        std::cout << "Could not open file, check path" << std::endl;
-    };
-    inline void WrongArgNums(){
-        std::cout << R"(Please include the correct number of 
-                        arguments to run backtester)" << std::endl;
-    };
 };
-
-void printHelp() {
-    std::cout << "A settings file in json format is required to use this backtester" << std::endl;
-    std::cout << "Here are the optional arguments for running a backtest" << std::endl;
 }
 
 void SetupLogging() {
@@ -53,88 +38,75 @@ void SetupLogging() {
 
 
 int main(int argc, char* argv[]) {
-	const int maxArgs = 3;
     PrintHelper::BacktestStart();
-
-    // if(argc < 2 || argc > maxArgs){
-    //     PrintHelper::WrongArgNums();
-    //     printHelp();
-    //     return 0;
-    // }
+    
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " <path to config.json>\n"
+            << "  Try the included demo: " << argv[0] << " ../config/demo.json\n";
+        return 1;
+    }
 
     std::filesystem::path config_path;
-    std::filesystem::path default_settings = "../config/config_1.json";
-
-    for (int i = 1; i < argc; ++i) { // Start from 1 to skip program name
-        std::string arg = argv[i];
-
-        if (arg == "--help" || arg == "-h") {
-            printHelp();
-            return 0; 
-        }
-        if(i == 1){ //ConfigFilePath
-            if(!std::filesystem::exists(arg)){
-                std::cout << "Config file path does not exist!" << std::endl;
-                std::cout << arg << std::endl;
-                config_path = default_settings;
-            }
-            config_path = std::filesystem::path(arg);
-            if(config_path.extension() != ".json" && config_path.extension() != ".yaml"){
-                std::cout << "Config file has wrong file extension! Needs to be json" << std::endl;
-                std::cout << arg << std::endl;
-                config_path = default_settings;
-            }
-        }
-        if(std::filesystem::is_empty(config_path)){
-            config_path = default_settings;
-        }
+    
+    std::string arg = argv[1];
+    if (arg == "-h" || arg == "--help") {
+        std::cout << "Usage: " << argv[0] << " [path to config.json]\n"
+            << "  Runs a backtest with the specified config.\n";
+        return 0;
     }
-    
-    bool use_demo_config = true;
-    
+    config_path = arg;
+
+    if (!std::filesystem::exists(config_path)) {
+        std::cerr << "Config file not found: " << config_path << "\n";
+        return 1;
+    }
+    if (config_path.extension() != ".json") {
+        std::cerr << "Config file must have .json extension: " << config_path << "\n";
+        return 1;
+    }
+
     ///  Initialize Logger 
     SetupLogging();
     spdlog::info("Logger Initialized");
     ///  Configuration Loading 
     spdlog::info("Loading Confgiuration File");
-    const backtester::AppConfig config = use_demo_config ? backtester::GetDefaultConfig()
-        : backtester::ParseConfigToObj(config_path);
+    const backtester::AppConfig config = backtester::ParseConfigToObj(config_path);
     ///  Create central EventQueue
     backtester::EventQueue event_queue;
     /// Initialize DataReaderManager
-	backtester::DataReaderManager data_reader_manager;
+    backtester::DataReaderManager data_reader_manager;
     /// Initialize Market State Manager
     backtester::MarketStateManager market_state_manager;
 
     std::vector<uint32_t> traded_instr_ids; // TODO clunky??
     traded_instr_ids.reserve(config.traded_instruments.size());
-    std::transform(config.traded_instruments.begin(), config.traded_instruments.end(), 
+    std::transform(config.traded_instruments.begin(), config.traded_instruments.end(),
         std::back_inserter(traded_instr_ids), [](const auto& obj) { return obj.instrument_id; });
 
     market_state_manager.Initialize(config.active_instruments, traded_instr_ids);
 
     /// Initialize Portfolio Manager
-	backtester::PortfolioManager portfolio_manager(config);
+    backtester::PortfolioManager portfolio_manager(config);
     /// Initialize Report Generator
-	backtester::ReportGenerator report_generator(config);
+    backtester::ReportGenerator report_generator(config);
     /// Initialize Execution Handler
-	backtester::ExecutionHandler execution_handler(event_queue, config);
+    backtester::ExecutionHandler execution_handler(event_queue, config);
     /// Initialize Strategy Manager and Strategies
     backtester::StrategyManager strategy_manager(config);
     strategy_manager.InitiailizeStrategies(market_state_manager);
-    
-    if(!data_reader_manager.RegisterAndInitStreams(config.data_configs)){
+
+    if (!data_reader_manager.RegisterAndInitStreams(config.data_configs)) {
         throw std::runtime_error("Problem parsing data configuration, check logs");
         return 1;
     };
-    
+
     // Initialize Backtester class
     backtester::Backtester backtester(event_queue, data_reader_manager, market_state_manager,
-                          portfolio_manager, report_generator, execution_handler,
-                          strategy_manager);
-    
+        portfolio_manager, report_generator, execution_handler,
+        strategy_manager);
+
     backtester.RunLoop(config);
-    
+
     return 0;
 }
 

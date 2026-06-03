@@ -26,7 +26,7 @@ inline AppConfig GetDefaultConfig() {
     TradedInstrument traded_instr;
     traded_instr.instrument_id = 294973;
     traded_instr.instrument_type = InstrumentType::FUT;
-    traded_instr.tick_size = 250000000;
+    traded_instr.tick_size = 250'000'000;
     traded_instr.tick_value = 12'500'000'000;
     traded_instr.init_margin_req = 20845'000000000;
     traded_instr.main_margin_req = 17017'000000000;
@@ -40,7 +40,7 @@ inline AppConfig GetDefaultConfig() {
     risk_limits.max_position_size = 0;
     risk_limits.max_risk_per_trade_pct = 20'000'000;
     risk_limits.max_portfolio_delta = 0;
-    risk_limits.max_drawdown_pct = 10'000'000;
+    risk_limits.max_drawdown_pct = 100'000'000;
     risk_limits.max_delta_per_trade = 0;
     res.risk_limits = risk_limits;
 
@@ -50,7 +50,7 @@ inline AppConfig GetDefaultConfig() {
     stream.encoding = Encoding::CSV;
     stream.price_format = PriceFormat::FIXPNTINT;
     stream.schema = DataSchema::MBO;
-    stream.ts_format = TmStampFormat::ISO;
+    stream.ts_format = TmStampFormat::UNIX;
     stream.data_filepath = "../test/test_data/ES-glbx-20251105.mbo.csv.zst";
     stream.data_symbology = {{"ESH7",42140860, "2025-11-05"},
                             {"ESM9",42005050,"2025-11-05"},

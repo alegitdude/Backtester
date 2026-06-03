@@ -2,8 +2,6 @@
 #include "../../include/utils/TimeUtils.h"
 #include "../../include/utils/NumericUtils.h"
 #include "../../include/core/Types.h"
-#include "../../include/core/DefaultConfig.h"
-#include "spdlog/spdlog.h"
 #include <fstream>
 #include <string>
 #include <iostream>
@@ -14,12 +12,34 @@
 
 namespace backtester {
 
+	namespace {
+		constexpr uint64_t kDefaultInitialCash = 100'000;
+		constexpr uint64_t kDefaultExecLatencyMs = 200;
+		constexpr uint64_t kDefaultSnapshotIntervalMs = 1'000;
+		constexpr uint64_t kOneDayInMs = 86'400'000;
+		constexpr uint64_t kFxdPntMultiplier = 1'000'000'000;
+		constexpr std::string_view kDefaultLogDir = "../logs";
+		constexpr std::string_view kDefaultReportDir = "../reports";
+		constexpr std::string_view kDefaultRiskMode = "percentofacct";
+		constexpr double kDefaultMaxPositionSize = 3;
+		constexpr double kDefaultMaxRiskPerTradePct = .02;
+		constexpr double kDefaultMaxPortfolioDelta = 0;
+		constexpr double kDefaultMaxDrawdownPct= .2;
+		constexpr double kDefaultMaxDeltaPerTrade = 0;
+		constexpr double kDefaultFutPerContract = 2.17;
+		constexpr double kDefaultStockClearingFee = 0.35;
+		constexpr double kDefaultStockOrderMin = 0.035;
+		constexpr double kDefaultStockPerShare = 0.0002;
+		constexpr double kDefaultRiskFreeRate = 0.05;
+	}
+
 	std::vector<Symbol> ParseDataSymbols(const std::string& filepath) {
 		std::vector<Symbol> instruments;
 		std::ifstream file(filepath, std::ios::in);
 
 		if (!file.is_open()) {
-			std::cerr << "Could not open the file!" << std::endl;
+			spdlog::error("Can not open data symbols file at: {}", filepath);
+			std::cerr << "Could not data symbols file!" << std::endl;
 			return instruments;
 		}
 		std::string line;
@@ -54,7 +74,6 @@ namespace backtester {
 	}
 
 	AppConfig ParseConfigFromJson(const nlohmann::json& data) {
-		AppConfig default_config = backtester::GetDefaultConfig();
 		AppConfig config;
 
 		// MARK: Start Time
@@ -82,23 +101,39 @@ namespace backtester {
 
 		// MARK: Execution Latency
 		config.execution_latency_ms = GetOptional<uint64_t>(data, "execution_latency_ms",
-			"Global Settings").value_or(default_config.execution_latency_ms);
+			"Global Settings").value_or(kDefaultExecLatencyMs);
+
+		// MARK: Snapshot Interval
+		auto interval_ms = GetOptional<uint64_t>(data, "snapshot_interval_ms",
+			"Global Settings").value_or(kDefaultSnapshotIntervalMs);
+		if(interval_ms > kOneDayInMs ){
+			spdlog::warn("Snapshot interval exceeds one day, using one day as default");
+			interval_ms = kOneDayInMs;
+		}
+		config.snapshot_interval_ns = interval_ms * 1'000'000;
 
 		// MARK: Initial Cash
 		config.initial_cash = GetOptional<uint64_t>(data, "initial_cash",
-			"Global Settings").value_or(default_config.initial_cash);
+			"Global Settings").value_or(kDefaultInitialCash);
 		if (config.initial_cash < 1) {
 			spdlog::warn("Initial Cash below 1, using default config initial cash");
-			config.initial_cash = default_config.initial_cash;
+			config.initial_cash = kDefaultInitialCash;
 		}
+		config.initial_cash *= kFxdPntMultiplier;
 
 		// MARK: Log File Path
 		config.log_file_path = GetOptional<std::string>(data, "log_file_path",
-			"Global Settings").value_or(default_config.log_file_path);
+			"Global Settings").value_or("");
+		if(config.log_file_path == "") config.log_file_path = kDefaultLogDir;
 
 		// MARK: Report Output Directory
 		config.report_output_dir = GetOptional<std::string>(data, "report_output_dir",
-			"Global Settings").value_or(default_config.report_output_dir);
+			"Global Settings").value_or("");
+		if(config.report_output_dir == "") config.report_output_dir = kDefaultReportDir;
+		
+		// MARK: Risk-Free Rate
+		config.risk_free_rate = GetOptional<double>(data, "risk_free_rate",
+			"Global Settings").value_or(kDefaultRiskFreeRate);
 
 		// MARK: Strategies
 		if (!data.contains("strategies") || !data["strategies"].is_array() ||
@@ -119,10 +154,10 @@ namespace backtester {
 		// MARK: Risk Limits
 		if (!data.contains("risk_limits")) {
 			spdlog::warn("No parsable risk limits detected, using default");
-			config.risk_limits = default_config.risk_limits;
+			config.risk_limits = ParseRiskLimits({});
 		}
 		else {
-			config.risk_limits = ParseRiskLimits(data["risk_limits"], default_config);
+			config.risk_limits = ParseRiskLimits(data["risk_limits"]);
 		}
 
 		// MARK: Data Streams
@@ -150,10 +185,20 @@ namespace backtester {
 				config.active_instruments.push_back(symbology.instrument_id);
 			}
 		}
+
+		// MARK:Commissions 
+		if (!data.contains("commissions")) {
+			spdlog::warn("No parsable commissions settings detected, using default");
+			config.commission_struct = ParseCommissions({});
+		}
+		else {
+			config.commission_struct = ParseCommissions(data["commissions"]);
+		}
+
 		return config;
 	}
 
-	AppConfig ParseConfigToObj(std::filesystem::path& config_path) {
+	AppConfig ParseConfigToObj(const std::filesystem::path& config_path) {
 		using json = nlohmann::json;
 
 		if (!std::filesystem::exists(config_path)) {
@@ -183,6 +228,7 @@ namespace backtester {
 			Strategy strat;
 			strat.name = GetRequired<std::string>(strategy, "name", context);
 			strat.params = GetRequired<std::vector<int>>(strategy, "params", context);
+			strat.traded_instr_id = GetRequired<std::size_t>(strategy, "traded_instr_id", context);
 			strat.max_lob_lvl = GetRequired<std::size_t>(strategy, "max_lob_lvl", context);
 			res.push_back(strat);
 		}
@@ -221,32 +267,41 @@ namespace backtester {
 		return res;
 	}
 
-	RiskLimits ParseRiskLimits(const nlohmann::json& data, AppConfig default_config) {
+	RiskLimits ParseRiskLimits(const nlohmann::json& data) {
 		RiskLimits res;
 
-		for (std::string field : kRiskLimitsFields) {
-			if (!data.contains(field)) {
-				spdlog::warn("field {} of riskLimits is not parsable, using default risk limits ", field);
-				return default_config.risk_limits;
-			}
-		}
 		std::string context = "Risk Limits";
 		res.risk_mode = ParseRiskMode(GetOptional<std::string>(data,
-			"risk_mode", context).value_or("PercentOfAcct"));
+			"risk_mode", context).value_or(""));
 		res.max_position_size = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
-			"max_position_size", context).value_or(3));
+			"max_position_size", context).value_or(kDefaultMaxPositionSize));
 		res.max_risk_per_trade_pct = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
-			"max_risk_per_trade_pct", context).value_or(.02));
+			"max_risk_per_trade_pct", context).value_or(kDefaultMaxRiskPerTradePct));
 		res.max_portfolio_delta = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
-			"max_portfolio_delta", context).value_or(0));
+			"max_portfolio_delta", context).value_or(kDefaultMaxPortfolioDelta));
 		res.max_drawdown_pct = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
-			"max_drawdown_pct", context).value_or(.2));
+			"max_drawdown_pct", context).value_or(kDefaultMaxDrawdownPct));
 		res.max_delta_per_trade = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
-			"max_delta_per_trade", context).value_or(0));
+			"max_delta_per_trade", context).value_or(kDefaultMaxDeltaPerTrade));
 
 		return res;
 	}
 
+  CommissionStruct ParseCommissions(const nlohmann::json& data) {
+		CommissionStruct res;
+
+		std::string context = "Commissions";
+		res.fut_per_contract = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
+			"fut_per_contract", context).value_or(kDefaultFutPerContract));
+		res.stock_clearing_fee = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
+			"stock_clearing_fee", context).value_or(kDefaultStockClearingFee));
+		res.stock_order_min = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
+			"stock_order_min", context).value_or(kDefaultStockOrderMin));
+		res.stock_per_share = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
+			"stock_per_share", context).value_or(kDefaultStockPerShare));
+
+		return res;
+	}
 
 	template <typename T>
 	T GetRequired(const nlohmann::json& j, const std::string& key, const std::string& context) {
@@ -256,10 +311,10 @@ namespace backtester {
 
 		const auto& val = j.at(key);
 		if (val.is_number() && val.get<double>() < 0) {
-      throw std::runtime_error(fmt::format(
-						"Config Error: Negative value {} assigned to unsigned key '{}' in {}",
-						val.dump(), key, context));
-    }
+			throw std::runtime_error(fmt::format(
+				"Config Error: Negative value {} assigned to unsigned key '{}' in {}",
+				val.dump(), key, context));
+		}
 
 		try {
 			return val.get<T>();
@@ -280,9 +335,9 @@ namespace backtester {
 
 		const auto& val = j.at(key);
 		if (val.is_number() && val.get<double>() < 0) {
-        spdlog::warn("Config: Key '{}' in {} is negative. Using default.", key, context);
-        return std::nullopt;
-    }
+			spdlog::warn("Config: Key '{}' in {} is negative. Using default.", key, context);
+			return std::nullopt;
+		}
 
 		try {
 			return val.get<T>();
