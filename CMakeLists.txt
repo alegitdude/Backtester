@@ -42,7 +42,7 @@ src/core/ConfigParser.cpp src/utils/TimeUtils.cpp src/portfolio/PortfolioManager
 src/strategy/StrategyManager.cpp src/execution/ExecutionHandler.cpp src/core/Backtester.cpp
 src/reporting/ReportGenerator.cpp
 include/core/Constants.h src/utils/NumericUtils.cpp src/utils/StringUtils.cpp
-include/strategy/IStrategy.h include/strategy/StrategyRegistry.h include/core/DefaultConfig.h
+include/strategy/IStrategy.h include/strategy/StrategyRegistry.h 
 include/market_state/IMarketDataProvider.h ${USER_STRATEGY_SOURCES})
 target_compile_definitions(CoreLogic PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
 
