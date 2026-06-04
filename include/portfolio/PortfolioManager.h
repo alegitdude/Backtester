@@ -18,7 +18,7 @@ namespace backtester {
         // MARK: Core Signal & Order Handling
         // =========================================================================
 
-        std::unique_ptr<StrategyOrderEvent> RequestOrder(
+        std::unique_ptr<Event> RequestOrder(
             const StrategySignalEvent* signal,
             const std::unordered_map<uint32_t, BidAskPair>& latest_prices);
 
@@ -75,14 +75,14 @@ namespace backtester {
         // MARK: Internal Logic Handlers
         // =========================================================================
 
-        std::unique_ptr<StrategyOrderEvent> HandleAddRequest(
+        std::unique_ptr<Event> HandleAddRequest(
             const StrategySignalEvent* signal,
             const std::unordered_map<uint32_t, BidAskPair>& latest_prices);
 
-        std::unique_ptr<StrategyOrderEvent> HandleModifyRequest(
+        std::unique_ptr<Event> HandleModifyRequest(
             const StrategySignalEvent* signal,
             const std::unordered_map<uint32_t, BidAskPair>& latest_prices);
-        std::unique_ptr<StrategyOrderEvent> HandleCancelRequest(const StrategySignalEvent* signal);
+        std::unique_ptr<Event> HandleCancelRequest(const StrategySignalEvent* signal);
 
         // =========================================================================
         // MARK: Helper Utilities

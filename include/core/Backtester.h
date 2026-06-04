@@ -49,7 +49,6 @@ class Backtester {
 		return type == EventType::kStrategyOrderAdd    ||
 			type == EventType::kStrategyOrderModify    ||
 			type == EventType::kStrategyOrderCancel    ||
-			type == EventType::KStrategyOrderRejection ||
 			type == EventType::kStrategyOrderClear;
 	}
 	inline bool isControlEvent(EventType type) {

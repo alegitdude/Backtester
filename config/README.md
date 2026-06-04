@@ -31,6 +31,13 @@ in JSON; the system reasons in integers.
 **Timestamps.** All internal timestamps are unsigned 64-bit integers counting
 nanoseconds since the Unix epoch. The config accepts ISO-8601 strings, which
 the parser converts on load.
+
+**Path resolution:** Relative file paths in the config are resolved against
+the directory containing the config file, not the current working directory.
+So if `demo.json` lives at `config/demo.json` and references
+`"../test/test_data/foo.csv.zst"`, the file is looked up at
+`test/test_data/foo.csv.zst` regardless of where the backtester is invoked
+from. Absolute paths are used as-is.
  
 **Units summary:**
  
@@ -42,6 +49,7 @@ the parser converts on load.
 | Timestamps              | ISO-8601 string  | uint64 nanoseconds since epoch  |
 | Latency, intervals      | integer ms or ns | uint64 ms or ns                 |
  
+
 ---
  
 ## Top-Level Fields

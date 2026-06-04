@@ -7,7 +7,6 @@
 #include "../include/portfolio/PortfolioManager.h"
 #include "../include/reporting/ReportGenerator.h"
 #include "../include/core/ConfigParser.h"
-#include "../include/core/DefaultConfig.h"
 #include <nlohmann/json.hpp>
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
@@ -21,21 +20,24 @@
 namespace PrintHelper {
     inline void BacktestStart() {
         std::cout << "Backtester Program Started" << std::endl;
-};
-}
+    };
 
-void SetupLogging() {
+    inline void PrintLogPath(std::string path) {
+        std::cout << "Logs outputting to:" << path << std::endl;
+    };
+};
+
+void SetupLogging(std::string log_path) {
     auto now = std::chrono::system_clock::now();
     std::time_t currentTime_t = std::chrono::system_clock::to_time_t(now);
     std::string time_string = std::ctime(&currentTime_t);
 
-    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("../logs/" + time_string + ".log", true);
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path + "/" + time_string + ".log", true);
     auto logger = std::make_shared<spdlog::logger>("main_logger", file_sink);
     spdlog::set_default_logger(logger);
     spdlog::set_level(spdlog::level::debug);
     spdlog::flush_on(spdlog::level::info);
 }
-
 
 int main(int argc, char* argv[]) {
     PrintHelper::BacktestStart();
@@ -46,8 +48,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::filesystem::path config_path;
-    
+    std::filesystem::path config_path;    
     std::string arg = argv[1];
     if (arg == "-h" || arg == "--help") {
         std::cout << "Usage: " << argv[0] << " [path to config.json]\n"
@@ -64,13 +65,16 @@ int main(int argc, char* argv[]) {
         std::cerr << "Config file must have .json extension: " << config_path << "\n";
         return 1;
     }
-
-    ///  Initialize Logger 
-    SetupLogging();
-    spdlog::info("Logger Initialized");
+    
     ///  Configuration Loading 
     spdlog::info("Loading Confgiuration File");
     const backtester::AppConfig config = backtester::ParseConfigToObj(config_path);
+
+    ///  Initialize Logger 
+    SetupLogging(config.log_file_path);
+    PrintHelper::PrintLogPath(config.log_file_path);
+    spdlog::info("Logger Initialized");
+
     ///  Create central EventQueue
     backtester::EventQueue event_queue;
     /// Initialize DataReaderManager

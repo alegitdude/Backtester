@@ -5,16 +5,17 @@
 namespace backtester {
 
     int Backtester::RunLoop(const AppConfig& config) {
-        
+
         spdlog::info("Populating initial events from data sources...");
         for (const DataSourceConfig& source : config.data_configs) {
             auto event_ptr = data_reader_manager_.LoadNextEventFromSource(
                 source.data_source_name);
-            if(event_ptr){
+            if (event_ptr) {
                 event_queue_.PushEvent(std::move(event_ptr));
-            } else {
-                spdlog::warn("Symbol "+ source.data_source_name + " has no events.");
-            }   
+            }
+            else {
+                spdlog::warn("Symbol " + source.data_source_name + " has no events.");
+            }
         }
 
         spdlog::info("Starting backtest loop...");
@@ -69,10 +70,6 @@ namespace backtester {
                     event_queue_.PushEvent(std::move(order_event));
                     spdlog::debug("Queued order from signal at ts={}", current_time);
                 }
-                else {
-                    // TODO tell strats the order was rejected
-                    spdlog::warn("Signal rejected by portfolio at ts={}", current_time);
-                }
             }
 
             if (isStrategyOrderEvent(eventType)) {
@@ -95,13 +92,13 @@ namespace backtester {
                 strategy_manager_.OnFillEvent(*fill_event);
             }
 
-            if (isControlEvent(eventType)) {
-                // if (eventType == EventType::kBacktestControlEndOfDay) {
-                //     strategy_manager_.OnEndOfDay(current_time);
-                //     // Mark to market for futures — credit unrealized gains to cash
-                //     MarkFuturesToMarket(current_time);
-                // }
+            if (eventType == EventType::kStrategyOrderRejection) {
+                const StrategyOrderRejectionEvent* rejection =
+                    static_cast<const StrategyOrderRejectionEvent*>(current_event.get());
+                strategy_manager_.OnRejectionEvent(*rejection);
+            }
 
+            if (isControlEvent(eventType)) {
                 if (eventType == EventType::kBacktestControlEndOfBacktest) {
                     // Cancel all pending orders first
                     auto cancel_fills = execution_handler_.CancelAllPendingOrders(current_time);

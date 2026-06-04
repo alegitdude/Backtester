@@ -10,7 +10,7 @@ namespace backtester {
 
 AppConfig ParseConfigToObj(const std::filesystem::path& config_path); 
 
-AppConfig ParseConfigFromJson(const nlohmann::json& data);
+AppConfig ParseConfigFromJson(const nlohmann::json& data, std::filesystem::path config_path);
 
 std::vector<Symbol> ParseDataSymbols(const std::string& filepath);
 std::vector<Strategy> ParseStrategies(const nlohmann::json& data);

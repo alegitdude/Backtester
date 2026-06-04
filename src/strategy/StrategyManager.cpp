@@ -59,4 +59,14 @@ void StrategyManager::OnFillEvent(const StrategyFillEvent& fill) {
     spdlog::warn("StrategyManager: Fill received for unknown strategy_id '{}'", fill.strategy_id);
 }
 
+void StrategyManager::OnRejectionEvent(const StrategyOrderRejectionEvent& msg) {
+    for (auto& strategy : active_strategies_) {
+        if (strategy->GetId() == msg.strategy_id) {
+            strategy->OnRejection(msg);
+            return;
+        }
+    }
+    spdlog::warn("StrategyManager: Fill received for unknown strategy_id '{}'", msg.strategy_id);
+};
+
 }

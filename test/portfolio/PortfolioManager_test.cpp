@@ -7,7 +7,7 @@
 
 namespace backtester {
 
-const Position kEmptyPosition = {0, "0", 0, 0, 0};
+const Position kEmptyPosition = {0, "", 0, 0, 0};
 
 class PortfolioManagerTest : public ::testing::Test {
  protected:
@@ -21,6 +21,14 @@ class PortfolioManagerTest : public ::testing::Test {
 
     BidAskPair kValidEsBidAskPair = {4000'000'000'000, 0 ,0, 4000'250'000'000, 0, 0};
 
+    bool IsRejection(const std::unique_ptr<Event>& e) {
+        return e && e->type == EventType::kStrategyOrderRejection;
+    }
+
+    bool IsOrder(const std::unique_ptr<Event>& e) {
+        return e && e->type == EventType::kStrategyOrderAdd;
+    }
+
     void SetUp() override {
         // Futures Config 
         config_fut_.initial_cash = kInitialCash;
@@ -32,9 +40,9 @@ class PortfolioManagerTest : public ::testing::Test {
             .init_margin_req = 20845'000000000,
             .main_margin_req = 17017'000000000
         }};
-        config_fut_.risk_limits.max_position_size = 10'000'000'000;
-        config_fut_.risk_limits.max_drawdown_pct = 0'100'000'000; 
-        config_fut_.risk_limits.max_risk_per_trade_pct = 0'020'000'000;
+        config_fut_.risk_limits.max_position_size = 10;
+        config_fut_.risk_limits.max_drawdown_pct = 100'000'000; 
+        config_fut_.risk_limits.max_risk_per_trade_pct = 20'000'000;
 
         // Stock Config 
         config_stk_.initial_cash = kInitialCash;
@@ -98,12 +106,13 @@ TEST_F(PortfolioManagerTest, RiskGate_ValidEntry) {
 
     std::unordered_map<uint32_t, BidAskPair> market_prices = {{kFutInstrumentId, kValidEsBidAskPair}};
 
-    auto order = pm.RequestOrder(&signal, market_prices);
+    auto event = pm.RequestOrder(&signal, market_prices);
+    ASSERT_TRUE(IsOrder(event));
+    const auto* order = static_cast<const StrategyOrderEvent*>(event.get());
 
-    ASSERT_NE(order, nullptr);
     EXPECT_EQ(order->type, EventType::kStrategyOrderAdd);
     EXPECT_EQ(order->side, OrderSide::kBid);
-    EXPECT_DOUBLE_EQ(order->quantity, 1);
+    EXPECT_EQ(order->quantity, 1);
 }
 
 TEST_F(PortfolioManagerTest, RiskGate_RejectsInvalidTick) {
@@ -112,9 +121,11 @@ TEST_F(PortfolioManagerTest, RiskGate_RejectsInvalidTick) {
     PortfolioManager pm_weird(weird_tick);
     
     auto signal = CreateSignal(1000, 5, 1, SignalType::kBuySignal, 4000'250'000'000, 1);
-    auto order = pm_weird.RequestOrder(&signal, {{kFutInstrumentId, kValidEsBidAskPair}});
-    
-    EXPECT_EQ(order, nullptr) << "Should reject price 4000.25 when tick size is .7";
+    auto event = pm_weird.RequestOrder(&signal, {{kFutInstrumentId, kValidEsBidAskPair}});
+    ASSERT_TRUE(IsRejection(event));
+    const auto* order = static_cast<const StrategyOrderRejectionEvent*>(event.get());
+
+    EXPECT_EQ(order->reason, RejectionReason::kInvalidTick) << "Should reject price 4000.25 when tick size is .7";
 }
 
 TEST_F(PortfolioManagerTest, RiskGate_InsufficientBuyingPower) {
@@ -123,12 +134,15 @@ TEST_F(PortfolioManagerTest, RiskGate_InsufficientBuyingPower) {
     // Cash 100k. Margin 5k. Max contracts ~20.
     // Try to buy 50.
     auto signal = CreateSignal(1000, 5, 1, SignalType::kBuySignal, 4000'250'000'000, 50);
-    auto order = pm.RequestOrder(&signal, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event = pm.RequestOrder(&signal, {{kFutInstrumentId, kValidEsBidAskPair}});
+    ASSERT_TRUE(IsRejection(event));
+    const auto* order = static_cast<const StrategyOrderRejectionEvent*>(event.get());
 
-    EXPECT_EQ(order, nullptr) << "Should reject order requiring 250k margin with only 100k cash";
+    EXPECT_EQ(order->reason, RejectionReason::kInsufficientBuyingPower) << "Should reject order requiring 250k margin with only 100k cash";
 }
 
 TEST_F(PortfolioManagerTest, RiskGate_PositionLimits) {
+    config_fut_.initial_cash = 2000000'000000000;
     PortfolioManager pm(config_fut_);
     // Limit is 10.
     
@@ -142,16 +156,16 @@ TEST_F(PortfolioManagerTest, RiskGate_PositionLimits) {
         10,
         "TestStrat"                 
     );
-    //StrategyFillEvent fill = {100, 1, kFutInstrumentId, OrderSide::kBid, 4000'000'000'000, 10, 1};
     pm.ProcessFill(*fill);
     
     // 2. Try to buy 1 more.
-    auto signal = CreateSignal(1000, 5, 1, SignalType::kBuySignal, 4000'000'000'000, 50);
+    auto signal = CreateSignal(1000, 5, 1, SignalType::kBuySignal, 4000'000'000'000, 1);
 
-    //auto signal = CreateSignal(SignalType::kBuySignal, 4000, 1);
-    auto order = pm.RequestOrder(&signal, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event = pm.RequestOrder(&signal, {{kFutInstrumentId, kValidEsBidAskPair}});
+    ASSERT_TRUE(IsRejection(event));
+    const auto* order = static_cast<const StrategyOrderRejectionEvent*>(event.get());
 
-    EXPECT_EQ(order, nullptr) << "Should reject order exceeding max position limit";
+    EXPECT_EQ(order->reason, RejectionReason::kPositionLimit) << "Should reject order exceeding max position limit";
 }
 
 // // ==========================================================================
@@ -174,7 +188,7 @@ TEST_F(PortfolioManagerTest, Execution_OpenAndClose_Profit) {
     pm.ProcessFill(*fill);
 
     EXPECT_EQ(pm.GetPositionQty(kFutInstrumentId), 1);
-    EXPECT_DOUBLE_EQ(pm.GetCash(), kInitialCash); // Cash doesn't change on open in this model
+    EXPECT_EQ(pm.GetCash(), kInitialCash); // Cash doesn't change on open in this model
 
     // 2. Close Long 1 @ 4010
     // Profit calc: (4010 - 4000) = 10 points.
@@ -326,9 +340,12 @@ TEST_F(PortfolioManagerTest, Metrics_Drawdown_PreventsTrading) {
 
     // 3. Try to open new trade
     auto signal = CreateSignal(1000, 5, 1, SignalType::kBuySignal, 3800'000'000'000, 50);
-    auto order = pm.RequestOrder(&signal, {{kFutInstrumentId, ba_pair}});
+    auto event = pm.RequestOrder(&signal, {{kFutInstrumentId, ba_pair}});
 
-    EXPECT_EQ(order, nullptr) << "Should reject order due to max drawdown violation";
+    ASSERT_TRUE(IsRejection(event));
+    const auto* order = static_cast<const StrategyOrderRejectionEvent*>(event.get());
+
+    EXPECT_EQ(order->reason, RejectionReason::kDrawdownLimit) << "Should reject order due to max drawdown violation";
 }
 
 TEST_F(PortfolioManagerTest, Metrics_BuyingPower_Dynamic) {

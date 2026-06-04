@@ -13,15 +13,16 @@
 namespace backtester {
 
 	namespace {
+		const std::filesystem::path kRootFolder = PROJECT_ROOT_DIR;
+    std::filesystem::path kDefaultLogDir = kRootFolder / "logs";
+		std::filesystem::path kDefaultReportDir = kRootFolder / "reports";
+		
 		constexpr uint64_t kDefaultInitialCash = 100'000;
 		constexpr uint64_t kDefaultExecLatencyMs = 200;
 		constexpr uint64_t kDefaultSnapshotIntervalMs = 1'000;
 		constexpr uint64_t kOneDayInMs = 86'400'000;
 		constexpr uint64_t kFxdPntMultiplier = 1'000'000'000;
-		constexpr std::string_view kDefaultLogDir = "../logs";
-		constexpr std::string_view kDefaultReportDir = "../reports";
-		constexpr std::string_view kDefaultRiskMode = "percentofacct";
-		constexpr double kDefaultMaxPositionSize = 3;
+		constexpr uint64_t kDefaultMaxPositionSize = 3;
 		constexpr double kDefaultMaxRiskPerTradePct = .02;
 		constexpr double kDefaultMaxPortfolioDelta = 0;
 		constexpr double kDefaultMaxDrawdownPct= .2;
@@ -31,6 +32,13 @@ namespace backtester {
 		constexpr double kDefaultStockOrderMin = 0.035;
 		constexpr double kDefaultStockPerShare = 0.0002;
 		constexpr double kDefaultRiskFreeRate = 0.05;
+
+		constexpr RiskLimits kDefaultRiskLimits = {RiskMode::PercentOfAcct, 
+																							 kDefaultMaxPositionSize,
+																							 20'000'000, 
+																							 0, 
+																							 200'000'000, 
+																							 0};
 	}
 
 	std::vector<Symbol> ParseDataSymbols(const std::string& filepath) {
@@ -73,8 +81,17 @@ namespace backtester {
 		return instruments;
 	}
 
-	AppConfig ParseConfigFromJson(const nlohmann::json& data) {
+	AppConfig ParseConfigFromJson(const nlohmann::json& data, std::filesystem::path config_path) {
 		AppConfig config;
+		config_path = std::filesystem::absolute(config_path).lexically_normal();
+		std::filesystem::path config_dir = config_path.parent_path();
+
+    auto resolve = [&](std::string& p) {
+        std::filesystem::path fp(p);
+        if (fp.is_relative()) {
+            p = (config_dir / fp).lexically_normal().string();
+        }
+    };
 
 		// MARK: Start Time
 		std::string start_str = GetRequired<std::string>(data, "start_time", "Global Settings");
@@ -90,7 +107,7 @@ namespace backtester {
 		auto end_result = time::ParseIsoToUnix(end_str);
 		if (!end_result.success) {
 			throw std::runtime_error(fmt::format("Config 'end_time' error: {} in string ",
-				start_result.error_msg));
+				end_result.error_msg));
 		}
 		config.end_time = end_result.unix_nanos;
 
@@ -124,13 +141,15 @@ namespace backtester {
 		// MARK: Log File Path
 		config.log_file_path = GetOptional<std::string>(data, "log_file_path",
 			"Global Settings").value_or("");
-		if(config.log_file_path == "") config.log_file_path = kDefaultLogDir;
+		if(config.log_file_path == "") config.log_file_path = kRootFolder / "logs";
+		resolve(config.log_file_path);
 
 		// MARK: Report Output Directory
 		config.report_output_dir = GetOptional<std::string>(data, "report_output_dir",
 			"Global Settings").value_or("");
 		if(config.report_output_dir == "") config.report_output_dir = kDefaultReportDir;
-		
+		resolve(config.report_output_dir);
+
 		// MARK: Risk-Free Rate
 		config.risk_free_rate = GetOptional<double>(data, "risk_free_rate",
 			"Global Settings").value_or(kDefaultRiskFreeRate);
@@ -154,7 +173,7 @@ namespace backtester {
 		// MARK: Risk Limits
 		if (!data.contains("risk_limits")) {
 			spdlog::warn("No parsable risk limits detected, using default");
-			config.risk_limits = ParseRiskLimits({});
+			config.risk_limits = kDefaultRiskLimits;
 		}
 		else {
 			config.risk_limits = ParseRiskLimits(data["risk_limits"]);
@@ -164,14 +183,19 @@ namespace backtester {
 		if (!data.contains("data_streams") || !data["data_streams"].is_array() ||
 			!(data["data_streams"].size() > 0)) {
 			throw std::runtime_error(
-				"Config Error: 'strategies' must be a JSON array with at least one element.");
+				"Config Error: 'data_streams' must be a JSON array with at least one element.");
 		}
 		std::string context = "data streams";
 		for (const auto& stream : data["data_streams"]) {
 			DataSourceConfig data_config;
 			data_config.data_source_name = GetRequired<std::string>(stream, "data_source_name", context);
-			data_config.data_symbology = ParseDataSymbols(GetRequired<std::string>(stream, "symbology_filepath", context));
+			auto tmp_sym_path = GetRequired<std::string>(stream, "symbology_filepath", context);
+			resolve(tmp_sym_path);
+			data_config.data_symbology = ParseDataSymbols(tmp_sym_path);
+
 			data_config.data_filepath = GetRequired<std::string>(stream, "data_filepath", context);
+			resolve(data_config.data_filepath);
+
 			data_config.schema = StrToDataSchema(GetRequired<std::string>(stream, "schema", context));
 			data_config.encoding = StrToEncoding(GetRequired<std::string>(stream, "encoding", context));
 			data_config.compression = StrToCompression(GetRequired<std::string>(stream, "compression", context));
@@ -200,7 +224,7 @@ namespace backtester {
 
 	AppConfig ParseConfigToObj(const std::filesystem::path& config_path) {
 		using json = nlohmann::json;
-
+		
 		if (!std::filesystem::exists(config_path)) {
 			std::cout << "The file '" << config_path.c_str() << "' does not exist." << std::endl;
 			throw std::runtime_error("Config file not found at: " + config_path.generic_string());
@@ -218,7 +242,8 @@ namespace backtester {
 		catch (json::exception e) {
 			throw std::runtime_error("Config file is not valid JSON at: " + config_path.generic_string());
 		}
-		return ParseConfigFromJson(data);
+
+		return ParseConfigFromJson(data, config_path);
 	}
 
 	std::vector<Strategy> ParseStrategies(const nlohmann::json& strategies) {
@@ -244,7 +269,7 @@ namespace backtester {
 			TradedInstrument instr;
 			std::string context = "Traded Instruments";
 			instr.instrument_id = GetRequired<uint32_t>(item, "instrument_id",
-				"Traded Instruments");item["instrument_id"];
+				"Traded Instruments");
 			instr.instrument_type = ParseInstrType(GetRequired<std::string>(item,
 				"instrument_type", "Traded Instruments"));
 			instr.tick_size = numericUtils::doubleToFixedPoint(GetRequired<double>( // TODO check if number is reasonable
@@ -273,8 +298,8 @@ namespace backtester {
 		std::string context = "Risk Limits";
 		res.risk_mode = ParseRiskMode(GetOptional<std::string>(data,
 			"risk_mode", context).value_or(""));
-		res.max_position_size = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
-			"max_position_size", context).value_or(kDefaultMaxPositionSize));
+		res.max_position_size = GetOptional<int64_t>(data,
+			"max_position_size", context).value_or(kDefaultMaxPositionSize);
 		res.max_risk_per_trade_pct = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
 			"max_risk_per_trade_pct", context).value_or(kDefaultMaxRiskPerTradePct));
 		res.max_portfolio_delta = numericUtils::doubleToFixedPoint(GetOptional<double>(data,

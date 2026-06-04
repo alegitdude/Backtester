@@ -105,15 +105,15 @@ struct RiskLimits {
     RiskMode risk_mode;
     
     // Position-based limits (used if mode == PositionLimit)
-    int64_t max_position_size = 0;            // Max contracts/shares per instrument, 0 = no limit
+    int64_t max_position_size;       // Max contracts/shares per instrument, 0 = no limit
     
     // Risk-based limits (used if mode == RiskPercent)
-    int64_t max_risk_per_trade_pct = 20'000'000;     // Max 2% of equity at risk per trade
+    int64_t max_risk_per_trade_pct;  // Max % of equity at risk per trade
     
     // Always enforced
-    int64_t max_portfolio_delta = 0;         // Max total absolute delta, 0 = no limit
-    int64_t max_drawdown_pct = 10'000'000;           // 10% circuit breaker
-    int64_t max_delta_per_trade = 50000;     // Max dollar delta added per trade
+    int64_t max_portfolio_delta;     // Max total absolute delta, 0 = no limit
+    int64_t max_drawdown_pct;        // 10% circuit breaker
+    int64_t max_delta_per_trade;     // Max dollar delta added per trade
 };
 
 struct AppConfig {

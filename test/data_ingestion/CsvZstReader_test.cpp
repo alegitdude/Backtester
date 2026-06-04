@@ -16,14 +16,17 @@ namespace backtester {
 
 class CsvZstReaderTest : public ::testing::Test {
  protected:
+ const std::filesystem::path kTestDataFolder = TEST_DATA_DIR;
+ const std::filesystem::path kRootFolder = PROJECT_ROOT_DIR;
+
   std::string path_to_test_data = "../test/test_data/";
-  std::string path_to_simplezst = path_to_test_data + "simple.zst";
-  std::string path_to_emptyzst = path_to_test_data + "empty.zst";
-  std::string path_to_multilinezst = path_to_test_data + "multiline.zst";
+  std::string path_to_simplezst = kTestDataFolder / "simple.zst";
+  std::string path_to_emptyzst = kTestDataFolder / "empty.zst";
+  std::string path_to_multilinezst = kTestDataFolder / "multiline.zst";
 
   void createZstFile(const std::filesystem::path& filename, 
-                   const std::string& content, 
-                   int compressionLevel = 1) {
+                     const std::string& content, 
+                     int compressionLevel = 1) {
     // Validate compression level
     if (compressionLevel < 1 || compressionLevel > ZSTD_maxCLevel()) {
         throw std::invalid_argument("Invalid compression level");
@@ -69,7 +72,7 @@ class CsvZstReaderTest : public ::testing::Test {
 
 TEST_F(CsvZstReaderTest, ReadRealMbp10File) {
     CsvZstReader reader;
-    reader.Open(path_to_test_data + "ES-glbx-20251105.mbp-10.csv.zst");
+    reader.Open(kTestDataFolder / "ES-glbx-20251105.mbp-10.csv.zst");
     int lines = 0;
     std::string line;
     while (reader.ReadLine(line)) {  // This returns bool
@@ -144,10 +147,10 @@ TEST_F(CsvZstReaderTest, ReadEmptyFile) {
 
 // // Test file with no trailing newline 
 TEST_F(CsvZstReaderTest, ReadFileNoTrailingNewline) {
-    createZstFile(path_to_test_data + "notrailingNL", "line1\nline2");
+    createZstFile(kTestDataFolder / "notrailingNL", "line1\nline2");
     
     CsvZstReader reader;
-    ASSERT_TRUE(reader.Open(path_to_test_data + "notrailingNL"));
+    ASSERT_TRUE(reader.Open(kTestDataFolder / "notrailingNL"));
     
     std::string line;
     
@@ -162,9 +165,9 @@ TEST_F(CsvZstReaderTest, ReadFileNoTrailingNewline) {
 
 // // Test reading empty lines
 TEST_F(CsvZstReaderTest, ReadEmptyLines) {
-    createZstFile(path_to_test_data + "empty_lines.zst", "line1\n\nline3\n");
+    createZstFile(kTestDataFolder / "empty_lines.zst", "line1\n\nline3\n");
     CsvZstReader reader;
-    ASSERT_TRUE(reader.Open(path_to_test_data + "empty_lines.zst"));
+    ASSERT_TRUE(reader.Open(kTestDataFolder / "empty_lines.zst"));
     
     std::string line;
     
@@ -181,10 +184,10 @@ TEST_F(CsvZstReaderTest, ReadEmptyLines) {
 // // Test reading very long line (larger than buffer)
 TEST_F(CsvZstReaderTest, ReadLongLine) {
     std::string long_line(100000, 'a');  // 100KB line
-    createZstFile(path_to_test_data + "long.zst", long_line + "\n");
+    createZstFile(kTestDataFolder / "long.zst", long_line + "\n");
     
     CsvZstReader reader;
-    ASSERT_TRUE(reader.Open(path_to_test_data + "long.zst"));
+    ASSERT_TRUE(reader.Open(kTestDataFolder / "long.zst"));
     
     std::string line;
     EXPECT_TRUE(reader.ReadLine(line));
@@ -254,10 +257,10 @@ TEST_F(CsvZstReaderTest, ReadCsvContent) {
     std::string csv = "name,age,city\n"
                       "Alice,30,NYC\n"
                       "Bob,25,LA\n";
-    createZstFile(path_to_test_data + "csvdata.zst", csv);
+    createZstFile(kTestDataFolder / "csvdata.zst", csv);
     
     CsvZstReader reader;
-    ASSERT_TRUE(reader.Open(path_to_test_data + "csvdata.zst"));
+    ASSERT_TRUE(reader.Open(kTestDataFolder / "csvdata.zst"));
     
     std::string line;
     EXPECT_TRUE(reader.ReadLine(line));
@@ -272,7 +275,7 @@ TEST_F(CsvZstReaderTest, ReadCsvContent) {
 
 TEST_F(CsvZstReaderTest, ReadRealMBOFile) {
     CsvZstReader reader;
-    reader.Open(path_to_test_data + "futures_mbo.csv.zst");
+    reader.Open(kTestDataFolder / "futures_mbo.csv.zst");
     int lines = 0;
     std::string line;
      while (reader.ReadLine(line)) {  // This returns bool

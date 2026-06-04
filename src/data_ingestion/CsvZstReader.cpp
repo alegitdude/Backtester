@@ -46,6 +46,11 @@ void CsvZstReader::Close() {
         ZSTD_freeDStream(dstream_);
         dstream_ = nullptr;
     }
+    input_pos_ = 0;
+    input_valid_size_ = 0;
+    output_pos_ = 0;
+    output_size_ = 0;
+    eof_reached_ = true;
 }
 
 // MARK: READLINE
@@ -88,6 +93,7 @@ bool CsvZstReader::ReadLine(std::string& line) {
 // MARK: FILLBUFFER
 // Reads compressed data from file and decompresses it into output buffer
 bool CsvZstReader::FillBuffer() {
+    if (!dstream_) return false;
     // If output still has data (rare logic case, but safe to check)
     if (output_pos_ < output_size_) return true;
 

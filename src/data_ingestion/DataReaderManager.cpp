@@ -46,8 +46,7 @@ bool DataReaderManager::RegisterAndInitStreams(
         readers_.push_back({std::move(reader), source});
 
     }
-
-    std::cout << "Data readers initialized" << std::endl;;      
+    spdlog::info("Data readers initialized" );
     return true;
 }
 

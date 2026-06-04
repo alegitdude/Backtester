@@ -44,6 +44,7 @@ src/reporting/ReportGenerator.cpp
 include/core/Constants.h src/utils/NumericUtils.cpp src/utils/StringUtils.cpp
 include/strategy/IStrategy.h include/strategy/StrategyRegistry.h include/core/DefaultConfig.h
 include/market_state/IMarketDataProvider.h ${USER_STRATEGY_SOURCES})
+target_compile_definitions(CoreLogic PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
 
 
 add_executable(Backtester src/main.cpp)
@@ -56,6 +57,8 @@ add_executable(tests
     test/market_state/OrderBook_test.cpp
 )
 target_compile_options(tests PRIVATE -O3)
+target_compile_definitions(tests PRIVATE TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/test_data")
+target_compile_definitions(tests PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
 
 target_link_libraries(CoreLogic PRIVATE spdlog::spdlog zstd PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(tests PUBLIC nlohmann_json::nlohmann_json PRIVATE GTest::gtest_main zstd spdlog CoreLogic)

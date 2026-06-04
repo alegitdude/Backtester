@@ -11,6 +11,9 @@
 
 namespace backtester {
 
+const std::filesystem::path kTestDataFolder = TEST_DATA_DIR;
+const std::filesystem::path kRootFolder = PROJECT_ROOT_DIR;
+
 struct ExpectedMBP10 {
     uint64_t ts_event;
     int64_t price;
@@ -25,7 +28,7 @@ class OrderBookTest : public ::testing::Test {
 
     DataSourceConfig data_source = {
         .data_source_name = "ES",
-        .data_filepath = "../test/test_data/ES-glbx-20251105.mbp-10.csv.zst", 
+        .data_filepath = kTestDataFolder / "ES-glbx-20251105.mbp-10.csv.zst", 
         .schema = DataSchema::MBO, 
         .encoding = Encoding::CSV, 
         .compression = Compression::ZSTD, 
@@ -99,14 +102,14 @@ class OrderBookTest : public ::testing::Test {
 TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
     DataSourceConfig data_source = {
         .data_source_name = "ES",
-        .data_filepath = "../test/test_data/ES-glbx-20251105.mbo.csv.zst", 
+        .data_filepath = kTestDataFolder / "ES-glbx-20251105.mbo.csv.zst", 
         .schema = DataSchema::MBO, 
         .encoding = Encoding::CSV, 
         .compression = Compression::ZSTD, 
         .price_format = PriceFormat::FIXPNTINT, 
         .ts_format = TmStampFormat::UNIX };
     
-    std::string sym_path = "../test/test_data/ES-20251105_symbology.csv";
+    std::string sym_path = kTestDataFolder / "ES-20251105_symbology.csv";
     std::vector<Symbol> symbols = backtester::ParseDataSymbols(sym_path);
 
     AppConfig config = {.data_configs = std::vector<DataSourceConfig>{data_source},
@@ -116,7 +119,7 @@ TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
 		config.active_instruments.push_back(symbol.instrument_id);	
 	}
     
-    LoadExpectedMbp10("../test/test_data/ES-glbx-20251105.mbp-10.csv.zst");
+    LoadExpectedMbp10(kTestDataFolder / "ES-glbx-20251105.mbp-10.csv.zst");
 
     EventQueue event_queue;
     DataReaderManager data_reader_manager;
@@ -172,22 +175,22 @@ TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
                 const auto& expected_levels = idx_vec_pair.second[idx_vec_pair.first].levels;
                 const auto& actual_levels = market_state_manager.GetOBSnapshot(
                     market_event->instrument_id, market_event->publisher_id, 10);
+
                 for(size_t i = 0; i < 10; i++){
                     EXPECT_EQ(actual_levels[i], expected_levels[i])
                         << "Mismatch at ts_event = " << idx_vec_pair.second[idx_vec_pair.first].ts_event
                         << " after " << events_processed << " MBO events";
                 }
-                //EXPECT_EQ(actual_levels, expected_levels)
-                    // << "Mismatch at ts_event = " << idx_vec_pair.second[idx_vec_pair.first].ts_event
-                    // << " after " << events_processed << " MBO events";
                 
                 idx_vec_pair.first++;
                 if(idx_vec_pair.first > idx_vec_pair.second.size() - 1){
                     expected_mbp10_map_.erase(instr_id);
                 }
                 BidAskPair state_bbo = market_state_manager.GetInstrumentBbo(market_event->instrument_id);
-                EXPECT_EQ(state_bbo, actual_levels[0])
-                    << "dang";
+                EXPECT_EQ(state_bbo, actual_levels[0]);
+                    // << "Mismatch between state_bbo:" << state_bbo << "& actual_levels" << actual_levels[0]
+                    // << "at" << market_event->timestamp;
+
                 snapshots_compared++;               
             }                        
         } 

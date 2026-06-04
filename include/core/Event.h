@@ -19,7 +19,7 @@ enum EventType {
     kStrategyOrderModify,
     kStrategyOrderClear,
     kStrategyOrderFill,  
-    KStrategyOrderRejection, 
+    kStrategyOrderRejection, 
 
     kBacktestControlStart, // 14
     kBacktestControlEndOfDay,
@@ -45,6 +45,16 @@ enum SignalType {
     kSellSignal,
     kCancelSignal,
     kModifySignal
+};
+
+enum RejectionReason {
+    kInvalidTick,
+    kDrawdownLimit,
+    kInsufficientBuyingPower,
+    kNonTradableInstr, 
+    kPositionLimit,
+    kNoOrderExists,
+    kUknownSignalType
 };
 
 struct TradeRecord {
@@ -206,6 +216,37 @@ struct StrategyOrderEvent : Event {
     std::string strategy_id;
 };
 
+struct StrategyOrderRejectionEvent : Event {
+    StrategyOrderRejectionEvent(
+        uint64_t ts,  
+        EventType event_type, 
+        int32_t signal_id,
+        std::string strategy_id,
+        uint32_t instrument_id, 
+        SignalType signal_type, 
+        int64_t price,
+        uint32_t quantity,
+        RejectionReason reason
+    ) : Event(ts, EventType::kStrategyOrderRejection), 
+        signal_id(signal_id),
+        strategy_id(strategy_id),
+        instrument_id(instrument_id), 
+        signal_type(signal_type),
+        price(price), 
+        quantity(quantity),     
+        reason(reason) {}
+    
+    ~StrategyOrderRejectionEvent() {}
+
+    int32_t signal_id;
+    std::string strategy_id;
+    uint32_t instrument_id;
+    SignalType signal_type; 
+    int64_t price;
+    uint32_t quantity;
+    RejectionReason reason;
+};
+
 struct StrategyFillEvent : Event {
     StrategyFillEvent(
         uint64_t timestamp,
@@ -233,6 +274,7 @@ struct StrategyFillEvent : Event {
     std::string strategy_id;
     int64_t commission;
 };
+
 
 //////////////////////////////////////////////////////////////
 ///////////// MARK: Backtester Classes

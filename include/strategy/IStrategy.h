@@ -18,6 +18,8 @@ class IStrategy {
 
     virtual void OnFill(const StrategyFillEvent& fill) = 0;
 
+    virtual void OnRejection(const StrategyOrderRejectionEvent& msg) = 0;
+
     virtual void OnEndOfDay(uint64_t timestamp) = 0;
 
     std::string GetId() const { return strategy_id_; }

@@ -23,6 +23,10 @@ public:
         return;
     }
 
+    virtual void OnRejection(const StrategyOrderRejectionEvent& msg) override {
+        return;
+    }
+
     virtual void OnEndOfDay(uint64_t timestamp) override {
         return; 
     }

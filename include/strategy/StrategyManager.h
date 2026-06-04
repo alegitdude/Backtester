@@ -22,6 +22,8 @@ class StrategyManager {
     
     void OnFillEvent(const StrategyFillEvent& fill);
 
+    void OnRejectionEvent(const StrategyOrderRejectionEvent& msg);
+
  private: 
     const AppConfig& config_;
     //const IMarketDataProvider& data_provider_;

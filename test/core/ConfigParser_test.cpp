@@ -1,8 +1,9 @@
 #include "../../include/core/ConfigParser.h"
-#include "../../include/core/DefaultConfig.h"
 #include <gtest/gtest.h>
 
 namespace backtester {
+const std::filesystem::path kTestDataFolder = TEST_DATA_DIR;
+const std::filesystem::path kRootFolder = PROJECT_ROOT_DIR;
 
 class ConfigParserTest : public ::testing::Test {
  protected:
@@ -11,7 +12,7 @@ class ConfigParserTest : public ::testing::Test {
 
 /////////////// ParseConfigToObj ////////////////////
 TEST_F(ConfigParserTest, ThrowsWhenPathDoesNotExist) {
-    std::filesystem::path bad_path = "/nonexistent/config.json";
+    std::filesystem::path bad_path = kTestDataFolder / "/nonexistent/config.json";
     
     EXPECT_THROW({
         ParseConfigToObj(bad_path);
@@ -19,7 +20,7 @@ TEST_F(ConfigParserTest, ThrowsWhenPathDoesNotExist) {
 }
 
 TEST_F(ConfigParserTest, ThrowsWhenFileDoesNotOpen) {
-    std::filesystem::path cant_open = "../test/test_data/no-access.txt";
+    std::filesystem::path cant_open = kTestDataFolder / "no-access.txt";
     
     EXPECT_THROW({
         ParseConfigToObj(cant_open);
@@ -27,7 +28,7 @@ TEST_F(ConfigParserTest, ThrowsWhenFileDoesNotOpen) {
 }
 
 TEST_F(ConfigParserTest, ThrowsWhenNotValidJson) {
-    std::filesystem::path not_json_path = "../test/test_data/futures_mbo.csv.zst";
+    std::filesystem::path not_json_path = kTestDataFolder/ "futures_mbo.csv.zst";
     
     EXPECT_THROW({
         ParseConfigToObj(not_json_path);
@@ -42,8 +43,8 @@ TEST_F(ConfigParserTest, ParsesValidConfigWithAllFields) {
         {"end_time", "2024-01-01T16:00:00Z"},
         {"execution_latency_ms", 100},
         {"initial_cash", 100000},
-        {"log_file_path", "../../logs"},
-        {"report_output_dir", "../../reports"},
+        {"log_file_path", kTestDataFolder / "logs"},
+        {"report_output_dir", kTestDataFolder / "reports"},
         {"strategies", {{
 			{"name", "MovAvgCrossMin"},
             {"traded_instr_id", 294973},
@@ -69,8 +70,8 @@ TEST_F(ConfigParserTest, ParsesValidConfigWithAllFields) {
 		}},
         {"data_streams", {{
 				{"data_source_name" , "ES"},
-				{"symbology_filepath" , "../test/test_data/ES-20251105_symbology.csv"}, 
-				{"data_filepath" , "../test/test_data/futures_mbo.csv.zst"}, 
+				{"symbology_filepath" , kTestDataFolder / "ES-20251105_symbology.csv"}, 
+				{"data_filepath" , kTestDataFolder / "futures_mbo.csv.zst"}, 
 				{"encoding" , "CSV"},
 				{"schema" , "MBO"},
 				{"compression" , "ZSTD"},
@@ -78,8 +79,8 @@ TEST_F(ConfigParserTest, ParsesValidConfigWithAllFields) {
 				{"timestamp_format" , "unix"}			
 			}}}
     };
-    
-    AppConfig result = ParseConfigFromJson(valid_config);
+    auto fake_path = kRootFolder / "config";
+    AppConfig result = ParseConfigFromJson(valid_config, fake_path);
     // MARK: answers
     DataSourceConfig stream;
     stream.data_source_name = "ES";
@@ -88,7 +89,7 @@ TEST_F(ConfigParserTest, ParsesValidConfigWithAllFields) {
     stream.price_format = PriceFormat::DECIMAL;
     stream.schema = DataSchema::MBO;
     stream.ts_format = TmStampFormat::UNIX;
-    stream.data_filepath = "../test/test_data/futures_mbo.csv.zst";
+    stream.data_filepath = kTestDataFolder / "futures_mbo.csv.zst";
     stream.data_symbology = {{"ESH7",42140860, "2025-11-05"},
                             {"ESM9",42005050,"2025-11-05"},
                             {"ESM6-ESH7",42008149,"2025-11-05"},
@@ -150,8 +151,8 @@ TEST_F(ConfigParserTest, ParsesValidConfigWithAllFields) {
     EXPECT_EQ(result.end_time, 1704124800000000000);
     EXPECT_EQ(result.execution_latency_ms, 100);
     EXPECT_EQ(result.initial_cash, 100000'000000000);
-    EXPECT_EQ(result.log_file_path, "../../logs");
-    EXPECT_EQ(result.report_output_dir, "../../reports");
+    EXPECT_EQ(result.log_file_path, kTestDataFolder / "logs");
+    EXPECT_EQ(result.report_output_dir, kTestDataFolder / "reports");
     EXPECT_EQ(result.strategies[0].name, strategies[0].name);
     EXPECT_EQ(result.strategies[0].params, strategies[0].params);
     EXPECT_EQ(result.strategies[0].max_lob_lvl, strategies[0].max_lob_lvl);
@@ -178,60 +179,4 @@ TEST_F(ConfigParserTest, ParsesValidConfigWithAllFields) {
     }
 }
 
-TEST_F(ConfigParserTest, DefaultConfigMatchesDefault) {
-    AppConfig defConfig = GetDefaultConfig();
-    //std::filesystem::
-    std::string path = "../config/demo.json";
-    AppConfig parsedConfig = ParseConfigToObj(path);
-
-    EXPECT_EQ(defConfig.start_time, parsedConfig.start_time);
-    EXPECT_EQ(defConfig.end_time, parsedConfig.end_time);
-    EXPECT_EQ(defConfig.execution_latency_ms, parsedConfig.execution_latency_ms);
-    EXPECT_EQ(defConfig.snapshot_interval_ns, parsedConfig.snapshot_interval_ns);
-    EXPECT_EQ(defConfig.initial_cash, parsedConfig.initial_cash);
-    EXPECT_EQ(defConfig.log_file_path, parsedConfig.log_file_path);
-    EXPECT_EQ(defConfig.report_output_dir, parsedConfig.report_output_dir);
-    EXPECT_EQ(defConfig.risk_free_rate, parsedConfig.risk_free_rate);
-    EXPECT_EQ(defConfig.report_output_dir, parsedConfig.report_output_dir);
-
-    EXPECT_EQ(defConfig.strategies[0].name, parsedConfig.strategies[0].name);
-    EXPECT_EQ(defConfig.strategies[0].params, parsedConfig.strategies[0].params);
-    EXPECT_EQ(defConfig.strategies[0].traded_instr_id, parsedConfig.strategies[0].traded_instr_id);
-    EXPECT_EQ(defConfig.strategies[0].max_lob_lvl, parsedConfig.strategies[0].max_lob_lvl);
-
-    EXPECT_EQ(defConfig.traded_instruments[0].instrument_id, parsedConfig.traded_instruments[0].instrument_id);
-    EXPECT_EQ(defConfig.traded_instruments[0].instrument_type, parsedConfig.traded_instruments[0].instrument_type);
-    EXPECT_EQ(defConfig.traded_instruments[0].init_margin_req, parsedConfig.traded_instruments[0].init_margin_req);
-    EXPECT_EQ(defConfig.traded_instruments[0].main_margin_req, parsedConfig.traded_instruments[0].main_margin_req);
-    EXPECT_EQ(defConfig.traded_instruments[0].tick_size, parsedConfig.traded_instruments[0].tick_size);
-    EXPECT_EQ(defConfig.traded_instruments[0].tick_value, parsedConfig.traded_instruments[0].tick_value);
-    EXPECT_EQ(defConfig.active_instruments, parsedConfig.active_instruments);
-
-    EXPECT_EQ(defConfig.risk_limits.risk_mode, parsedConfig.risk_limits.risk_mode);
-    EXPECT_EQ(defConfig.risk_limits.max_position_size, parsedConfig.risk_limits.max_position_size);
-    EXPECT_EQ(defConfig.risk_limits.max_risk_per_trade_pct, parsedConfig.risk_limits.max_risk_per_trade_pct);
-    EXPECT_EQ(defConfig.risk_limits.max_portfolio_delta, parsedConfig.risk_limits.max_portfolio_delta);
-    EXPECT_EQ(defConfig.risk_limits.max_drawdown_pct, parsedConfig.risk_limits.max_drawdown_pct);
-    EXPECT_EQ(defConfig.risk_limits.max_delta_per_trade, parsedConfig.risk_limits.max_delta_per_trade);
-
-    EXPECT_EQ(defConfig.data_configs[0].compression, parsedConfig.data_configs[0].compression);
-    EXPECT_EQ(defConfig.data_configs[0].data_filepath, parsedConfig.data_configs[0].data_filepath);
-    EXPECT_EQ(defConfig.data_configs[0].data_source_name, parsedConfig.data_configs[0].data_source_name);
-    EXPECT_EQ(defConfig.data_configs[0].encoding, parsedConfig.data_configs[0].encoding);
-    EXPECT_EQ(defConfig.data_configs[0].price_format, parsedConfig.data_configs[0].price_format);
-    EXPECT_EQ(defConfig.data_configs[0].schema, parsedConfig.data_configs[0].schema);
-    EXPECT_EQ(defConfig.data_configs[0].ts_format, parsedConfig.data_configs[0].ts_format);
-
-    for(int i = 0; i < defConfig.data_configs[0].data_symbology.size(); i++){
-        EXPECT_EQ(defConfig.data_configs[0].data_symbology[i].date, parsedConfig.data_configs[0].data_symbology[i].date);
-        EXPECT_EQ(defConfig.data_configs[0].data_symbology[i].instrument_id, parsedConfig.data_configs[0].data_symbology[i].instrument_id);
-        EXPECT_EQ(defConfig.data_configs[0].data_symbology[i].symbol, parsedConfig.data_configs[0].data_symbology[i].symbol);
-    }
-
-    EXPECT_EQ(defConfig.commission_struct.fut_per_contract, parsedConfig.commission_struct.fut_per_contract);
-    EXPECT_EQ(defConfig.commission_struct.stock_clearing_fee, parsedConfig.commission_struct.stock_clearing_fee);
-    EXPECT_EQ(defConfig.commission_struct.stock_order_min, parsedConfig.commission_struct.stock_order_min);
-    EXPECT_EQ(defConfig.commission_struct.stock_per_share, parsedConfig.commission_struct.stock_per_share);
-
-}
 }

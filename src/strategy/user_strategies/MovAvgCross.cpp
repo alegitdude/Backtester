@@ -132,6 +132,12 @@ namespace backtester {
 
         }
 
+        virtual void OnRejection(const StrategyOrderRejectionEvent& event) override {
+            pending_order_ = false;
+            spdlog::warn("MovAvgCross[{}] order rejected: reason={}",
+                 strategy_id_, static_cast<int>(event.reason));
+        }
+
         virtual void OnEndOfDay(uint64_t timestamp) override {
             return;
         }
