@@ -2,7 +2,7 @@
  
 A single-threaded, event-driven backtesting framework in C++17 for futures and equities strategies, built around Databento MBO (Market-By-Order) feeds. Reconstructs the full limit order book from order-level data, replays strategies against historical events, and produces per-trade and equity-curve reports.
  
-**Throughput on the hot path: 15.9 M events/sec** on a single core processing 16.1M ES futures MBO messages (full venue book reconstruction). See [BENCHMARKS.md](./BENCHMARKS.md) for the full optimization log.
+**Throughput on the hot path: 15.9 M events/sec** on a single core processing 16.1M ES futures MBO messages (full venue book reconstruction). See [BENCHMARKS.md](./docs/BENCHMARKS.md) for the full optimization log.
  
 **Correctness validated against Databento MBP-10:** every reconstructed top-10 snapshot is asserted equal to the published aggregated book at the same sequence number. See [Validation](#validation).
  
