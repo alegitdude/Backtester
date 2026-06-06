@@ -27,11 +27,12 @@ class ExecutionHandlerTest : public ::testing::Test {
         config_.execution_latency_ms = kLatencyMs;
         config_.initial_cash = 100000;
         config_.traded_instruments = {{
-            .instrument_id = kInstrId,
-            .instrument_type = InstrumentType::FUT,
-            .tick_size = kTickSize,
-            .tick_value = kTickValue,
-            .margin_req = 16500'000000000
+            kInstrId,
+            InstrumentType::FUT,
+            kTickSize,
+            kTickValue,
+            16500'000000000,
+            16500'000000000
         }};
     }
 
@@ -140,7 +141,7 @@ class ExecutionHandlerTest : public ::testing::Test {
 // =============================================================================
 
 TEST_F(ExecutionHandlerTest, InitialState_NoPendingOrders) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
 
     EXPECT_FALSE(eh.HasPendingOrders());
     EXPECT_EQ(eh.PendingOrderCount(), 0);
@@ -152,7 +153,7 @@ TEST_F(ExecutionHandlerTest, InitialState_NoPendingOrders) {
 // =============================================================================
 
 TEST_F(ExecutionHandlerTest, PassiveAdd_RegistersPendingOrder) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Bid at 5000 is passive (at the bid, not crossing ask at 5025)
@@ -178,7 +179,7 @@ TEST_F(ExecutionHandlerTest, PassiveAdd_RegistersPendingOrder) {
 }
 
 TEST_F(ExecutionHandlerTest, PassiveAdd_AskSide) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Ask at 5025 is passive (at the ask, not crossing bid at 5000)
@@ -194,7 +195,7 @@ TEST_F(ExecutionHandlerTest, PassiveAdd_AskSide) {
 }
 
 TEST_F(ExecutionHandlerTest, PassiveAdd_BidDeepInBook) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Bid at 4950 — well below the current bid, deeply passive
@@ -209,7 +210,7 @@ TEST_F(ExecutionHandlerTest, PassiveAdd_BidDeepInBook) {
 }
 
 TEST_F(ExecutionHandlerTest, PassiveAdd_ZeroQueueDepth) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Bid at a new price level nobody else is at — queue depth is 0
@@ -223,7 +224,7 @@ TEST_F(ExecutionHandlerTest, PassiveAdd_ZeroQueueDepth) {
 }
 
 TEST_F(ExecutionHandlerTest, DuplicateOrderId_Rejected) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order1 = MakeOrderAdd(1, OrderSide::kBid, 5000, 3, 1000);
@@ -244,7 +245,7 @@ TEST_F(ExecutionHandlerTest, DuplicateOrderId_Rejected) {
 // =============================================================================
 
 TEST_F(ExecutionHandlerTest, MarketableOrder_BidAtAsk_FillsImmediately) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Bid at ask price = marketable
@@ -267,7 +268,7 @@ TEST_F(ExecutionHandlerTest, MarketableOrder_BidAtAsk_FillsImmediately) {
 }
 
 TEST_F(ExecutionHandlerTest, MarketableOrder_BidAboveAsk) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Bid above ask price = clearly marketable
@@ -281,7 +282,7 @@ TEST_F(ExecutionHandlerTest, MarketableOrder_BidAboveAsk) {
 }
 
 TEST_F(ExecutionHandlerTest, MarketableOrder_AskAtBid_FillsImmediately) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Ask at bid price = marketable sell
@@ -299,7 +300,7 @@ TEST_F(ExecutionHandlerTest, MarketableOrder_AskAtBid_FillsImmediately) {
 }
 
 TEST_F(ExecutionHandlerTest, MarketableOrder_AskBelowBid) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(4, OrderSide::kAsk, 4975, 1, 1000);
@@ -312,7 +313,7 @@ TEST_F(ExecutionHandlerTest, MarketableOrder_AskBelowBid) {
 }
 
 TEST_F(ExecutionHandlerTest, MarketableOrder_ZeroBbo_NotMarketable) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {0, 0, 0, 0, 0, 0}; // No market yet
 
     auto order = MakeOrderAdd(5, OrderSide::kBid, 5025, 1, 1000);
@@ -324,7 +325,7 @@ TEST_F(ExecutionHandlerTest, MarketableOrder_ZeroBbo_NotMarketable) {
 }
 
 TEST_F(ExecutionHandlerTest, MarketableOrder_OneSideZeroBbo) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 0, 0, 0}; // No ask
 
     auto order = MakeOrderAdd(6, OrderSide::kBid, 5050, 1, 1000);
@@ -340,7 +341,7 @@ TEST_F(ExecutionHandlerTest, MarketableOrder_OneSideZeroBbo) {
 // =============================================================================
 
 TEST_F(ExecutionHandlerTest, LatencyGating_OrderNotLiveBeforeLatency) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Place order at ts=1000, latency=500ms=500,000,000ns, live at 500,001,000
@@ -356,7 +357,7 @@ TEST_F(ExecutionHandlerTest, LatencyGating_OrderNotLiveBeforeLatency) {
 }
 
 TEST_F(ExecutionHandlerTest, LatencyGating_OrderLiveExactlyAtLatency) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -373,7 +374,7 @@ TEST_F(ExecutionHandlerTest, LatencyGating_OrderLiveExactlyAtLatency) {
 }
 
 TEST_F(ExecutionHandlerTest, LatencyGating_OrderLiveAfterLatency) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -392,7 +393,7 @@ TEST_F(ExecutionHandlerTest, LatencyGating_OrderLiveAfterLatency) {
 // =============================================================================
 
 TEST_F(ExecutionHandlerTest, QueueDrain_CancelReducesQtyAhead) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -415,7 +416,7 @@ TEST_F(ExecutionHandlerTest, QueueDrain_CancelReducesQtyAhead) {
 }
 
 TEST_F(ExecutionHandlerTest, QueueDrain_CancelBeyondQueueGoesNegative) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -436,7 +437,7 @@ TEST_F(ExecutionHandlerTest, QueueDrain_CancelBeyondQueueGoesNegative) {
 }
 
 TEST_F(ExecutionHandlerTest, QueueDrain_CancelOnWrongSide_NoEffect) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -452,7 +453,7 @@ TEST_F(ExecutionHandlerTest, QueueDrain_CancelOnWrongSide_NoEffect) {
 }
 
 TEST_F(ExecutionHandlerTest, QueueDrain_CancelAtDifferentPrice_NoEffect) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -472,7 +473,7 @@ TEST_F(ExecutionHandlerTest, QueueDrain_CancelAtDifferentPrice_NoEffect) {
 // =============================================================================
 
 TEST_F(ExecutionHandlerTest, TradeFill_QueueFullyDrainedThenFill) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 2, 1000);
@@ -492,7 +493,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_QueueFullyDrainedThenFill) {
 }
 
 TEST_F(ExecutionHandlerTest, TradeFill_ExactQueueDepthTrade_NoFill) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 2, 1000);
@@ -510,7 +511,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_ExactQueueDepthTrade_NoFill) {
 }
 
 TEST_F(ExecutionHandlerTest, TradeFill_PartialFill) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Order for 10 contracts, 5 ahead
@@ -537,7 +538,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_PartialFill) {
 }
 
 TEST_F(ExecutionHandlerTest, TradeFill_PartialThenComplete) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kAsk, 5025, 10, 1000);
@@ -563,7 +564,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_PartialThenComplete) {
 }
 
 TEST_F(ExecutionHandlerTest, TradeFill_QueueZero_ImmediateFillOnTrade) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Place at front of queue
@@ -582,7 +583,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_QueueZero_ImmediateFillOnTrade) {
 }
 
 TEST_F(ExecutionHandlerTest, TradeFill_AskSide) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kAsk, 5025, 2, 1000);
@@ -602,7 +603,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_AskSide) {
 }
 
 TEST_F(ExecutionHandlerTest, TradeFill_CancelsThenTrade) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -626,7 +627,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_CancelsThenTrade) {
 }
 
 TEST_F(ExecutionHandlerTest, TradeFill_MarketStrategyFillEventType_AlsoFills) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -647,7 +648,7 @@ TEST_F(ExecutionHandlerTest, TradeFill_MarketStrategyFillEventType_AlsoFills) {
 // =============================================================================
 
 TEST_F(ExecutionHandlerTest, TradeThrough_BidFilledWhenTradeBelow) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Resting bid at 5000 with lots of queue ahead
@@ -668,7 +669,7 @@ TEST_F(ExecutionHandlerTest, TradeThrough_BidFilledWhenTradeBelow) {
 }
 
 TEST_F(ExecutionHandlerTest, TradeThrough_AskFilledWhenTradeAbove) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kAsk, 5025, 3, 1000);
@@ -688,7 +689,7 @@ TEST_F(ExecutionHandlerTest, TradeThrough_AskFilledWhenTradeAbove) {
 }
 
 TEST_F(ExecutionHandlerTest, TradeThrough_TradeAtExactPrice_NotTradeThrough) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -706,7 +707,7 @@ TEST_F(ExecutionHandlerTest, TradeThrough_TradeAtExactPrice_NotTradeThrough) {
 }
 
 TEST_F(ExecutionHandlerTest, TradeThrough_WrongDirection_NoFill) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Bid at 5000
@@ -728,7 +729,7 @@ TEST_F(ExecutionHandlerTest, TradeThrough_WrongDirection_NoFill) {
 // =============================================================================
 
 TEST_F(ExecutionHandlerTest, CancelOrder_RemovesPending) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 3, 1000);
@@ -743,7 +744,7 @@ TEST_F(ExecutionHandlerTest, CancelOrder_RemovesPending) {
 }
 
 TEST_F(ExecutionHandlerTest, CancelOrder_UnknownId_NoEffect) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 3, 1000);
@@ -762,7 +763,7 @@ TEST_F(ExecutionHandlerTest, CancelOrder_UnknownId_NoEffect) {
 // =============================================================================
 
 TEST_F(ExecutionHandlerTest, ModifyOrder_PriceChange_LosesPriority) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 3, 1000);
@@ -780,7 +781,7 @@ TEST_F(ExecutionHandlerTest, ModifyOrder_PriceChange_LosesPriority) {
 }
 
 TEST_F(ExecutionHandlerTest, ModifyOrder_SizeIncrease_LosesPriority) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 3, 1000);
@@ -798,7 +799,7 @@ TEST_F(ExecutionHandlerTest, ModifyOrder_SizeIncrease_LosesPriority) {
 }
 
 TEST_F(ExecutionHandlerTest, ModifyOrder_SizeDecrease_RetainsPriority) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 5, 1000);
@@ -818,7 +819,7 @@ TEST_F(ExecutionHandlerTest, ModifyOrder_SizeDecrease_RetainsPriority) {
 }
 
 TEST_F(ExecutionHandlerTest, ModifyOrder_UnknownId_NoEffect) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto modify = MakeOrderModify(999, OrderSide::kBid, 5000, 3, 2000);
@@ -832,7 +833,7 @@ TEST_F(ExecutionHandlerTest, ModifyOrder_UnknownId_NoEffect) {
 // =============================================================================
 
 TEST_F(ExecutionHandlerTest, NoFill_NoPendingOrders_MarketEventIgnored) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto trade = MakeMboFill(5000, 100, 5000, OrderSide::kBid);
@@ -842,7 +843,7 @@ TEST_F(ExecutionHandlerTest, NoFill_NoPendingOrders_MarketEventIgnored) {
 }
 
 TEST_F(ExecutionHandlerTest, NoFill_TradeOnDifferentInstrument) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -859,7 +860,7 @@ TEST_F(ExecutionHandlerTest, NoFill_TradeOnDifferentInstrument) {
 }
 
 TEST_F(ExecutionHandlerTest, NoFill_TradeAtDifferentPrice) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -878,7 +879,7 @@ TEST_F(ExecutionHandlerTest, NoFill_TradeAtDifferentPrice) {
 }
 
 TEST_F(ExecutionHandlerTest, NoFill_InsufficientVolumeToDrainQueue) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -896,7 +897,7 @@ TEST_F(ExecutionHandlerTest, NoFill_InsufficientVolumeToDrainQueue) {
 }
 
 TEST_F(ExecutionHandlerTest, NoFill_OrderAddAtLevel_DoesNotAffectQueue) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -916,7 +917,7 @@ TEST_F(ExecutionHandlerTest, NoFill_OrderAddAtLevel_DoesNotAffectQueue) {
 // =============================================================================
 
 TEST_F(ExecutionHandlerTest, MultiplePending_IndependentQueueTracking) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Two orders at different prices
@@ -942,7 +943,7 @@ TEST_F(ExecutionHandlerTest, MultiplePending_IndependentQueueTracking) {
 }
 
 TEST_F(ExecutionHandlerTest, MultiplePending_BothFilledByTradeThrough) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order1 = MakeOrderAdd(1, OrderSide::kBid, 5000, 2, 1000);
@@ -962,7 +963,7 @@ TEST_F(ExecutionHandlerTest, MultiplePending_BothFilledByTradeThrough) {
 }
 
 TEST_F(ExecutionHandlerTest, MultiplePending_SamePriceSameSide) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Two orders at same price, different queue positions
@@ -984,7 +985,7 @@ TEST_F(ExecutionHandlerTest, MultiplePending_SamePriceSameSide) {
 }
 
 TEST_F(ExecutionHandlerTest, MultiplePending_BidAndAsk) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto bid_order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -1007,7 +1008,7 @@ TEST_F(ExecutionHandlerTest, MultiplePending_BidAndAsk) {
 // =============================================================================
 
 TEST_F(ExecutionHandlerTest, StrategyFillEvent_HasCorrectFields) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(42, OrderSide::kAsk, 5025, 7, 1000);
@@ -1032,7 +1033,7 @@ TEST_F(ExecutionHandlerTest, StrategyFillEvent_HasCorrectFields) {
 }
 
 TEST_F(ExecutionHandlerTest, StrategyFillEvent_MarketableFillTimestamp) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5030, 1, 3000);
@@ -1137,7 +1138,7 @@ TEST_F(ExecutionHandlerTest, StrategyFillEvent_MarketableFillTimestamp) {
 // =============================================================================
 
 TEST_F(ExecutionHandlerTest, EdgeCase_UnhandledOrderType_NoSideEffect) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // kStrategyOrderClear — not explicitly handled, falls to default
@@ -1152,7 +1153,7 @@ TEST_F(ExecutionHandlerTest, EdgeCase_UnhandledOrderType_NoSideEffect) {
 }
 
 TEST_F(ExecutionHandlerTest, EdgeCase_MarketOrderAdd_NoFill) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 1, 1000);
@@ -1169,7 +1170,7 @@ TEST_F(ExecutionHandlerTest, EdgeCase_MarketOrderAdd_NoFill) {
 }
 
 TEST_F(ExecutionHandlerTest, EdgeCase_LargeOrderSmallTrades_IncrementalFill) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 100, 1000);
@@ -1198,7 +1199,7 @@ TEST_F(ExecutionHandlerTest, EdgeCase_LargeOrderSmallTrades_IncrementalFill) {
 }
 
 TEST_F(ExecutionHandlerTest, EdgeCase_CancelAfterPartialFill) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 10, 1000);
@@ -1224,7 +1225,7 @@ TEST_F(ExecutionHandlerTest, EdgeCase_CancelAfterPartialFill) {
 }
 
 TEST_F(ExecutionHandlerTest, EdgeCase_ModifyAfterPartialFill) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 10, 1000);
@@ -1248,7 +1249,7 @@ TEST_F(ExecutionHandlerTest, EdgeCase_ModifyAfterPartialFill) {
 }
 
 TEST_F(ExecutionHandlerTest, EdgeCase_ManyOrders_CancelSome_FillRest) {
-    ExecutionHandler eh(event_queue_, config_.execution_latency_ms);
+    ExecutionHandler eh(event_queue_, config_);
     BidAskPair bbo = {5000, 1, 1, 5025, 1, 1};
 
     // Place 5 orders at different prices

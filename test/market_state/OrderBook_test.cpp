@@ -125,7 +125,7 @@ TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
     DataReaderManager data_reader_manager;
     MarketStateManager market_state_manager;
     std::vector<uint32_t> traded_instrs = {1};
-    market_state_manager.Initialize(config.active_instruments, traded_instrs);
+    market_state_manager.Initialize(config.active_instruments);
     
     ASSERT_TRUE(data_reader_manager.RegisterAndInitStreams(config.data_configs));
     for (const DataSourceConfig& source : config.data_configs) {

@@ -17,22 +17,13 @@
 #include <memory>
 #include <fstream>
 
-namespace PrintHelper {
-    inline void BacktestStart() {
-        std::cout << "Backtester Program Started" << std::endl;
-    };
-
-    inline void PrintLogPath(std::string path) {
-        std::cout << "Logs outputting to:" << path << std::endl;
-    };
-};
-
 void SetupLogging(std::string log_path) {
     auto now = std::chrono::system_clock::now();
     std::time_t currentTime_t = std::chrono::system_clock::to_time_t(now);
     std::string time_string = std::ctime(&currentTime_t);
 
-    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path + "/" + time_string + ".log", true);
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path 
+        + "/" + time_string + ".log", true);
     auto logger = std::make_shared<spdlog::logger>("main_logger", file_sink);
     spdlog::set_default_logger(logger);
     spdlog::set_level(spdlog::level::debug);
@@ -40,39 +31,42 @@ void SetupLogging(std::string log_path) {
 }
 
 int main(int argc, char* argv[]) {
-    PrintHelper::BacktestStart();
-    
+    spdlog::info("Backtester Program Started");
+
     if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " <path to config.json>\n"
-            << "  Try the included demo: " << argv[0] << " ../config/demo.json\n";
+        spdlog::error(R"(Usage: {} <path to config.json> 
+            Try running the included demo from the build folder: 
+            {} ../config/demo.json)", 
+            argv[0], argv[0]);
         return 1;
     }
 
     std::filesystem::path config_path;    
     std::string arg = argv[1];
     if (arg == "-h" || arg == "--help") {
-        std::cout << "Usage: " << argv[0] << " [path to config.json]\n"
-            << "  Runs a backtest with the specified config.\n";
+        spdlog::info(R"(Usage: {} [path to config.json]
+            Runs a backtest with the specified configuration.)");
         return 0;
     }
     config_path = arg;
 
     if (!std::filesystem::exists(config_path)) {
-        std::cerr << "Config file not found: " << config_path << "\n";
+        spdlog::error("Config file not found: {}", config_path.generic_string());
         return 1;
     }
     if (config_path.extension() != ".json") {
-        std::cerr << "Config file must have .json extension: " << config_path << "\n";
+        spdlog::error("Config file must have .json extension: {}", 
+            config_path.generic_string());
         return 1;
     }
     
     ///  Configuration Loading 
-    spdlog::info("Loading Confgiuration File");
+    spdlog::info("Loading Configuration File");
     const backtester::AppConfig config = backtester::ParseConfigToObj(config_path);
 
     ///  Initialize Logger 
+    spdlog::info("Logs outputting to: {}", config.log_file_path);
     SetupLogging(config.log_file_path);
-    PrintHelper::PrintLogPath(config.log_file_path);
     spdlog::info("Logger Initialized");
 
     ///  Create central EventQueue
@@ -81,13 +75,7 @@ int main(int argc, char* argv[]) {
     backtester::DataReaderManager data_reader_manager;
     /// Initialize Market State Manager
     backtester::MarketStateManager market_state_manager;
-
-    std::vector<uint32_t> traded_instr_ids; // TODO clunky??
-    traded_instr_ids.reserve(config.traded_instruments.size());
-    std::transform(config.traded_instruments.begin(), config.traded_instruments.end(),
-        std::back_inserter(traded_instr_ids), [](const auto& obj) { return obj.instrument_id; });
-
-    market_state_manager.Initialize(config.active_instruments, traded_instr_ids);
+    market_state_manager.Initialize(config.active_instruments);
 
     /// Initialize Portfolio Manager
     backtester::PortfolioManager portfolio_manager(config);
@@ -97,7 +85,7 @@ int main(int argc, char* argv[]) {
     backtester::ExecutionHandler execution_handler(event_queue, config);
     /// Initialize Strategy Manager and Strategies
     backtester::StrategyManager strategy_manager(config);
-    strategy_manager.InitiailizeStrategies(market_state_manager);
+    strategy_manager.InitializeStrategies(market_state_manager);
 
     if (!data_reader_manager.RegisterAndInitStreams(config.data_configs)) {
         throw std::runtime_error("Problem parsing data configuration, check logs");

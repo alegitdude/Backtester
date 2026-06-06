@@ -56,19 +56,29 @@ namespace backtester {
             struct tm t = { 0 };
             const char* data = s.data();
 
+            if (s.length() < 19) return { 0, "Timestamp too short", false };
+
+            if (s[4] != '-' || s[7] != '-' || (s[10] != 'T' && s[10] != ' ') ||
+                s[13] != ':' || s[16] != ':') return { 0, "Malformed timestamp", false };
+
             // Helper to check from_chars results
-            auto check = [&](const std::from_chars_result& res, std::string_view field) -> bool {
-                if (res.ec != std::errc{}) return false;
-                return true;
+            auto check = [](const std::from_chars_result& res, const char* expected_end) {
+                return res.ec == std::errc{} && res.ptr == expected_end;
                 };
 
             // Parsing YYYY-MM-DD HH:MM:SS
-            if (!check(std::from_chars(data, data + 4, t.tm_year), "year"))  return { 0, "Invalid Year", false };
-            if (!check(std::from_chars(data + 5, data + 7, t.tm_mon), "month")) return { 0, "Invalid Month", false };
-            if (!check(std::from_chars(data + 8, data + 10, t.tm_mday), "day"))   return { 0, "Invalid Day", false };
-            if (!check(std::from_chars(data + 11, data + 13, t.tm_hour), "hour"))  return { 0, "Invalid Hour", false };
-            if (!check(std::from_chars(data + 14, data + 16, t.tm_min), "min"))   return { 0, "Invalid Minute", false };
-            if (!check(std::from_chars(data + 17, data + 19, t.tm_sec), "sec"))   return { 0, "Invalid Second", false };
+            if (!check(std::from_chars(data + 0, data + 4, t.tm_year), data + 4))
+                return { 0, "Invalid year",   false };
+            if (!check(std::from_chars(data + 5, data + 7, t.tm_mon), data + 7))
+                return { 0, "Invalid month",  false };
+            if (!check(std::from_chars(data + 8, data + 10, t.tm_mday), data + 10))
+                return { 0, "Invalid day",    false };
+            if (!check(std::from_chars(data + 11, data + 13, t.tm_hour), data + 13))
+                return { 0, "Invalid hour",   false };
+            if (!check(std::from_chars(data + 14, data + 16, t.tm_min), data + 16))
+                return { 0, "Invalid minute", false };
+            if (!check(std::from_chars(data + 17, data + 19, t.tm_sec), data + 19))
+                return { 0, "Invalid second", false };
 
             t.tm_year -= 1900;
             t.tm_mon -= 1;
@@ -82,20 +92,28 @@ namespace backtester {
             time_t epoch_seconds = timegm(&t); // Ensure UTC interpretation
 
             uint64_t nanos = 0;
-            if (s.length() > 19 && s[19] == '.') {
-                const char* nano_start = data + 20;
+            size_t pos = 19;
+            if (pos < s.length() && s[pos] == '.') {
+                const char* nano_start = data + pos + 1;
                 const char* nano_end = data + s.length();
                 uint32_t raw_val = 0;
                 auto res = std::from_chars(nano_start, nano_end, raw_val);
-
-                if (res.ec == std::errc{}) {
-                    // SCALE THE NANOS: .1 should be 100,000,000
-                    size_t digits = res.ptr - nano_start;
-                    nanos = raw_val;
-                    for (size_t i = digits; i < 9; ++i) nanos *= 10;
+                if (res.ec != std::errc{}) {
+                    return { 0, "Invalid fractional seconds", false };
+                }
+                size_t digits = static_cast<size_t>(res.ptr - nano_start);
+                if (digits > 9) {
+                    return { 0, "Too many fractional digits (max 9)", false };
+                }
+                nanos = raw_val;
+                for (size_t i = digits; i < 9; ++i) nanos *= 10;
+                pos = static_cast<size_t>(res.ptr - data);  // advance past the digits
+            }
+            if (pos < s.length()) {
+                if (!(s[pos] == 'Z' && pos + 1 == s.length())) {
+                    return { 0, "Unsupported timezone designator (use UTC 'Z' or none)", false };
                 }
             }
-
             return { static_cast<uint64_t>(epoch_seconds) * 1'000'000'000ULL + nanos, "", true };
         }
 

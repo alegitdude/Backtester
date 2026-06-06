@@ -2,9 +2,7 @@
 
 namespace backtester {
 
-void MarketStateManager::Initialize(const std::vector<uint32_t>& active_ids, 
-    std::vector<uint32_t> traded_instr_ids) {
-        traded_instr_ids_ = traded_instr_ids;
+void MarketStateManager::Initialize(const std::vector<uint32_t>& active_ids) {
         // 1. Reserve memory to prevent re-allocation
         instrument_store_.reserve(active_ids.size());
         

@@ -49,11 +49,12 @@ target_compile_definitions(CoreLogic PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DI
 
 add_executable(Backtester src/main.cpp)
 
-add_executable(tests
+add_executable(tests 
     test/core/ConfigParser_test.cpp
     test/data_ingestion/CsvZstReader_test.cpp
     test/portfolio/PortfolioManager_test.cpp
     test/utils/TimeUtils_test.cpp
+    test/execution/ExecutionHandler_test.cpp
     test/market_state/OrderBook_test.cpp
 )
 target_compile_options(tests PRIVATE -O3)

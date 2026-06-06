@@ -11,8 +11,7 @@ class MarketStateManager : public IMarketDataProvider{
  public:
 	MarketStateManager() = default;
 
-    void Initialize(const std::vector<uint32_t>& active_ids, 
-        std::vector<uint32_t> traded_instr_id);
+    void Initialize(const std::vector<uint32_t>& active_ids);
 
     void OnMarketEvent(const MarketByOrderEvent& event) ; 
     
@@ -29,7 +28,6 @@ class MarketStateManager : public IMarketDataProvider{
         return snapshots_;
     }
  private:
-    std::vector<uint32_t> traded_instr_ids_;
     std::vector<InstrumentState> instrument_store_;
     std::vector<InstrumentState*> lookup_table_;
 

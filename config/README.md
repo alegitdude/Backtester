@@ -60,9 +60,10 @@ ISO-8601 UTC timestamp marking when strategies begin trading. Market events
 before this time are still processed so the order book and any rolling state
 warm up correctly, but strategies do not receive signals and orders are not
 issued.
- 
-Format: `YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ`. Fractional seconds may be any
-precision from 0 to 9 digits. The trailing `Z` is required.
+
+Accepts YYYY-MM-DDTHH:MM:SS with an optional . and 1–9 fractional-second digits. 
+The timestamp is always interpreted as UTC; a trailing Z is accepted but optional, 
+and any timezone offset is not supported.
  
 Example: `"2025-11-05T14:30:00.000000000Z"`.
  
@@ -90,10 +91,10 @@ Default: `200`.
 A strategy that emits an order at timestamp T will not be considered for
 matching until T + (latency_ms × 1,000,000) nanoseconds.
  
-### `snapshot_interval_ns` *(optional, integer)*
+### `snapshot_interval_ms` *(optional, integer)*
  
 How often the report generator records an equity snapshot during the run, in
-nanoseconds. Default: `1_000_000_000` (one second).
+milliseconds. Default: `1000` (one second).
  
 Smaller intervals produce a higher-resolution equity curve at the cost of
 larger output files.

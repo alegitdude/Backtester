@@ -6,7 +6,7 @@
 #include <vector>
 namespace backtester {
 
-void StrategyManager::InitiailizeStrategies(const IMarketDataProvider& provider) {
+void StrategyManager::InitializeStrategies(const IMarketDataProvider& provider) {
     // 1. Iterate through the strategies parsed from JSON
     for (const auto& strat_config : config_.strategies) {
         spdlog::info("Loading strategy: {} with {} parameters",

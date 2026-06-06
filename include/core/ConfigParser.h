@@ -64,7 +64,7 @@ inline InstrumentType ParseInstrType(const std::string& str) {
 
 inline RiskMode ParseRiskMode(const std::string& str){
   if (stringUtils::ToLower(str) == "percentofacct") return RiskMode::PercentOfAcct;
-  if (stringUtils::ToLower(str) == "posSizeindollars") return RiskMode::PosSizeInDollars;
+  if (stringUtils::ToLower(str) == "possizeindollars") return RiskMode::PosSizeInDollars;
   spdlog::warn("Invalid/unparsable risk mode in data stream config: {} - using PercentOfAcct", str);
   return RiskMode::PercentOfAcct;
 }

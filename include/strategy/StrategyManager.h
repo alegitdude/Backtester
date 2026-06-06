@@ -15,7 +15,7 @@ class StrategyManager {
     
     ~StrategyManager() = default;
 
-    void InitiailizeStrategies(const IMarketDataProvider& provider);
+    void InitializeStrategies(const IMarketDataProvider& provider);
 
     std::vector<std::unique_ptr<StrategySignalEvent>> OnMarketEvent(
     const MarketByOrderEvent& event);
