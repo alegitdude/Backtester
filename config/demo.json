@@ -1,10 +1,10 @@
 {
-	"start_time" : "2025-11-05T14:30:000000000Z",
-	"end_time" : "2025-11-05T21:00:000000000Z",
+	"start_time" : "2025-11-05T14:30:00.0000000Z",
+	"end_time" : "2025-11-05T21:00:00.0000000Z",
 	"execution_latency_ms" : 200,
 	"snapshot_interval_ms" : 1000,
 	"initial_cash" : 100000, 
-	"log_folder_path" : "../logs",
+	"log_file_path" : "../logs",
 	"report_output_dir" : "../reports",
   "risk_free_rate" : 0.05,
 	
