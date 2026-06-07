@@ -1,5 +1,5 @@
-#include "../../include/reporting/ReportGenerator.h"
-#include "../../include/utils/TimeUtils.h"
+#include "reporting/ReportGenerator.h"
+#include "utils/TimeUtils.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <cmath>

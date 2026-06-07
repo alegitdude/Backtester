@@ -1,4 +1,4 @@
-#include "../../include/execution/ExecutionHandler.h"
+#include "execution/ExecutionHandler.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 namespace backtester {
@@ -368,14 +368,14 @@ namespace backtester {
             });
 
         if (instr->instrument_type == InstrumentType::FUT) {
-           return fill_qty * config_.commission_struct.fut_per_contract;
+            return fill_qty * config_.commission_struct.fut_per_contract;
         }
         else { // STOCK handling
             int64_t base_comm = std::max(config_.commission_struct.stock_order_min,
                 fill_qty * config_.commission_struct.stock_per_share);
             int64_t clearing_total = fill_qty * config_.commission_struct.stock_clearing_fee;
 
-          return base_comm + clearing_total;
+            return base_comm + clearing_total;
         }
     }
 

@@ -1,4 +1,4 @@
-#include "../../include/core/EventQueue.h"
+#include "core/EventQueue.h"
 #include <iostream>
 #include <queue>
 #include <memory>

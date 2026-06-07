@@ -1,10 +1,10 @@
-#include "../../include/data_ingestion/CsvZstReader.h"
-#include "../../include/data_ingestion/DataReaderManager.h"
-#include "../../include/market_state/OrderBook.h"
-#include "../../include/core/EventQueue.h"
-#include "../../include/market_state/MarketStateManager.h"
-#include "../../include/core/ConfigParser.h"
-#include "../../include/core/Types.h"
+#include "data_ingestion/CsvZstReader.h"
+#include "data_ingestion/DataReaderManager.h"
+#include "market_state/OrderBook.h"
+#include "core/EventQueue.h"
+#include "market_state/MarketStateManager.h"
+#include "core/ConfigParser.h"
+#include "core/Types.h"
 #include <gtest/gtest.h>
 #include <array>
 #include <charconv>

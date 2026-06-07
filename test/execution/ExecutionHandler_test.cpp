@@ -1,8 +1,8 @@
-#include "../../include/execution/ExecutionHandler.h"
-#include "../../include/core/EventQueue.h"
-#include "../../include/core/Event.h"
-#include "../../include/core/Types.h"
-#include "../../include/market_state/OBTypes.h"
+#include "execution/ExecutionHandler.h"
+#include "core/EventQueue.h"
+#include "core/Event.h"
+#include "core/Types.h"
+#include "market_state/OBTypes.h"
 #include <gtest/gtest.h>
 #include <memory>
 

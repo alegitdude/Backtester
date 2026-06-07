@@ -1,4 +1,4 @@
-#include "../../include/data_ingestion/CsvZstReader.h"
+#include "data_ingestion/CsvZstReader.h"
 #include <gtest/gtest.h>
 #include <chrono>
 #include <fstream>

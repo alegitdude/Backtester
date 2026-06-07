@@ -3,6 +3,7 @@ project(Backtester VERSION 0.1.0 LANGUAGES C CXX)
  
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
  
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -49,6 +50,8 @@ add_library(CoreLogic STATIC
   src/utils/StringUtils.cpp
   ${USER_STRATEGY_SOURCES}
 )
+
+target_include_directories(CoreLogic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(CoreLogic PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(CoreLogic PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog zstd)
 target_compile_options(CoreLogic PRIVATE -O3 -g -fno-omit-frame-pointer)

@@ -1,5 +1,5 @@
-#include "../../../include/strategy/IStrategy.h"
-#include "../../../include/strategy/StrategyRegistry.h"
+#include "strategy/IStrategy.h"
+#include "strategy/StrategyRegistry.h"
 #include <spdlog/spdlog.h>
 
 namespace backtester {

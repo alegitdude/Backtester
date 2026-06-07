@@ -1,9 +1,7 @@
-#include "../../include/data_ingestion/CsvZstReader.h"
+#include "data_ingestion/CsvZstReader.h"
 #include "spdlog/spdlog.h"
 #include <iostream>
-// Include file stream for reading binary files
 #include <fstream>
-// Include string stream for parsing CSV lines
 #include <sstream>
 #include <vector>
 #include <string>

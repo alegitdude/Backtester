@@ -1,6 +1,6 @@
-#include "../../../include/strategy/IStrategy.h"
-#include "../../../include/strategy/StrategyRegistry.h"
-#include "../../../include/utils/TimeUtils.h"
+#include "strategy/IStrategy.h"
+#include "strategy/StrategyRegistry.h"
+#include "utils/TimeUtils.h"
 #include <spdlog/spdlog.h>
 #include <deque>
 #include <numeric>

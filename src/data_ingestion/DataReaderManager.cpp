@@ -1,7 +1,7 @@
-#include "../../include/data_ingestion/DataReaderManager.h"
-#include "../../include/core/Types.h"
-#include "../../include/core/EventQueue.h" 
-#include "../../include/utils/TimeUtils.h"
+#include "data_ingestion/DataReaderManager.h"
+#include "core/Types.h"
+#include "core/EventQueue.h" 
+#include "utils/TimeUtils.h"
 #include "spdlog/spdlog.h"
 #include <filesystem>
 #include <charconv>

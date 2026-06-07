@@ -1,5 +1,5 @@
-#include "../../include/market_state/InstrumentState.h"
-#include "../../include/market_state/OrderBook.h"
+#include "market_state/InstrumentState.h"
+#include "market_state/OrderBook.h"
 
 namespace backtester {
 

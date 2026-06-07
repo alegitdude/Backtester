@@ -1,7 +1,7 @@
-#include "../../include/core/ConfigParser.h"
-#include "../../include/utils/TimeUtils.h"
-#include "../../include/utils/NumericUtils.h"
-#include "../../include/core/Types.h"
+#include "core/ConfigParser.h"
+#include "utils/TimeUtils.h"
+#include "utils/NumericUtils.h"
+#include "core/Types.h"
 #include <fstream>
 #include <string>
 #include <iostream>
@@ -251,7 +251,7 @@ namespace backtester {
 			throw std::runtime_error(
 				fmt::format("Config error: could not open symbology file at '{}'", filepath));
 		}
-		
+
 		std::string line;
 		uint32_t count = 0;
 

@@ -1,4 +1,4 @@
-#include "../../include/core/ConfigParser.h"
+#include "core/ConfigParser.h"
 #include <gtest/gtest.h>
  
 #include <cstdint>

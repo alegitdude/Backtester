@@ -1,6 +1,6 @@
-#include "../../include/core/Backtester.h"
+#include "core/Backtester.h"
+#include "core/Types.h"
 #include "spdlog/spdlog.h"
-#include "../../include/core/Types.h"
 
 namespace backtester {
 

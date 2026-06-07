@@ -1,7 +1,7 @@
-#include "../../include/strategy/StrategyManager.h"
-#include "../../include/core/Types.h"
-#include "../../include/market_state/OBTypes.h"
-#include "../../include/strategy/StrategyRegistry.h"
+#include "strategy/StrategyManager.h"
+#include "core/Types.h"
+#include "market_state/OBTypes.h"
+#include "strategy/StrategyRegistry.h"
 #include "spdlog/spdlog.h"
 #include <vector>
 namespace backtester {

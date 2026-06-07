@@ -1,6 +1,6 @@
-#include "../../include/portfolio/PortfolioManager.h"
-#include "../../include/core/Types.h"
-#include "../../include/core/Event.h"
+#include "portfolio/PortfolioManager.h"
+#include "core/Types.h"
+#include "core/Event.h"
 #include <gtest/gtest.h>
 #include <memory>
 #include <vector>
