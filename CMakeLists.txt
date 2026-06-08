@@ -53,7 +53,10 @@ add_library(CoreLogic STATIC
 
 target_include_directories(CoreLogic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(CoreLogic PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
-target_link_libraries(CoreLogic PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog zstd)
+target_link_libraries(CoreLogic 
+  PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog 
+  PRIVATE zstd
+)
 target_compile_options(CoreLogic PRIVATE -O3 -g -fno-omit-frame-pointer)
  
 ## Main executable

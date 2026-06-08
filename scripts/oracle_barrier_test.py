@@ -13,7 +13,6 @@ except ImportError:
     sys.exit(1)
  
  
-# Fixed-point scale used throughout the C++ codebase: 1.0 == 1e9 ticks.
 ONE_POINT = 1_000_000_000
  
  
@@ -29,9 +28,6 @@ class Entry:
 # Log parsing
 # -----------------------------------------------------------------------------
  
-# Matches "FillEvent emitted — order_id=2 instr=294973 side=1 price=6818500000000 qty=1 ts=1762..."
-# side: 0 == bid (buy), 1 == ask (sell). qty=0 means a synthetic cancel-fill from
-# CancelAllPendingOrders at EOD and should be ignored.
 FILL_RE = re.compile(
     r"FillEvent emitted .* order_id=(?P<oid>-?\d+) "
     r"instr=(?P<instr>\d+) side=(?P<side>[01]) "
@@ -138,10 +134,6 @@ def iter_trades(mbo_path: str, instr_id: int):
                 yield ts, price_fp
  
  
-# -----------------------------------------------------------------------------
-# Oracle decision per entry
-# -----------------------------------------------------------------------------
- 
 @dataclass
 class OracleResult:
     entry: Entry
@@ -218,7 +210,7 @@ def main():
     print(f"  found {len(entries)} entries", file=sys.stderr)
  
     print(f"Loading trades from {args.mbo_file} ...", file=sys.stderr)
-    # Materialize to a list once; cheap compared to per-entry scans.
+   
     trades = list(iter_trades(args.mbo_file, args.instr))
     print(f"  loaded {len(trades)} trades for instrument {args.instr}",
           file=sys.stderr)
@@ -248,11 +240,6 @@ def main():
     print(f"  SL hit first:  {n_sl:>3}  ({100 * n_sl / total:.1f}%)" if total else "")
     print(f"  no decision:   {n_nd:>3}  ({100 * n_nd / total:.1f}%)" if total else "")
     print()
-    print("Interpretation:")
-    print("  - If TP rate is near 100%, the historical tape supported the wins")
-    print("    and the simulator's 23:0 may be correct; investigate entry timing.")
-    print("  - If TP rate is well below the simulator's reported rate, the")
-    print("    executor is mis-filling and the bug is real.")
  
  
 if __name__ == "__main__":

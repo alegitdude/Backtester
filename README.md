@@ -107,7 +107,9 @@ EXPECT_EQ(actual_levels, expected_levels)
 ```
  
 This is replayed against ~16M events across 41 instruments, with no fault tolerance.
- 
+
+An independent oracle (scripts/oracle_barrier_test.py) cross-checks each simulated MovAvgCross entry against the raw trade tape, confirming the take-profit / stop-loss outcomes recorded by the simulator are supported by real prints.
+
 Additional test coverage:
 - `PortfolioManager_test.cpp` — open/close/flip, drawdown circuit breaker, margin-aware buying power, position-limit risk gate, invalid-tick rejection.
 - `TimeUtils_test.cpp` — ISO-8601 parsing with nano-precision, fast 2/4-digit integer parsers, timezone offsets.
