@@ -35,24 +35,24 @@ class Backtester {
 
 	inline bool isMarketEvent(EventType type) {
     	return type == EventType::kMarketOrderAdd || 
-			type == EventType::kMarketOrderCancel || 
-			type == EventType::kMarketOrderModify || 
-			type == EventType::kMarketOrderClear  || 
-			type == EventType::kMarketTrade 			 ||
-			type == EventType::kMarketFill        ||
+			type == EventType::kMarketOrderCancel     || 
+			type == EventType::kMarketOrderModify     || 
+			type == EventType::kMarketOrderClear      || 
+			type == EventType::kMarketTrade 			    ||
+			type == EventType::kMarketFill            ||
 			type == EventType::kMarketHeartbeat;
 	}
 	inline bool isStrategySignalEvent(EventType type) {
 		return type == EventType::kStrategySignal;
 	}
 	inline bool isStrategyOrderEvent(EventType type){
-		return type == EventType::kStrategyOrderAdd    ||
+		return type == EventType::kStrategyOrderAdd  ||
 			type == EventType::kStrategyOrderModify    ||
 			type == EventType::kStrategyOrderCancel    ||
 			type == EventType::kStrategyOrderClear;
 	}
 	inline bool isControlEvent(EventType type) {
-		return type == EventType::kBacktestControlStart      || 
+		return type == EventType::kBacktestControlStart    || 
 			type == EventType::kBacktestControlEndOfBacktest ||
 			type == EventType::kBacktestControlSnapshot      ||
 			type == EventType::kBacktestControlEndOfDay;
