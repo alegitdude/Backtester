@@ -171,7 +171,7 @@ TEST_F(ConfigParserTest, ParsesTradedInstrumentWithFixedPoint) {
   EXPECT_EQ(ti.tick_size, 250'000'000ULL);         
   EXPECT_EQ(ti.tick_value, 12'500'000'000ULL);       
   EXPECT_EQ(ti.init_margin_req, 20845ULL * kFxd);
-  EXPECT_EQ(ti.main_margin_req, 17017ULL * kFxd);
+  EXPECT_EQ(ti.maint_margin_req, 17017ULL * kFxd);
 }
  
 TEST_F(ConfigParserTest, ParsesDataStreamEnumsAndPaths) {

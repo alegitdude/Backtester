@@ -295,19 +295,19 @@ namespace backtester {
 				"Traded Instruments");
 			instr.instrument_type = ParseInstrType(GetRequired<std::string>(item,
 				"instrument_type", "Traded Instruments"));
-			instr.tick_size = numericUtils::doubleToFixedPoint(GetRequired<double>( // TODO check if number is reasonable
+			instr.tick_size = numericUtils::DoubleToFixedPoint(GetRequired<double>( // TODO check if number is reasonable
 				item, "tick_size", "Traded Instruments"));
 			if (instr.tick_size == 0) {
 				throw std::runtime_error(fmt::format("Tick size cannot be 0, error for instrument {}", instr.instrument_id));
 			}
-			instr.tick_value = numericUtils::doubleToFixedPoint(GetRequired<double>(
+			instr.tick_value = numericUtils::DoubleToFixedPoint(GetRequired<double>(
 				item, "tick_value", "Traded Instruments"));
 			if (instr.tick_value == 0) {
 				throw std::runtime_error(fmt::format("Tick value cannot be 0, error for instrument {}", instr.instrument_id));
 			}
-			instr.init_margin_req = numericUtils::doubleToFixedPoint(GetRequired<double>(
+			instr.init_margin_req = numericUtils::DoubleToFixedPoint(GetRequired<double>(
 				item, "init_margin_req", "Traded Instruments"));
-			instr.main_margin_req = numericUtils::doubleToFixedPoint(GetRequired<double>(
+			instr.maint_margin_req = numericUtils::DoubleToFixedPoint(GetRequired<double>(
 				item, "main_margin_req", "Traded Instruments"));
 
 			res.push_back(instr);
@@ -323,13 +323,13 @@ namespace backtester {
 			"risk_mode", context).value_or(""));
 		res.max_position_size = GetOptional<int64_t>(data,
 			"max_position_size", context).value_or(kDefaultMaxPositionSize);
-		res.max_risk_per_trade_pct = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
+		res.max_risk_per_trade_pct = numericUtils::DoubleToFixedPoint(GetOptional<double>(data,
 			"max_risk_per_trade_pct", context).value_or(kDefaultMaxRiskPerTradePct));
-		res.max_portfolio_delta = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
+		res.max_portfolio_delta = numericUtils::DoubleToFixedPoint(GetOptional<double>(data,
 			"max_portfolio_delta", context).value_or(kDefaultMaxPortfolioDelta));
-		res.max_drawdown_pct = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
+		res.max_drawdown_pct = numericUtils::DoubleToFixedPoint(GetOptional<double>(data,
 			"max_drawdown_pct", context).value_or(kDefaultMaxDrawdownPct));
-		res.max_delta_per_trade = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
+		res.max_delta_per_trade = numericUtils::DoubleToFixedPoint(GetOptional<double>(data,
 			"max_delta_per_trade", context).value_or(kDefaultMaxDeltaPerTrade));
 
 		return res;
@@ -339,13 +339,13 @@ namespace backtester {
 		CommissionStruct res;
 
 		std::string context = "Commissions";
-		res.fut_per_contract = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
+		res.fut_per_contract = numericUtils::DoubleToFixedPoint(GetOptional<double>(data,
 			"fut_per_contract", context).value_or(kDefaultFutPerContract));
-		res.stock_clearing_fee = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
+		res.stock_clearing_fee = numericUtils::DoubleToFixedPoint(GetOptional<double>(data,
 			"stock_clearing_fee", context).value_or(kDefaultStockClearingFee));
-		res.stock_order_min = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
+		res.stock_order_min = numericUtils::DoubleToFixedPoint(GetOptional<double>(data,
 			"stock_order_min", context).value_or(kDefaultStockOrderMin));
-		res.stock_per_share = numericUtils::doubleToFixedPoint(GetOptional<double>(data,
+		res.stock_per_share = numericUtils::DoubleToFixedPoint(GetOptional<double>(data,
 			"stock_per_share", context).value_or(kDefaultStockPerShare));
 
 		return res;

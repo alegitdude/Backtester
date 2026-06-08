@@ -30,7 +30,7 @@ namespace backtester {
         struct Order {
             uint64_t order_id = 0;  // 0 = empty slot
             int64_t price = 0;
-            OrderSide side = kNone;
+            OrderSide side = OrderSide::kNone;
             uint32_t size = 0;
         };
 

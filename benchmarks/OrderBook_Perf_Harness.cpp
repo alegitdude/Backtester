@@ -12,11 +12,7 @@ int main(int argc, char** argv) {
     std::string config_path = (argc > 1) ? argv[1] : BENCH_CONFIG_DEFAULT;
     
     backtester::AppConfig config = backtester::ParseConfigToObj(config_path);
-   
-    backtester::EventQueue event_queue;
     backtester::DataReaderManager reader;
-
-    std::vector<uint32_t> traded_instr_ids = {294973};
     backtester::MarketStateManager market_state;
     market_state.Initialize(config.active_instruments);
 

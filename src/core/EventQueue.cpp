@@ -18,7 +18,7 @@ bool EventQueue::IsEmpty() const {
 
 const Event& EventQueue::ReadTopEvent() const {
     if(pq_.empty()) {
-        throw std::out_of_range("Attempted to grab top event of empty quque");     
+        throw std::out_of_range("Attempted to grab top event of empty queue");     
     }        
     return *pq_.front();
 }

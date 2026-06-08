@@ -19,8 +19,6 @@ namespace backtester {
   // MARK: Getters
   PriceLevel OrderBook::GetBidLevel(std::size_t idx) const {
     if (bids_.size() > idx) {
-      // auto it = bids_.rbegin();
-      // std::advance(it, idx);
       auto& lvl = bids_[bids_.size() - 1 - idx];
 
       return PriceLevel{
@@ -34,8 +32,6 @@ namespace backtester {
 
   PriceLevel OrderBook::GetAskLevel(std::size_t idx) const {
     if (offers_.size() > idx) {
-      // auto it = offers_.rbegin();
-      // std::advance(it, idx);
       auto& lvl = offers_[offers_.size() - 1 - idx];
       return PriceLevel{
           lvl.first,        // Price
@@ -115,8 +111,8 @@ namespace backtester {
       break;
     }
     default: {
-      throw std::invalid_argument{ std::string{"Unknown action: "} +
-                                  std::to_string(mbo.type) };
+      throw std::invalid_argument{ std::string{"Unknown action for msg at "} +
+                                  std::to_string(mbo.timestamp) };
     }
     }
 
@@ -142,10 +138,6 @@ namespace backtester {
     else {
       bbo_cache_.ask = {};
     }
-    // if (bbo_cache_.bid.price != kUndefPrice && bbo_cache_.bid.price > bbo_cache_.ask.price) {
-    //   //throw std::logic_error("bid price is higher than ask price?");
-    //   bbo_cache_ = prev_bbo;
-    // }
   }
 
   std::vector<MarketByOrderEvent>::iterator OrderBook::GetLevelOrder(

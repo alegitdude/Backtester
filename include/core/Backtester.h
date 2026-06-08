@@ -34,16 +34,16 @@ class Backtester {
 	};
 
 	inline bool isMarketEvent(EventType type) {
-    	return type == kMarketOrderAdd || 
-			type == kMarketOrderCancel || 
-			type == kMarketOrderModify || 
-			type == kMarketOrderClear  || 
-			type == kMarketTrade 			 ||
-			type == kMarketFill        ||
-			type == kMarketHeartbeat;
+    	return type == EventType::kMarketOrderAdd || 
+			type == EventType::kMarketOrderCancel || 
+			type == EventType::kMarketOrderModify || 
+			type == EventType::kMarketOrderClear  || 
+			type == EventType::kMarketTrade 			 ||
+			type == EventType::kMarketFill        ||
+			type == EventType::kMarketHeartbeat;
 	}
 	inline bool isStrategySignalEvent(EventType type) {
-		return type == kStrategySignal;
+		return type == EventType::kStrategySignal;
 	}
 	inline bool isStrategyOrderEvent(EventType type){
 		return type == EventType::kStrategyOrderAdd    ||
@@ -52,10 +52,10 @@ class Backtester {
 			type == EventType::kStrategyOrderClear;
 	}
 	inline bool isControlEvent(EventType type) {
-		return type == kBacktestControlStart      || 
-			type == kBacktestControlEndOfBacktest ||
-			type == kBacktestControlSnapshot      ||
-			type == kBacktestControlEndOfDay;
+		return type == EventType::kBacktestControlStart      || 
+			type == EventType::kBacktestControlEndOfBacktest ||
+			type == EventType::kBacktestControlSnapshot      ||
+			type == EventType::kBacktestControlEndOfDay;
 	}
 
 }

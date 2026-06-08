@@ -366,7 +366,7 @@ namespace backtester {
             config_.traded_instruments.end(), [instrument_id](TradedInstrument traded_instr) {
                 return traded_instr.instrument_id == instrument_id;
             });
-
+         
         if (instr->instrument_type == InstrumentType::FUT) {
             return fill_qty * config_.commission_struct.fut_per_contract;
         }

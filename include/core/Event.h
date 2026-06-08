@@ -2,7 +2,7 @@
 #include <iostream>
 #include <memory>
 
-enum EventType {
+enum class EventType {
     kMarketOrderAdd, // 0
     kMarketOrderCancel,
     kMarketOrderModify,
@@ -27,34 +27,34 @@ enum EventType {
     kBacktestControlEndOfBacktest
 };
 
-enum OrderSide {
+enum class OrderSide {
     kBid,
     kAsk,
     kNone
 };
 
-enum OrderType {
+enum class OrderType {
     kAdd,
     kModify,
     kCancel,
     kClear
 };
 
-enum SignalType {
+enum class SignalType {
     kBuySignal,
     kSellSignal,
     kCancelSignal,
     kModifySignal
 };
 
-enum RejectionReason {
+enum class RejectionReason {
     kInvalidTick,
     kDrawdownLimit,
     kInsufficientBuyingPower,
     kNonTradableInstr, 
     kPositionLimit,
     kNoOrderExists,
-    kUknownSignalType
+    kUnknownSignalType
 };
 
 struct TradeRecord {
@@ -132,28 +132,6 @@ struct MarketByOrderEvent : Event {
     std::string data_source;
 
 };
-
-//////////////////////////////////////////////////////////////
-///////////// MARK: OHLCV Event Class
-//////////////////////////////////////////////////////////////
-
-// class OhlcvEvent : Event {
-//  public:
-//   OhlcvEvent(
-//     uint64_t ts_event, 	 // number of nanoseconds since the UNIX epoch.
-//     uint8_t rtype, 	 	// 32 (OHLCV-1s), 33 (OHLCV-1m), 34 (OHLCV-1h), or 35 (OHLCV-1d). 
-//     uint16_t publisher_id ,	 	
-//     uint32_t instrument_id, 	 	
-//     int64_t open, 	 	//The open price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. See Prices.
-//     uint64_t high, 	 	
-//     uint64_t low, 	 	
-//     uint64_t close, 	 	
-//     uint64_t volume, 	
-//     ) : Event(ts_event, )
-//  private: 
-// }
-
-
 
 //////////////////////////////////////////////////////////////
 ///////////// MARK: Strategy Classes

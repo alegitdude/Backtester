@@ -134,10 +134,6 @@ namespace backtester {
             if (!gmtime_r(&time, &tm_info)) {
                 return "Invalid time";
             }
-            // struct tm* tm_info = gmtime(&time);
-            // if (!tm_info) {
-            //     return "Invalid time";
-            // }
 
             // Format the time string
             std::ostringstream oss;
@@ -149,16 +145,6 @@ namespace backtester {
                 << std::setw(2) << tm_info.tm_min << ":"
                 << std::setw(2) << tm_info.tm_sec << "."
                 << std::setw(9) << nanos;
-            // std::ostringstream oss;
-            // oss << std::setfill('0')
-            //     << std::setw(4) << (tm_info->tm_year + 1900) << "-"
-            //     << std::setw(2) << (tm_info->tm_mon + 1) << "-"
-            //     << std::setw(2) << tm_info->tm_mday << " "
-            //     << std::setw(2) << tm_info->tm_hour << ":"
-            //     << std::setw(2) << tm_info->tm_min << ":"
-            //     << std::setw(2) << tm_info->tm_sec << "."
-            //     << std::setw(9) << nanos;
-
             return oss.str();
         };
 

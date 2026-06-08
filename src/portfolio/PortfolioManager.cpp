@@ -42,7 +42,7 @@ namespace backtester {
                 signal->signal_type,
                 signal->price,
                 signal->quantity,
-                RejectionReason::kUknownSignalType
+                RejectionReason::kUnknownSignalType
             );
         }
     }
@@ -413,7 +413,7 @@ namespace backtester {
             current_cash_ -= std::abs(fill_qty_signed) * fill.fill_price;
         }
         if (instr->instrument_type == InstrumentType::FUT) {
-            maintenance_margin_used_ += instr->main_margin_req * std::abs(fill_qty_signed);
+            maintenance_margin_used_ += instr->maint_margin_req * std::abs(fill_qty_signed);
         }
 
         int64_t current_notional = std::abs(pos.quantity) * pos.avg_entry_price;
@@ -435,7 +435,7 @@ namespace backtester {
             int64_t ticks_captured = price_diff / static_cast<int64_t>(instr->tick_size);
             trade_pnl = ticks_captured * instr->tick_value * quantity_closed;
             current_cash_ += trade_pnl;
-            maintenance_margin_used_ -= instr->main_margin_req * quantity_closed;
+            maintenance_margin_used_ -= instr->maint_margin_req * quantity_closed;
         }
         else {
             int64_t proceeds = quantity_closed * fill.fill_price;
@@ -614,11 +614,6 @@ namespace backtester {
         const Position& pos = GetPositionByInstrId(instrument_id);
         return pos.quantity;
     }
-
-    // bool PortfolioManager::HasPosition(uint32_t instrument_id) const {
-    //     auto it = positions_.find(instrument_id);
-    //     return (it != positions_.end() && it->second.quantity != 0);
-    // }
 
     int64_t PortfolioManager::CalculateMarginRequirement(uint32_t instrument_id,
         int64_t quantity, int64_t price) const {

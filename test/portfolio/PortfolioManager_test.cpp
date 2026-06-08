@@ -38,7 +38,7 @@ class PortfolioManagerTest : public ::testing::Test {
             .tick_size = 250'000'000,
             .tick_value = 12'500'000'000, // $50 per point 
             .init_margin_req = 20845'000000000,
-            .main_margin_req = 17017'000000000
+            .maint_margin_req = 17017'000000000
         }};
         config_fut_.risk_limits.max_position_size = 10;
         config_fut_.risk_limits.max_drawdown_pct = 100'000'000; 
@@ -52,7 +52,7 @@ class PortfolioManagerTest : public ::testing::Test {
             .tick_size = 0'010'000'000,
             .tick_value = 0'010'000'000, // 1:1 value
             .init_margin_req = 0,
-            .main_margin_req = 0  // Cash account 
+            .maint_margin_req = 0  // Cash account 
         }};
     }
 

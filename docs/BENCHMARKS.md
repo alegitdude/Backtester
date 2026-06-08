@@ -14,7 +14,7 @@
 ### Results
 * **Throughput:** 0.912276 Million messages / second
 * **Time to Process 16M messages:** 17.7128s
-* **Bottlenecks Identified:** The Flame Graph shows up front memory movement and allocation taking 33% of CPU cylces,`DataReaderManager::ParseMboLineToEvent` also consuming ~33% of CPU cycles
+* **Bottlenecks Identified:** The Flame Graph shows up front memory movement and allocation taking 33% of CPU cycles,`DataReaderManager::ParseMboLineToEvent` also consuming ~33% of CPU cycles
 
 ### Raw Perf Output
 ```text
@@ -90,7 +90,7 @@ total_volume: 28907885
 * **Throughput:** 5.27355 Million messages / second
 * **Time to Process 16M messages:** 3.06415s
 * **Bottlenecks Identified:** The Flame Graph shows on orderbook operations Cancel and Modify, significant time
-  used to erase entries from the vector of orders. Likely need a different data structure for storing orders. Also on Add operations, significant CPU usage to insert into the vector. Need to possibly rethink these operations. Additionally, a huge number of cache misses. Need to identifiy a way to better utilize the cache for these operations. 
+  used to erase entries from the vector of orders. Likely need a different data structure for storing orders. Also on Add operations, significant CPU usage to insert into the vector. Need to possibly rethink these operations. Additionally, a huge number of cache misses. Need to identify a way to better utilize the cache for these operations. 
 
 ### Raw Perf Output
 ```text

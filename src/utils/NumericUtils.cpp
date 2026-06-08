@@ -7,7 +7,7 @@ namespace backtester {
 
 namespace numericUtils{
     
-long long doubleToFixedPoint(double val) {
+long long DoubleToFixedPoint(double val) {
     constexpr double scale = 1'000'000'000.0;
     
     // 1. Check for NaN

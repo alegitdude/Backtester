@@ -91,7 +91,7 @@ struct TradedInstrument {
     uint64_t tick_size;
     uint64_t tick_value;
     uint64_t init_margin_req;
-    uint64_t main_margin_req;
+    uint64_t maint_margin_req;
 };
 
 struct CommissionStruct {
@@ -201,35 +201,4 @@ struct MarketSnapshot {
     int64_t cumulative_volume = 0;
     int64_t cumulative_notional = 0;
 };
-
-enum class DataInterval{
-    MBO,
-    Seconds,
-    Minutes,
-    Hours,
-    Days
-};
-
-
-struct Trade {
-    int64_t entryPrice, exitPrice;
-    long entryTime, exitTime;
-    int64_t quantity;
-};
-
-struct DataBentoOHCLV1sRow{
-    std::string tsEvent;
-    int rtype;
-    int publisherId;
-    int instrumentId;
-
-
-};
-
-struct OHLCBar {
-    int64_t timestamp;
-    uint32_t instrumentId;
-    double open, high, low, close, volume;
-}; 
-
 }

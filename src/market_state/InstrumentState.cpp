@@ -8,12 +8,6 @@ namespace backtester {
         OrderBook& book = GetOrInsertOrderBook(event.publisher_id);
         book.Apply(event);
 
-        // bool isTopOfBook =
-        //     (event.side == kBid && (instrument_Bbo_.bid.price == kUndefPrice ||
-        //          event.price >= instrument_Bbo_.bid.price)) ||
-        //     (event.side == kAsk && (instrument_Bbo_.ask.price == kUndefPrice ||
-        //          event.price <= instrument_Bbo_.ask.price));
-
         if (event.price != std::numeric_limits<int64_t>::max()) {
             // Update VWAP - equation : cumulative_notional / cumulative_volume
             if (event.type == EventType::kMarketTrade) {
@@ -72,11 +66,6 @@ namespace backtester {
             }
         }
 
-        // if (instrument_Bbo_.bid.price != kUndefPrice && instrument_Bbo_.bid.price >
-        //     instrument_Bbo_.ask.price) {
-        //     //throw std::logic_error("bid price is higher than ask price?");
-        //     instrument_Bbo_ = prev_bbo;
-        // }
         snapshot_.bbo = instrument_Bbo_;
     }
 
