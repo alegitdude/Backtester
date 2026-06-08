@@ -5,15 +5,14 @@
 namespace backtester {
 
 struct EventComparator {
-    bool operator()(
-        const std::unique_ptr<Event>& a, 
-        const std::unique_ptr<Event>& b) const {
+    bool operator()(const std::unique_ptr<Event>& a, 
+                    const std::unique_ptr<Event>& b) const {
         // Primary sort: timestamp (ascending)
         if(a->timestamp != b->timestamp) {
             return a->timestamp > b->timestamp; 
         }        
         // Market -> Strategy -> Backtest
-        return a->type < b->type; 
+        return a->type > b->type; 
     }
 };
 
