@@ -14,7 +14,7 @@ namespace backtester {
         //     (event.side == kAsk && (instrument_Bbo_.ask.price == kUndefPrice ||
         //          event.price <= instrument_Bbo_.ask.price));
 
-        if (event.price != std::numeric_limits<int64_t>::min()) {
+        if (event.price != std::numeric_limits<int64_t>::max()) {
             // Update VWAP - equation : cumulative_notional / cumulative_volume
             if (event.type == EventType::kMarketTrade) {
                 snapshot_.cumulative_volume += event.size;

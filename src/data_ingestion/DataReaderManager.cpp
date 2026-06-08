@@ -192,17 +192,7 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
 
             case 13: // ts_in_delta (int32_t)
                 if (token.empty()) throw std::runtime_error("Field 13 empty.");
-                if(it->config.ts_format == TmStampFormat::UNIX){
-                    std::from_chars(token.data(), token.data() + token.size(), ts_in_delta);
-                } else {
-                    auto result = backtester::time::ParseIsoToUnix(token);
-                    if(!result.success){
-                        spdlog::error("Error parsing ts_in_delta: {}", result.error_msg);
-                        auto error = "Error parsing ts_in_delta" + std::string(token) + result.error_msg;
-                        throw std::runtime_error(error);
-                    }
-                    ts_in_delta = result.unix_nanos;
-                }
+                std::from_chars(token.data(), token.data() + token.size(), ts_in_delta);
                 break;
 
             case 14: // sequence (uint32_t)

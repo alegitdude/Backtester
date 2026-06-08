@@ -44,8 +44,8 @@ int main(int argc, char* argv[]) {
     std::filesystem::path config_path;    
     std::string arg = argv[1];
     if (arg == "-h" || arg == "--help") {
-        spdlog::info(R"(Usage: {} [path to config.json]
-            Runs a backtest with the specified configuration.)");
+        spdlog::info(R"(Usage: ./Backtester <path to config.json>
+            Runs a backtest with the specified configuration.)", arg[0]);
         return 0;
     }
     config_path = arg;
