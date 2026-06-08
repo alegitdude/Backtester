@@ -37,7 +37,7 @@ const BidAskPair MarketStateManager::GetInstrumentBbo(uint32_t instr_id) const {
 
 std::unordered_map<uint32_t, BidAskPair> MarketStateManager::GetTradedInstrsBbo(){
     std::unordered_map<uint32_t, BidAskPair> res;
-    for(auto instr_state : instrument_store_){
+    for(const auto& instr_state : instrument_store_){
         res[instr_state.instrument_id] = instr_state.GetInstrumentBbo();
     }
     return res;
