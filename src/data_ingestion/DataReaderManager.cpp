@@ -7,110 +7,117 @@
 #include <charconv>
 #include <string>
 
-namespace backtester{
+namespace backtester {
 
-// MARK: Register&InitSteams
+    // MARK: Register&InitSteams
 
-bool DataReaderManager::RegisterAndInitStreams(
-    const std::vector<DataSourceConfig>& data_sources) {
-  
-    for(DataSourceConfig source : data_sources){
-        std::string source_name = source.data_source_name;      
-        std::string data_filepath = source.data_filepath;      
-        
-        if (!std::filesystem::exists(data_filepath)) {
-            std::cerr << "Error: File not found: " << data_filepath << std::endl;
-            return false;
+    bool DataReaderManager::RegisterAndInitStreams(
+        const std::vector<DataSourceConfig>& data_sources) {
+
+        for (DataSourceConfig source : data_sources) {
+            std::string source_name = source.data_source_name;
+            std::string data_filepath = source.data_filepath;
+
+            if (!std::filesystem::exists(data_filepath)) {
+                std::cerr << "Error: File not found: " << data_filepath << std::endl;
+                return false;
+            }
+
+            std::unique_ptr<CsvZstReader> reader = std::make_unique<CsvZstReader>();
+
+            if (!reader->Open(data_filepath)) {
+                std::string failure = "Failed to open reader for: " + source_name;
+                std::cerr << failure << std::endl;
+                spdlog::error(failure + "at " + data_filepath);
+                return false;
+            }
+
+            // Verify Header
+            std::string header_line;
+            reader->ReadLine(header_line);
+
+            if (header_line != kExpectedMboHeader) {
+                std::string failure = "Incorrect header format for " + source_name;
+                std::cerr << failure << std::endl;
+                spdlog::error(failure + "at " + data_filepath);
+                return false;
+            }
+            // Store the active reader 
+            readers_.push_back({ std::move(reader), source });
+
+        }
+        spdlog::info("Data readers initialized");
+        return true;
+    }
+
+    // MARK: LoadNextEventForSymbol
+
+    std::unique_ptr<MarketByOrderEvent> DataReaderManager::LoadNextEventFromSource(const std::string& source_name) {
+        auto it = std::find_if(readers_.begin(), readers_.end(), [source_name](DataStream& stream) {
+            return stream.config.data_source_name == source_name;
+            });
+        if (it == readers_.end()) {
+            return nullptr;
         }
 
-        std::unique_ptr<CsvZstReader> reader = std::make_unique<CsvZstReader>();
+        std::string raw_line;
 
-        if(!reader->Open(data_filepath)){
-            std::string failure = "Failed to open reader for: " + source_name;
-            std::cerr << failure << std::endl;
-            spdlog::error(failure + "at " + data_filepath);
-            return false;
-        }   
-
-        // Verify Header
-        std::string header_line;
-        reader->ReadLine(header_line);
-
-        if(header_line != kExpectedMboHeader){
-            std::string failure = "Incorrect header format for " + source_name;
-            std::cerr << failure << std::endl;
-            spdlog::error(failure + "at " + data_filepath);
-            return false;
+        if (!it->reader->ReadLine(raw_line)) {
+            spdlog::info("End of data for symbol: " + source_name);
+            // readers_.erase(symbol); TODO
+            it->reader->Close();
+            return nullptr;
         }
-        // Store the active reader 
-        readers_.push_back({std::move(reader), source});
 
-    }
-    spdlog::info("Data readers initialized" );
-    return true;
-}
+        std::unique_ptr<MarketByOrderEvent> event_ptr;
+        if (it->config.schema == DataSchema::MBO) {
+            return ParseMboLineToEvent(it, raw_line);
+            // } else if (readers_[symbol].schema == DataSchema::OHLCV){ // TODO
+            //     event_ptr = ParseOhlcvLineToEvent(symbol, raw_line);
+        }
+        else {
+            throw std::runtime_error("Invalid data schema ");
+        }
 
-// MARK: LoadNextEventForSymbol
-
-std::unique_ptr<MarketByOrderEvent> DataReaderManager::LoadNextEventFromSource(const std::string& source_name) {
-    auto it = std::find_if(readers_.begin(), readers_.end(), [source_name] (DataStream& stream ){
-        return stream.config.data_source_name == source_name;
-    });
-    if(it == readers_.end()){
         return nullptr;
-    }
+    };
 
-    std::string raw_line;
+    // MARK:  ParseMboLineToEvent
 
-    if(!it->reader->ReadLine(raw_line)){
-        spdlog::info("End of data for symbol: " + source_name);
-        // readers_.erase(symbol); TODO
-        it->reader->Close(); 
-        return nullptr;
-    }
+    std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
+        const std::vector<backtester::DataStream>::iterator it,
+        const std::string& line) {
 
-    std::unique_ptr<MarketByOrderEvent> event_ptr;
-    if(it->config.schema == DataSchema::MBO){
-       return ParseMboLineToEvent(it, raw_line);
-    // } else if (readers_[symbol].schema == DataSchema::OHLCV){ // TODO
-    //     event_ptr = ParseOhlcvLineToEvent(symbol, raw_line);
-    } else {
-        throw std::runtime_error("Invalid data schema ");
-    }
+        std::string_view current_view(line);
+        size_t pos = 0;
 
-    return nullptr;
-};
+        uint64_t ts_recv, ts_event, order_id;
+        uint32_t instrument_id, size, sequence;
+        uint16_t publisher_id;
+        EventType action;
+        OrderSide side;
+        uint8_t flags;
+        int32_t ts_in_delta;
+        int64_t price;
+        std::string symbol;
 
-// MARK:  ParseMboLineToEvent
+        for (int i = 1; i <= 15; ++i) {
+            std::string_view token = GetNextToken(pos, current_view);
 
-std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
-    const std::vector<backtester::DataStream>::iterator it, 
-    const std::string& line) {
-
-    std::string_view current_view(line);
-    size_t pos = 0;
-
-    uint64_t ts_recv, ts_event, order_id;
-    uint32_t instrument_id, size, sequence;
-    uint16_t publisher_id; 
-    EventType action;
-    OrderSide side;
-    uint8_t flags;
-    int32_t ts_in_delta; 
-    int64_t price;
-    std::string symbol;
-
-    for (int i = 1; i <= 15; ++i) { 
-        std::string_view token = GetNextToken(pos, current_view);
-
-        switch (i) {
-            case 1: // ts_recv (uint64_t)
-                if (token.empty()) throw std::runtime_error("Field 1 empty."); 
-                if(it->config.ts_format == TmStampFormat::UNIX){
-                    std::from_chars(token.data(), token.data() + token.size(), ts_recv);
-                } else {
+            switch (i) {
+            case 1: // ts_recv (uint64_t / iso8601)
+                if (token.empty()) throw std::runtime_error("Field 1 empty.");
+                if (it->config.ts_format == TmStampFormat::UNIX) {
+                    auto [ptr, ec] = std::from_chars(token.data(), token.data()
+                        + token.size(), ts_recv);
+                    if (ec != std::errc{}) {
+                        std::error_code err = std::make_error_code(ec);
+                        spdlog::error("Error parsing ts_recv: {}, {}", err.message(), token);
+                    }
+                }
+                else {
                     auto result = backtester::time::ParseIsoToUnix(token);
-                    if(!result.success){
+                    if (!result.success) {
                         spdlog::error("Error parsing ts_recv: {}", result.error_msg);
                         auto error = "Error parsing ts_recv" + std::string(token) + result.error_msg;
                         throw std::runtime_error(error);
@@ -120,12 +127,13 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
                 break;
 
             case 2: // ts_event (uint64_t)
-                if (token.empty()) throw std::runtime_error("Field 2 empty."); 
-                if(it->config.ts_format == TmStampFormat::UNIX){
+                if (token.empty()) throw std::runtime_error("Field 2 empty.");
+                if (it->config.ts_format == TmStampFormat::UNIX) {
                     std::from_chars(token.data(), token.data() + token.size(), ts_event);
-                } else {
+                }
+                else {
                     auto result = backtester::time::ParseIsoToUnix(token);
-                    if(!result.success){
+                    if (!result.success) {
                         spdlog::error("Error parsing ts_event: {}", result.error_msg);
                         auto error = "Error parsing ts_event" + std::string(token) + result.error_msg;
                         throw std::runtime_error(error);
@@ -133,7 +141,7 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
                     ts_event = result.unix_nanos;
                 }
                 break;
-                
+
             case 3: // rtype (uint16_t)
                 break;
 
@@ -146,32 +154,33 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
                 if (token.empty()) throw std::runtime_error("Field 5 empty.");
                 std::from_chars(token.data(), token.data() + token.size(), instrument_id);
                 break;
-                
+
             case 6: // action (char)
                 if (token.size() != 1) throw std::runtime_error("Field 6 malformed.");
                 action = ActionToEventTyp(token[0]);
                 break;
-                
+
             case 7: // side (char)
                 if (token.size() != 1) throw std::runtime_error("Field 7 malformed.");
                 side = CharToOrderSide(token[0]);
                 break;
 
             case 8: // price (int64_t)
-                if(action == EventType::kMarketOrderClear) { price = 0; break;} 
+                if (action == EventType::kMarketOrderClear) { price = 0; break; }
                 if (token.empty()) throw std::runtime_error("Field 8 empty.");
 
-                if(it->config.price_format == PriceFormat::DECIMAL){
+                if (it->config.price_format == PriceFormat::DECIMAL) {
                     double raw_price;
                     std::from_chars(token.data(), token.data() + token.size(), raw_price);
                     raw_price *= 1000000000;
                     price = raw_price;
                     break;
-                } else {
-                    std::from_chars(token.data(), token.data() + token.size(), price);       
+                }
+                else {
+                    std::from_chars(token.data(), token.data() + token.size(), price);
                     break;
                 }
-                
+
             case 9: // size (uint32_t)
                 if (token.empty()) throw std::runtime_error("Field 9 empty.");
                 std::from_chars(token.data(), token.data() + token.size(), size);
@@ -184,7 +193,7 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
                 if (token.empty()) throw std::runtime_error("Field 11 empty.");
                 std::from_chars(token.data(), token.data() + token.size(), order_id);
                 break;
-            
+
             case 12: // flags (uint8_t)
                 if (token.empty()) throw std::runtime_error("Field 12 empty.");
                 std::from_chars(token.data(), token.data() + token.size(), flags);
@@ -208,48 +217,49 @@ std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
             default:
                 // Should never happen if loop count is correct
                 throw std::runtime_error("Unexpected field index.");
+            }
         }
-    } 
 
-    std::unique_ptr<MarketByOrderEvent> event_ptr = 
-        std::make_unique<MarketByOrderEvent>(
-            ts_event, 
-            action,
-            ts_recv, 
-            publisher_id,
-            instrument_id,
-            side,
-            price,
-            size,
-            order_id,
-            flags,
-            ts_in_delta,
-            sequence,
-            symbol,
-            it->config.data_source_name
-        );
+        std::unique_ptr<MarketByOrderEvent> event_ptr =
+            std::make_unique<MarketByOrderEvent>(
+                ts_event,
+                action,
+                ts_recv,
+                publisher_id,
+                instrument_id,
+                side,
+                price,
+                size,
+                order_id,
+                flags,
+                ts_in_delta,
+                sequence,
+                symbol,
+                it->config.data_source_name
+            );
 
-    return event_ptr;
-};
+        return event_ptr;
+    };
 
-// MARK: Get Next Token
+    // MARK: Get Next Token
 
-std::string_view DataReaderManager::GetNextToken(size_t& start_pos, 
-                                               std::string_view& current_view) {
-    size_t delim_pos = current_view.find(',', start_pos);
-    std::string_view token;
+    std::string_view DataReaderManager::GetNextToken(size_t& start_pos,
+        std::string_view& current_view) {
+        size_t delim_pos = current_view.find(',', start_pos);
+        std::string_view token;
 
-    if (delim_pos == std::string_view::npos) {
-        // Last token in the line
-        token = current_view.substr(start_pos);
-        start_pos = current_view.size(); // Advance position to the end
-    } else {
-        // Found a token
-        token = current_view.substr(start_pos, delim_pos - start_pos);
-        start_pos = delim_pos + 1; // Advance past the comma
-    }
-    return token;
-};
+        if (delim_pos == std::string_view::npos) {
+            // Last token in the line
+            token = current_view.substr(start_pos);
+            start_pos = current_view.size(); // Advance position to the end
+        }
+        else {
+            // Found a token
+            token = current_view.substr(start_pos, delim_pos - start_pos);
+            start_pos = delim_pos + 1; // Advance past the comma
+        }
+        return token;
+    };
 
 
 }

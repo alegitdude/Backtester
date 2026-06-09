@@ -12,8 +12,8 @@ namespace backtester {
             // Update VWAP - equation : cumulative_notional / cumulative_volume
             if (event.type == EventType::kMarketTrade) {
                 snapshot_.cumulative_volume += event.size;
-                snapshot_.cumulative_notional += event.price * event.size;
-                snapshot_.vwap = snapshot_.cumulative_notional / snapshot_.cumulative_volume;
+                cumulative_notional_ += event.price * event.size;
+                snapshot_.vwap = cumulative_notional_ / snapshot_.cumulative_volume;
 
                 snapshot_.last_trade.aggressor_side = event.side;
                 snapshot_.last_trade.price = event.price;

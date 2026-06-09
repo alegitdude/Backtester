@@ -337,8 +337,6 @@ namespace backtester {
     // MARK: Execution & Position Management
     // =============================================================================
 
-
-
     // MARK: ProcesFill
     void PortfolioManager::ProcessFill(const StrategyFillEvent& fill) {
         ReleaseMargin(fill.order_id);

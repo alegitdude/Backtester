@@ -22,13 +22,11 @@ class InstrumentState {
 
     const MarketSnapshot&  GetMarketSnapshot() const { return snapshot_; }
     
-    // double get_p99_latency_ns() const { return latency_tracker_.get_p99(); }
  private:
-    // Key = publisher_id
-    //std::unordered_map<uint16_t, OrderBook> books_;
     std::vector<OrderBook> books_;
     BidAskPair instrument_Bbo_;
     MarketSnapshot snapshot_;
+    __int128_t cumulative_notional_ = 0;
 
     void UpdateInstrumentBbo();
 

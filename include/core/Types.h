@@ -199,6 +199,5 @@ struct MarketSnapshot {
     int64_t session_high = 0;
     int64_t session_low = kUndefPrice;
     int64_t cumulative_volume = 0;
-    int64_t cumulative_notional = 0;
 };
 }

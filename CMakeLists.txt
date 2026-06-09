@@ -73,6 +73,7 @@ add_executable(tests
   test/execution/ExecutionHandler_test.cpp
   test/market_state/OrderBook_test.cpp
 )
+
 target_compile_definitions(tests PRIVATE
   TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/test_data"
   PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
