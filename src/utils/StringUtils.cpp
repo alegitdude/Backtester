@@ -4,14 +4,13 @@
 
 namespace backtester {
 
-namespace stringUtils{
+    namespace stringUtils {
 
-std::string ToLower(const std::string &s) {
-    std::string str = s;
-    std::transform(str.begin(), str.end(), str.begin(),
-                [](unsigned char c){ return std::tolower(c); });
-    return str;
-}  
-
-}
+        std::string ToLower(const std::string& s) {
+            std::string str = s;
+            std::transform(str.begin(), str.end(), str.begin(),
+                [](unsigned char c) { return std::tolower(c); });
+            return str;
+        }
+    }
 }
