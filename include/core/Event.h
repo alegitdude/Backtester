@@ -73,11 +73,11 @@ struct TradeRecord {
 
 struct Event {
 public:
-    Event(long long ts, EventType t) : timestamp(ts), type(t) {}
+    Event(uint64_t ts, EventType t) : timestamp(ts), type(t) {}
 
     virtual ~Event() = default;
    
-    long long timestamp; 
+    uint64_t timestamp; 
     EventType type;         
 };
 
@@ -141,7 +141,6 @@ struct StrategySignalEvent : Event {
  public:
     StrategySignalEvent(
         uint64_t ts, 
-        EventType event_type,
         int32_t signal_id,
         std::string strategy_id,
         uint32_t instrument_id, 
@@ -197,7 +196,6 @@ struct StrategyOrderEvent : Event {
 struct StrategyOrderRejectionEvent : Event {
     StrategyOrderRejectionEvent(
         uint64_t ts,  
-        EventType event_type, 
         int32_t signal_id,
         std::string strategy_id,
         uint32_t instrument_id, 

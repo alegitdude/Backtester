@@ -107,13 +107,14 @@ namespace backtester {
 
     TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
         DataSourceConfig data_source = {
-            .data_source_name = "ES",
-            .data_filepath = kTestDataFolder / "ES-glbx-20251105.mbo.csv.zst",
-            .schema = DataSchema::MBO,
-            .encoding = Encoding::CSV,
-            .compression = Compression::ZSTD,
-            .price_format = PriceFormat::FIXPNTINT,
-            .ts_format = TmStampFormat::UNIX };
+            "ES",
+            {},
+            kTestDataFolder / "ES-glbx-20251105.mbo.csv.zst",
+            DataSchema::MBO,
+            Encoding::CSV,
+            Compression::ZSTD,
+            PriceFormat::FIXPNTINT,
+            TmStampFormat::UNIX };
 
         std::string sym_path = kTestDataFolder / "ES-20251105_symbology.csv";
         std::vector<Symbol> symbols = backtester::ParseDataSymbols(sym_path);

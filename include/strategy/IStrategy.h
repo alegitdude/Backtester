@@ -37,7 +37,6 @@ class IStrategy {
     
         return std::make_unique<StrategySignalEvent>(
             timestamp,
-            EventType::kStrategySignal,
             next_signal_id_++,
             strategy_id_,
             instrument_id,

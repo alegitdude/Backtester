@@ -142,7 +142,7 @@ struct Position {
     int64_t avg_entry_price = 0;
     uint64_t last_update_ts = 0;
 
-    double UnrealizedPnL(double currentPrice){
+    int64_t UnrealizedPnL(int64_t currentPrice){
         return quantity * (currentPrice - avg_entry_price);
     }
     bool IsFlat() const { return quantity == 0; }

@@ -1,4 +1,5 @@
 #include "market_state/MarketStateManager.h"
+#include "spdlog/spdlog.h"
 
 namespace backtester {
 
@@ -32,7 +33,11 @@ void MarketStateManager::OnMarketEvent(const MarketByOrderEvent& event) {
 }
 
 const BidAskPair MarketStateManager::GetInstrumentBbo(uint32_t instr_id) const {
-    return GetInstrumentState(instr_id)->GetInstrumentBbo();
+    const auto& instr = GetInstrumentState(instr_id);
+    if(instr != nullptr){ return instr-> GetInstrumentBbo();}
+    spdlog::error("Tried to get instrument bbo for non existent instrument: {}"
+        , instr_id);
+    return {};
 }
 
 std::unordered_map<uint32_t, BidAskPair> MarketStateManager::GetTradedInstrsBbo(){
@@ -53,9 +58,10 @@ const std::vector<BidAskPair> MarketStateManager::GetOBSnapshot(
         : EMPTY_SNAPSHOT;
 }
 
-const int64_t MarketStateManager::GetQueueDepth(uint32_t instr_id, OrderSide side, int64_t price) const{
+int64_t MarketStateManager::GetQueueDepth(uint32_t instr_id, OrderSide side, int64_t price) const{
     const InstrumentState* instrument_state = GetInstrumentState(instr_id);
-    return instrument_state->GetQueueDepthByPx(side, price);
+    return instrument_state ? instrument_state->GetQueueDepthByPx(side, price) 
+        : kUndefPrice;
 }
 
 }

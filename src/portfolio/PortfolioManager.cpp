@@ -35,7 +35,6 @@ namespace backtester {
                 signal->strategy_id);
             return std::make_unique<StrategyOrderRejectionEvent>(
                 signal->timestamp,
-                EventType::kStrategyOrderRejection,
                 signal->signal_id,
                 signal->strategy_id,
                 signal->instrument_id,
@@ -57,7 +56,6 @@ namespace backtester {
                 signal->price);
             return std::make_unique<StrategyOrderRejectionEvent>(
                 signal->timestamp,
-                EventType::kStrategyOrderRejection,
                 signal->signal_id,
                 signal->strategy_id,
                 signal->instrument_id,
@@ -76,7 +74,7 @@ namespace backtester {
                     static_cast<double>(config_.risk_limits.max_drawdown_pct) / 1e7);
                 return std::make_unique<StrategyOrderRejectionEvent>(
                     signal->timestamp,
-                    EventType::kStrategyOrderRejection,
+
                     signal->signal_id,
                     signal->strategy_id,
                     signal->instrument_id,
@@ -108,7 +106,7 @@ namespace backtester {
                     margin_required, available_bp);
                 return std::make_unique<StrategyOrderRejectionEvent>(
                     signal->timestamp,
-                    EventType::kStrategyOrderRejection,
+
                     signal->signal_id,
                     signal->strategy_id,
                     signal->instrument_id,
@@ -132,7 +130,7 @@ namespace backtester {
                     current_qty, potential_qty);
                 return std::make_unique<StrategyOrderRejectionEvent>(
                     signal->timestamp,
-                    EventType::kStrategyOrderRejection,
+
                     signal->signal_id,
                     signal->strategy_id,
                     signal->instrument_id,
@@ -170,7 +168,6 @@ namespace backtester {
             spdlog::warn("Portfolio: Modify rejected. Invalid tick price {}.", signal->price);
             return std::make_unique<StrategyOrderRejectionEvent>(
                 signal->timestamp,
-                EventType::kStrategyOrderRejection,
                 signal->signal_id,
                 signal->strategy_id,
                 signal->instrument_id,
@@ -187,7 +184,6 @@ namespace backtester {
                 signal->instrument_id);
             return std::make_unique<StrategyOrderRejectionEvent>(
                 signal->timestamp,
-                EventType::kStrategyOrderRejection,
                 signal->signal_id,
                 signal->strategy_id,
                 signal->instrument_id,
@@ -205,7 +201,6 @@ namespace backtester {
                 "order_id {}.", signal->signal_id);
             return std::make_unique<StrategyOrderRejectionEvent>(
                 signal->timestamp,
-                EventType::kStrategyOrderRejection,
                 signal->signal_id,
                 signal->strategy_id,
                 signal->instrument_id,
@@ -234,7 +229,7 @@ namespace backtester {
                 spdlog::warn("Portfolio: Modify rejected. Max drawdown exceeded.");
                 return std::make_unique<StrategyOrderRejectionEvent>(
                     signal->timestamp,
-                    EventType::kStrategyOrderRejection,
+
                     signal->signal_id,
                     signal->strategy_id,
                     signal->instrument_id,
@@ -252,7 +247,7 @@ namespace backtester {
                 spdlog::warn("Portfolio: Modify rejected. Position limit exceeded.");
                 return std::make_unique<StrategyOrderRejectionEvent>(
                     signal->timestamp,
-                    EventType::kStrategyOrderRejection,
+
                     signal->signal_id,
                     signal->strategy_id,
                     signal->instrument_id,
@@ -269,7 +264,7 @@ namespace backtester {
                     "Required: {}, Available: {}", margin_delta, available_bp);
                 return std::make_unique<StrategyOrderRejectionEvent>(
                     signal->timestamp,
-                    EventType::kStrategyOrderRejection,
+
                     signal->signal_id,
                     signal->strategy_id,
                     signal->instrument_id,
@@ -307,7 +302,6 @@ namespace backtester {
                 "order_id {}.", signal->signal_id);
             return std::make_unique<StrategyOrderRejectionEvent>(
                 signal->timestamp,
-                EventType::kStrategyOrderRejection,
                 signal->signal_id,
                 signal->strategy_id,
                 signal->instrument_id,

@@ -3,6 +3,7 @@
 #include "../core/Event.h"
 #include "InstrumentState.h"
 #include "OrderBook.h"
+#include "spdlog/spdlog.h"
 #include <iostream>
 
 namespace backtester {
@@ -22,7 +23,7 @@ class MarketStateManager : public IMarketDataProvider{
         uint32_t instrument_id, uint16_t publisher_id, 
         std::size_t level_count) const override ;
     
-    const int64_t GetQueueDepth(uint32_t instr_id, OrderSide side, int64_t price) const;
+    int64_t GetQueueDepth(uint32_t instr_id, OrderSide side, int64_t price) const;
 
     const std::unordered_map<uint32_t, MarketSnapshot>& GetMarketSnapshots() const override { 
         return snapshots_;
@@ -53,7 +54,7 @@ class MarketStateManager : public IMarketDataProvider{
         if (it != surprise_instruments_.end()) {
             return &it->second;
         }
-
+        spdlog::error("Tried to access unknown instrument with id: {}", id);
         return nullptr; 
     }
 

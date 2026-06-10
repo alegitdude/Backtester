@@ -13,7 +13,7 @@ class PortfolioManagerTest : public ::testing::Test {
  protected:
     const uint32_t kFutInstrumentId = 1;
     const std::string kSymbolStr = "ESZ5";
-    const int64_t kInitialCash = 100000'000'000'000;
+    const uint64_t kInitialCash = 100000'000'000'000;
     BidAskPair kEmptyBbo = {0, 0, 0, 0, 0, 0};
     // Config objects
     AppConfig config_fut_;
@@ -33,12 +33,12 @@ class PortfolioManagerTest : public ::testing::Test {
         // Futures Config 
         config_fut_.initial_cash = kInitialCash;
         config_fut_.traded_instruments = {{
-            .instrument_id = kFutInstrumentId,
-            .instrument_type = InstrumentType::FUT,
-            .tick_size = 250'000'000,
-            .tick_value = 12'500'000'000, // $50 per point 
-            .init_margin_req = 20845'000000000,
-            .maint_margin_req = 17017'000000000
+            kFutInstrumentId,
+            InstrumentType::FUT,
+            250'000'000,
+            12'500'000'000, // $50 per point 
+            20845'000000000,
+            7017'000000000
         }};
         config_fut_.risk_limits.max_position_size = 10;
         config_fut_.risk_limits.max_drawdown_pct = 100'000'000; 
@@ -47,12 +47,12 @@ class PortfolioManagerTest : public ::testing::Test {
         // Stock Config 
         config_stk_.initial_cash = kInitialCash;
         config_stk_.traded_instruments = {{
-            .instrument_id = 2,
-            .instrument_type = InstrumentType::STOCK,
-            .tick_size = 0'010'000'000,
-            .tick_value = 0'010'000'000, // 1:1 value
-            .init_margin_req = 0,
-            .maint_margin_req = 0  // Cash account 
+            2,
+            InstrumentType::STOCK,
+            0'010'000'000,
+            10'000'000, // 1:1 value
+            0,
+            0  // Cash account 
         }};
     }
 
@@ -60,7 +60,6 @@ class PortfolioManagerTest : public ::testing::Test {
         int32_t signal_id, uint32_t instrument_id, SignalType type, int64_t price, uint32_t qty) {
         return StrategySignalEvent(
             timestamp,
-            EventType::kStrategySignal,
             signal_id,
             "TestStrat",
             //1000,           // timestamp

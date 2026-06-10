@@ -79,8 +79,13 @@ namespace backtester {
                     order_event->instrument_id);
                 int64_t queue_depth = market_state_manager_.GetQueueDepth(
                     order_event->instrument_id, order_event->side, order_event->price);
-
-                execution_handler_.OnStrategyOrder(*order_event, cur_bbo, queue_depth); 
+                if(queue_depth == kUndefPrice) {
+                    spdlog::error("Tried to get queue depth for unknown instrument: {}"
+                        "for strategy order {} at ts: {}", order_event->instrument_id,
+                    order_event->order_id, order_event->timestamp);
+                } else {
+                    execution_handler_.OnStrategyOrder(*order_event, cur_bbo, queue_depth); 
+                }
             }
 
             if (eventType == EventType::kStrategyOrderFill) {
@@ -157,7 +162,6 @@ namespace backtester {
 
             auto signal = std::make_unique<StrategySignalEvent>(
                 close_ts,
-                EventType::kStrategySignal,
                 -1,  // use negative IDs to distinguish from strategy signals
                 pos.strategy_id,
                 pos.instrument_id,

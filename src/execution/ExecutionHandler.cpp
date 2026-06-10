@@ -366,7 +366,8 @@ namespace backtester {
             config_.traded_instruments.end(), [instrument_id](TradedInstrument traded_instr) {
                 return traded_instr.instrument_id == instrument_id;
             });
-         
+        if(instr == config_.traded_instruments.end()) return kUndefPrice;
+
         if (instr->instrument_type == InstrumentType::FUT) {
             return fill_qty * config_.commission_struct.fut_per_contract;
         }
@@ -384,7 +385,12 @@ namespace backtester {
 
         order.remaining_qty -= fill_qty;
         int64_t commission = GetCommissionsByInstr(order.instrument_id, fill_qty);
-
+        if(commission == kUndefPrice) {
+            spdlog::error("Error emitting fill for unknown instrument with id {}" 
+                "submitted at {} ", order.instrument_id, order.submit_ts);
+            return;
+        }
+        
         auto fill = std::make_unique<StrategyFillEvent>(
             fill_ts,
             order.order_id,
