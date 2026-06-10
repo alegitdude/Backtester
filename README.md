@@ -115,35 +115,59 @@ Additional test coverage:
 - `TimeUtils_test.cpp` — ISO-8601 parsing with nano-precision, fast 2/4-digit integer parsers, timezone offsets.
 - `CsvZstReader_test.cpp` — streaming decompression edge cases (empty file, no trailing newline, lines larger than the decompressor's output buffer, re-open semantics).
 - `ConfigParser_test.cpp` — JSON validation and type-safe required/optional field extraction.
+
 ## Quickstart
- 
+
 Tested on Ubuntu 22.04 / 24.04 with `g++` ≥ 11.
- 
+
 ```bash
 # Dependencies
-sudo apt install cmake libzstd-dev g++
+sudo apt install cmake libzstd-dev g++ git
 
-# Build
+# Clone
 git clone https://github.com/alegitdude/Backtester backtester && cd backtester
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . -j
- 
-# Fetch the demo dataset (342 MB ES futures MBO, hosted on GitHub Releases)
-../scripts/fetch_demo_data.sh
 
-# Run
-./Backtester ../config/demo.json
- 
-# Tests
-ctest --output-on-failure
- 
-# Benchmarks
-./orderbook_perf_harness ../test/test_data/ES-glbx-20251105.mbo.csv.zst
-./reader_perf_harness    ../test/test_data/ES-glbx-20251105.mbo.csv.zst
+# Configure + build (Release)
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+
+# Fetch the demo dataset (342 MB ES futures MBO, hosted on GitHub Releases)
+./scripts/fetch_demo_data.sh
+
+# Run the demo backtest
+./build/Backtester config/demo.json
+
+# Run the tests
+ctest --test-dir build --output-on-failure
+
+# Run the benchmarks (always from a Release build)
+./build/orderbook_perf_harness config/demo.json
+./build/reader_perf_harness    config/demo.json
 ```
- 
+
 `nlohmann/json`, `spdlog`, and `googletest` are fetched automatically by CMake.
+
+### Development builds
+
+Optimization is driven entirely by `CMAKE_BUILD_TYPE` (Release → `-O3 -DNDEBUG`,
+Debug → `-O0 -g`), so use a Debug tree for development and a Release tree for
+anything you intend to benchmark or report from.
+
+```bash
+# Debug build with all warnings treated as errors
+cmake -B build-debug -DCMAKE_BUILD_TYPE=Debug -DWARNINGS_AS_ERRORS=ON
+cmake --build build-debug -j
+
+# Debug build with AddressSanitizer + UBSan, for correctness runs
+cmake -B build-san -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON
+cmake --build build-san -j
+ctest --test-dir build-san --output-on-failure
+```
+
+You only need to re-run `cmake -B <dir>` when you change `CMakeLists.txt` or
+toggle an option; otherwise just re-run `cmake --build <dir>`. Benchmarks and
+the demo report should always come from the **Release** tree —
+`-O0` and sanitizer instrumentation change run speeds. 
 
 ### Demo dataset
 The benchmark and demo configurations use a full session of
@@ -215,6 +239,52 @@ test/                     GoogleTest suites mirroring src/
 benchmarks/               Standalone perf harnesses for the reader and orderbook
 config/                   Sample JSON configs
 ```
+
+## Benchmarking & Profiling
+
+To reproduce the **throughput numbers**, use the benchmark runner — no `perf`,
+no root, no extra dependencies:
+
+```bash
+./scripts/fetch_demo_data.sh        # if you haven't already
+./scripts/run_benchmarks.sh         # builds Release, runs both harnesses
+```
+
+It builds the harnesses in Release and runs each twice (override with
+`RUNS=5 ./scripts/run_benchmarks.sh`), printing the `Throughput: … M/s` line
+for the reader and the orderbook hot path. To run one directly instead:
+
+```bash
+./build/orderbook_perf_harness config/demo.json
+./build/reader_perf_harness    config/demo.json
+```
+
+To reproduce the **flame graphs** in [BENCHMARKS.md](./docs/BENCHMARKS.md), you
+need `perf` and Brendan Gregg's FlameGraph scripts:
+
+```bash
+# One-time setup
+sudo apt install linux-tools-common linux-tools-generic linux-tools-$(uname -r)
+git clone https://github.com/brendangregg/FlameGraph   # into the repo root
+
+# Build the harnesses in Release. Frame pointers (-fno-omit-frame-pointer) are
+# on in every build type, so the optimized binary still has named stack frames.
+./scripts/build_bench.sh
+
+# Record a profile, then render the flame graph. Both scripts take the harness
+# name and write to benchmarks// so the two profiles don't collide.
+./scripts/profile.sh        orderbook_perf_harness
+./scripts/generate_flame.sh orderbook_perf_harness   # -> benchmarks/orderbook_perf_harness/orderbook_perf_harness_flame.svg
+
+# Same for the ingestion reader:
+./scripts/profile.sh        reader_perf_harness
+./scripts/generate_flame.sh reader_perf_harness
+```
+
+`profile.sh` uses `sudo perf record`. If you'd rather not profile as root,
+lower the paranoia level once with `sudo sysctl kernel.perf_event_paranoid=1`
+and drop the `sudo` from the script.
+
 ## Analysis & Visualization
 
 After a backtest, the `scripts/create_equity_curve_graph.py` script renders the equity
