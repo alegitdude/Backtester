@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     std::chrono::duration<double> diff = end - start;
 
     std::cout << "Processed " << message_count << " messages." << std::endl;
-    std::cout << "Time: " << diff.count() << "s (" << (message_count / diff.count() / 1e6) << " M/s)" << std::endl;
+    std::cout << "Time: " << diff.count() << "s (" << (static_cast<double>(message_count) / diff.count() / 1e6) << " M/s)" << std::endl;
     std::cout << "total_volume: " << total_volume << std::endl;
 
     return 0;

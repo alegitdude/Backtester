@@ -19,6 +19,7 @@ A single-threaded, event-driven backtesting framework in C++17 for futures and e
 - [Modeling Assumptions](#modeling-assumptions)
 - [Scope & Limitations](#scope--limitations)
 - [Project Layout](#project-layout)
+- [Benchmarking & Profiling](#benchmarking--profiling)
 - [Analysis & Visualization](#analysis--visualization)
 ---
  

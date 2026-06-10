@@ -26,17 +26,6 @@ namespace backtester {
         // instrument_id for key
         std::unordered_map<uint32_t, std::pair<size_t, std::vector<ExpectedMBP10>>> expected_mbp10_map_;
 
-        DataSourceConfig data_source = {
-            .data_source_name = "ES",
-            .data_filepath = kTestDataFolder / "ES-glbx-20251105.mbp-10.csv.zst",
-            .schema = DataSchema::MBO,
-            .encoding = Encoding::CSV,
-            .compression = Compression::ZSTD,
-            .price_format = PriceFormat::FIXPNTINT,
-            .ts_format = TmStampFormat::UNIX };
-
-        AppConfig test_config = { .data_configs = std::vector<DataSourceConfig>{data_source} };
-
         inline bool isMarketEvent(EventType type) {
             return type == EventType::kMarketOrderAdd ||
                 type == EventType::kMarketOrderCancel ||
@@ -50,7 +39,7 @@ namespace backtester {
         template <typename T>
         void ParseField(std::string_view sv, T& value) {
             if (sv.empty()) return;
-            auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), value);
+            std::from_chars(sv.data(), sv.data() + sv.size(), value);
         }
 
         void LoadExpectedMbp10(const std::string& mbp10_path) {
@@ -87,8 +76,8 @@ namespace backtester {
                 ParseField(fields[8], snapshot.price);
                 ParseField(fields[12], snapshot.sequence_id);
                 snapshot.levels.fill({ kUndefPrice, 0, 0, kUndefPrice, 0, 0 });
-                for (int i = 0; i < 10; ++i) {
-                    int base = 13 + i * 6;
+                for (size_t i = 0; i < 10; ++i) {
+                    size_t base = 13 + i * 6;
                     if (fields[base] != "") {
                         ParseField(fields[base], snapshot.levels[i].bid.price);
                         ParseField(fields[base + 2], snapshot.levels[i].bid.size);
@@ -118,9 +107,9 @@ namespace backtester {
 
         std::string sym_path = kTestDataFolder / "ES-20251105_symbology.csv";
         std::vector<Symbol> symbols = backtester::ParseDataSymbols(sym_path);
-
-        AppConfig config = { .data_configs = std::vector<DataSourceConfig>{data_source},
-                            .active_instruments = {} };
+        
+        AppConfig config;
+        config.data_configs = std::vector<DataSourceConfig>{data_source};
 
         for (const auto& symbol : symbols) {
             config.active_instruments.push_back(symbol.instrument_id);

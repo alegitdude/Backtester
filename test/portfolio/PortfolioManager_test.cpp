@@ -306,7 +306,7 @@ TEST_F(PortfolioManagerTest, Metrics_UnrealizedPnL_Futures) {
     EXPECT_EQ(upnl, 200'000'000'000);
 
     // Total Equity Check
-    double equity = pm.GetTotalEquity({{kFutInstrumentId, ba_pair}});
+    auto equity = pm.GetTotalEquity({{kFutInstrumentId, ba_pair}});
     EXPECT_EQ(equity, kInitialCash + 200'000'000'000);
 }
 
