@@ -38,7 +38,7 @@ class PortfolioManagerTest : public ::testing::Test {
             250'000'000,
             12'500'000'000, // $50 per point 
             20845'000000000,
-            7017'000000000
+            17017'000000000
         }};
         config_fut_.risk_limits.max_position_size = 10;
         config_fut_.risk_limits.max_drawdown_pct = 100'000'000; 
@@ -98,9 +98,6 @@ TEST_F(PortfolioManagerTest, InitializationTest_Fut) {
 TEST_F(PortfolioManagerTest, RiskGate_ValidEntry) {
     PortfolioManager pm(config_fut_);
     
-    int64_t price = 4000'000'000'000; 
-   
-
     auto signal = CreateSignal(1000, 5, 1, SignalType::kBuySignal, 4000'250'000'000, 1);
 
     std::unordered_map<uint32_t, BidAskPair> market_prices = {{kFutInstrumentId, kValidEsBidAskPair}};
@@ -335,10 +332,10 @@ TEST_F(PortfolioManagerTest, Metrics_Drawdown_PreventsTrading) {
     int64_t equity = pm.GetTotalEquity({{kFutInstrumentId, ba_pair}});
     int64_t dd = pm.GetCurrentDrawdown(equity);
     
-    EXPECT_NEAR(dd, 1'000'000'000, 1); // 100% drawdown
+    EXPECT_EQ(dd, 1'000'000'000); // 100% drawdown
 
     // 3. Try to open new trade
-    auto signal = CreateSignal(1000, 5, 1, SignalType::kBuySignal, 3800'000'000'000, 50);
+    auto signal = CreateSignal(1000u, 5, 1u, SignalType::kBuySignal, 3800'000'000'000, 50u);
     auto event = pm.RequestOrder(&signal, {{kFutInstrumentId, ba_pair}});
 
     ASSERT_TRUE(IsRejection(event));

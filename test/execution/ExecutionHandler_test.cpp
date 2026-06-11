@@ -1176,10 +1176,10 @@ TEST_F(ExecutionHandlerTest, EdgeCase_LargeOrderSmallTrades_IncrementalFill) {
     auto order = MakeOrderAdd(1, OrderSide::kBid, 5000, 100, 1000);
     eh.OnStrategyOrder(order, bbo, 0);  // Front of queue
 
-    uint64_t t = 1000 + kLatencyNs + 1;
+    uint64_t t = 1000u + kLatencyNs + 1u;
 
     // 10 small trades of 5 each
-    for (int i = 0; i < 10; ++i) {
+    for (uint64_t i = 0; i < 10; ++i) {
         auto trade = MakeMboFill(5000, 5, t + i, OrderSide::kBid);
         eh.OnMarketEvent(trade, bbo);
     }
