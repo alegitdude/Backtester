@@ -89,7 +89,6 @@ int main(int argc, char* argv[]) {
 
     if (!data_reader_manager.RegisterAndInitStreams(config.data_configs)) {
         throw std::runtime_error("Problem parsing data configuration, check logs");
-        return 1;
     };
 
     // Initialize Backtester class

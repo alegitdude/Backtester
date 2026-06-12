@@ -58,7 +58,7 @@ namespace backtester {
 		try {
 			data = json::parse(f);
 		}
-		catch (json::exception e) {
+		catch (json::exception& e) {
 			throw std::runtime_error("Config file is not valid JSON at: " + config_path.generic_string());
 		}
 
@@ -295,7 +295,7 @@ namespace backtester {
 				"Traded Instruments");
 			instr.instrument_type = ParseInstrType(GetRequired<std::string>(item,
 				"instrument_type", "Traded Instruments"));
-			instr.tick_size = numericUtils::DoubleToFixedPoint(GetRequired<double>( // TODO check if number is reasonable
+			instr.tick_size = numericUtils::DoubleToFixedPoint(GetRequired<double>( 
 				item, "tick_size", "Traded Instruments"));
 			if (instr.tick_size == 0) {
 				throw std::runtime_error(fmt::format("Tick size cannot be 0, error for instrument {}", instr.instrument_id));

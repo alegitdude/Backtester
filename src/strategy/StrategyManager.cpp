@@ -38,7 +38,6 @@ std::vector<std::unique_ptr<StrategySignalEvent>> StrategyManager::OnMarketEvent
     std::vector<std::unique_ptr<StrategySignalEvent>> collected_signals;
 
     for (auto& strategy : active_strategies_) {
-        // You might want to filter strategies by symbol here if they are symbol-specific
         auto signal = strategy->OnMarketEvent(mbo_event);
 
         if (signal) {
