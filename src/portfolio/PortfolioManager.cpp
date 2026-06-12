@@ -51,6 +51,16 @@ namespace backtester {
         const StrategySignalEvent* signal,
         const std::unordered_map<uint32_t, BidAskPair>& latest_prices) {
 
+        const TradedInstrument* instr = GetTradedInstr(signal->instrument_id);
+        if (instr == nullptr) {
+            spdlog::error(R"(Strategy {} is trying to trade instrument {} that is 
+            not specified in config.traded_instruments. Add it or fix the strategy)"
+            , signal->strategy_id, signal->instrument_id);
+            throw std::runtime_error(fmt::format(R"(Strategy {} is trying to trade 
+            instrument {} that is not specified in conig.traded_instruments. Add 
+            it or fix the strategy)", signal->strategy_id, signal->instrument_id));
+        }
+
         if (!IsValidTick(signal->instrument_id, signal->price)) {
             spdlog::warn("Portfolio: Rejected price {} - not a valid tick multiple.",
                 signal->price);
@@ -85,16 +95,7 @@ namespace backtester {
                 );
             }
         }
-        const TradedInstrument* instr = GetTradedInstr(signal->instrument_id);
-        if (instr == nullptr) {
-            spdlog::error(R"(Strategy {} is trying to trade instrument {} that is 
-            not specified in traded_instruments in the config. Add it or fix 
-            the strategy)", signal->strategy_id, signal->instrument_id);
-            throw std::runtime_error(fmt::format(R"(Strategy {} is trying to trade 
-            instrument {} that is not specified in traded_instruments in the 
-            config. Add it or fix the strategy)", signal->strategy_id,
-                signal->instrument_id));
-        }
+        
         // 3. Risk Check: Buying Power (Margin)
         if (signal->signal_id != -1) { // not eod
             int64_t margin_required = CalculateMarginRequirement(signal->instrument_id,
@@ -383,7 +384,7 @@ namespace backtester {
             trade_pnl = CloseOrReduce(*prev_pos, instr, fill, fill_qty_signed);
             total_realized_pnl_ += trade_pnl;
         }
-        
+
         TradeRecord record;
         record.timestamp = fill.timestamp;
         record.instrument_id = fill.instrument_id;
@@ -460,6 +461,16 @@ namespace backtester {
     int64_t PortfolioManager::GetUnrealizedPnL(const Position& pos, BidAskPair& cur_Bbo) const {
         if (pos.quantity == 0) return 0;
         const TradedInstrument* traded_instr_ptr = GetTradedInstr(pos.instrument_id);
+        if(UNLIKELY (!traded_instr_ptr)) {
+            spdlog::error(R"(Tried to access position instrument {} from strategy 
+                {}, but was not found in config. Postion last ts: {}, 
+                Position order id: {})", pos.instrument_id, pos.strategy_id, 
+                pos.last_update_ts, pos.last_order_id);
+            throw std::runtime_error(fmt::format(R"(Tried to access position 
+                instrument {} from strategy {}, but was not found in config. 
+                Postion last ts: {}, Position order id: {})", pos.instrument_id, 
+                pos.strategy_id, pos.last_update_ts, pos.last_order_id));
+        }
 
         int64_t pnl = 0;
 
