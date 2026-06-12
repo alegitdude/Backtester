@@ -383,9 +383,7 @@ namespace backtester {
             trade_pnl = CloseOrReduce(*prev_pos, instr, fill, fill_qty_signed);
             total_realized_pnl_ += trade_pnl;
         }
-
-        prev_pos->last_update_ts = fill.timestamp;
-
+        
         TradeRecord record;
         record.timestamp = fill.timestamp;
         record.instrument_id = fill.instrument_id;
@@ -412,6 +410,7 @@ namespace backtester {
         int64_t fill_notional = std::abs(fill_qty_signed) * fill.fill_price;
         pos.quantity += fill_qty_signed;
         pos.avg_entry_price = (current_notional + fill_notional) / std::abs(pos.quantity);
+        pos.last_update_ts = fill.timestamp;
     }
 
     int64_t PortfolioManager::CloseOrReduce(Position& pos, const TradedInstrument* instr,
@@ -437,6 +436,7 @@ namespace backtester {
         }
 
         pos.quantity += fill_qty_signed;
+        pos.last_update_ts = fill.timestamp;
 
         if (pos.quantity == 0 && fill.fill_quantity == std::abs(fill_qty_signed)) {
             uint32_t closed_instr_id = pos.instrument_id;
