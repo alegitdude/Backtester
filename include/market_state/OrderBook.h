@@ -107,7 +107,7 @@ namespace backtester {
 
     class OrderBook {
     public:
-        OrderBook(uint16_t publisher_id);
+        OrderBook(uint16_t pub_id);
         uint16_t publisher_id;
         inline const BidAskPair GetBbo() { return bbo_cache_; }
         int64_t GetMidPrice() const;

@@ -369,7 +369,7 @@ namespace backtester {
         else if (is_flip) {
             // Step 1: Close the entire existing position
             int64_t close_qty_signed = -prev_pos->quantity; // opposite sign to close fully
-            int64_t trade_pnl = CloseOrReduce(*prev_pos, instr, fill, close_qty_signed);
+            trade_pnl = CloseOrReduce(*prev_pos, instr, fill, close_qty_signed);
             total_realized_pnl_ += trade_pnl;
 
             // Step 2: Open remaining quantity in opposite direction
@@ -417,7 +417,7 @@ namespace backtester {
     int64_t PortfolioManager::CloseOrReduce(Position& pos, const TradedInstrument* instr,
         const StrategyFillEvent& fill, int64_t fill_qty_signed) {
 
-        int64_t quantity_closed = std::min(std::abs(pos.quantity), std::abs(fill_qty_signed));
+        uint64_t quantity_closed = std::min(std::abs(pos.quantity), std::abs(fill_qty_signed));
         int64_t trade_pnl = 0;
 
         if (instr->instrument_type == InstrumentType::FUT) {
@@ -623,7 +623,7 @@ namespace backtester {
     }
 
     bool PortfolioManager::IsValidTick(uint32_t instrument_id, int64_t price) const {
-        int64_t tick_size = GetTradedInstr(instrument_id)->tick_size;
+        uint64_t tick_size = GetTradedInstr(instrument_id)->tick_size;
         if (tick_size == 0) return true; // Safety
         return (price % tick_size) == 0;
     }

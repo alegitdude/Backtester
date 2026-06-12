@@ -38,7 +38,6 @@ namespace backtester {
     }
 
     void InstrumentState::UpdateInstrumentBbo() {      
-        BidAskPair prev_bbo = instrument_Bbo_;
         instrument_Bbo_.bid = {};
         instrument_Bbo_.ask = {};
 

@@ -9,8 +9,8 @@ namespace backtester {
 
     ExecutionHandler::ExecutionHandler(EventQueue& event_queue, const AppConfig& config)
         : event_queue_(event_queue),
-        latency_ns_(config.execution_latency_ms * 1'000'000ULL),
         config_(config),
+        latency_ns_(config.execution_latency_ms * 1'000'000ULL),   
         fill_model_(FillModel::QueuePosition) {
     }
 
@@ -361,7 +361,7 @@ namespace backtester {
         return false;
     }
 
-    int64_t ExecutionHandler::GetCommissionsByInstr(uint32_t instrument_id, uint32_t fill_qty) {
+    uint64_t ExecutionHandler::GetCommissionsByInstr(uint32_t instrument_id, uint32_t fill_qty) {
         auto instr = std::find_if(config_.traded_instruments.begin(),
             config_.traded_instruments.end(), [instrument_id](TradedInstrument traded_instr) {
                 return traded_instr.instrument_id == instrument_id;
@@ -390,7 +390,7 @@ namespace backtester {
                 "submitted at {} ", order.instrument_id, order.submit_ts);
             return;
         }
-        
+
         auto fill = std::make_unique<StrategyFillEvent>(
             fill_ts,
             order.order_id,

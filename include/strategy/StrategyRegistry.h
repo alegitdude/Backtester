@@ -32,11 +32,6 @@ private:
     }
 };
 
-// #define REGISTER_STRATEGY(ClassName, StringName) \
-//     static StrategyRegistrar global_registrar_##ClassName( \
-//         StringName, \
-//         []() -> std::unique_ptr<IStrategy> { return std::make_unique<ClassName>(); } \
-//     )
 #define REGISTER_STRATEGY(ClassName, StringName) \
     namespace { \
         static bool const registered_##ClassName = []() { \

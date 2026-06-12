@@ -129,7 +129,7 @@ namespace backtester {
         // MARK: Member Variables
         // =========================================================================
 
-        int64_t initial_capital_;
+        uint64_t initial_capital_;
         int64_t current_cash_;
         int64_t total_realized_pnl_ = 0;
         int64_t max_equity_seen_ = 0;

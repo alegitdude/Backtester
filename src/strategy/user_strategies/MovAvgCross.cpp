@@ -21,7 +21,7 @@ namespace backtester {
         bool IsShort() { return quantity < 0; }
         bool IsLong() { return quantity > 0; }
 
-        double UnrealizedPnL(double currentPrice) {
+        int64_t UnrealizedPnL(int64_t currentPrice) {
             return quantity * (currentPrice - avg_entry_price);
         }
     };
@@ -78,7 +78,7 @@ namespace backtester {
                 return nullptr;
             }
 
-            if (price_history_.size() < slow_window_) {
+            if (static_cast<int64_t>(price_history_.size()) < slow_window_) {
                 return nullptr;  // not enough history yet
             }
 
@@ -149,8 +149,8 @@ namespace backtester {
         int64_t current_price_ = 0;
         std::deque<int64_t> price_history_;
         uint32_t traded_instr_;
-        uint32_t slow_window_;
-        uint32_t fast_window_;
+        int64_t slow_window_;
+        int64_t fast_window_;
         CrossType last_cross_;
 
         bool SamplePrice(uint64_t ts) {
@@ -160,7 +160,7 @@ namespace backtester {
             }
 
             price_history_.push_back(current_price_);
-            if (static_cast<int>(price_history_.size()) > slow_window_) {
+            if (static_cast<int64_t>(price_history_.size()) > slow_window_) {
                 price_history_.pop_front();
             }
             last_sample_ts_ = ts;
@@ -218,7 +218,7 @@ namespace backtester {
             return nullptr;
         }
 
-        int64_t ComputeSma(int window) const {
+        int64_t ComputeSma(int64_t window) const {
             __uint128_t sum = 0;
             auto it = price_history_.end() - window;
             for (; it != price_history_.end(); ++it) {

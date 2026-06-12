@@ -34,13 +34,12 @@ add_compile_options(-g -fno-omit-frame-pointer)
 add_library(project_warnings INTERFACE)
 target_compile_options(project_warnings INTERFACE
   -Wall -Wextra -Wpedantic
-  #-Wshadow             
+  -Wshadow             
   -Wnon-virtual-dtor
   -Wnull-dereference
   -Wdouble-promotion
   -Wcast-align
   -Wformat=2
-  # Enable LAST, after the above are clean — noisy with fixed-point int casts:
   -Wconversion -Wsign-conversion
 )
 
@@ -87,7 +86,7 @@ target_include_directories(CoreLogic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(CoreLogic PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(CoreLogic 
   PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog 
-  PRIVATE zstd
+  PRIVATE zstd project_warnings project_sanitizers
 )
 
 ########################
