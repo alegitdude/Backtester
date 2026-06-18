@@ -66,8 +66,8 @@ namespace backtester {
             for (size_t i = 0; i < Capacity; ++i) {
                 Order& e = entries_[(slot + i) & MASK];
                 if (e.order_id == order_id) {
-                    e.order_id = 0; 
-                    Backshift((slot + i) & MASK);
+                    e.order_id = 0;
+                    Backshift((slot)&MASK);
                     return true;
                 }
                 if (e.order_id == 0) return false;
@@ -82,25 +82,25 @@ namespace backtester {
     private:
         std::array<Order, Capacity> entries_{};
 
+        inline bool CheckIfShouldShift(size_t ideal_slot, size_t hole, size_t probe) {
+            size_t dist_probe = (probe - ideal_slot) & MASK;
+            size_t dist_hole = (hole - ideal_slot) & MASK;
+            return dist_hole < dist_probe;
+        }
+
         void Backshift(size_t hole) {
-            size_t current = hole;
+            size_t probe = (hole + 1) & MASK;
+            
+            while (entries_[probe].order_id != 0) {
+                size_t ideal_slot = entries_[probe].order_id & MASK;
+                bool wants_to_shift = CheckIfShouldShift(ideal_slot, hole, probe);
 
-            while (true) {
-                size_t next = (current + 1) & MASK;
-                Order& e = entries_[next];
-
-                if (e.order_id == 0) break;
-
-                uint64_t natural = e.order_id & MASK;
-
-                if (((next - natural) & MASK) >= ((hole - natural) & MASK)) {
-
-                    entries_[hole] = e;
-                    e.order_id = 0;
-
-                    hole = next;
+                if(wants_to_shift){
+                    entries_[hole] = entries_[probe];
+                    entries_[probe].order_id = 0;
+                    hole = probe;
                 }
-                current = next;
+                probe = (probe + 1) & MASK;
             }
         }
     };
