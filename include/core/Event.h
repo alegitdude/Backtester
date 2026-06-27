@@ -57,16 +57,6 @@ enum class RejectionReason {
     kUnknownSignalType
 };
 
-struct TradeRecord {
-    uint64_t timestamp;
-    std::string strategy_id;
-    uint32_t instrument_id;
-    OrderSide side;
-    int64_t price;
-    uint32_t quantity;
-    int64_t realized_pnl;  
-    int64_t commission;
-};
 //////////////////////////////////////////////////////////////
 ///////////// MARK: Base Event Class
 //////////////////////////////////////////////////////////////
@@ -161,7 +151,7 @@ struct StrategySignalEvent : Event {
     std::string strategy_id;
     uint32_t instrument_id;
     SignalType signal_type; // BUY, SELL, Cancel, Mod
-    int64_t price; // Optional? for limit orders
+    int64_t price; 
     uint32_t quantity;
 };
 

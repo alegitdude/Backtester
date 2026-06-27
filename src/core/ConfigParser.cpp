@@ -236,8 +236,8 @@ namespace backtester {
 			Strategy strat;
 			strat.name = GetRequired<std::string>(strategy, "name", context);
 			strat.params = GetRequired<std::vector<int>>(strategy, "params", context);
-			strat.traded_instr_id = GetRequired<std::size_t>(strategy, "traded_instr_id", context);
-			strat.max_lob_lvl = GetRequired<std::size_t>(strategy, "max_lob_lvl", context);
+			strat.traded_instr_id = GetRequired<uint32_t>(strategy, "traded_instr_id", context);
+			strat.max_lob_lvl = GetRequired<uint32_t>(strategy, "max_lob_lvl", context);
 			res.push_back(strat);
 		}
 		return res;

@@ -178,11 +178,11 @@ namespace backtester {
 
     void Backtester::RecordSnapshot(uint64_t current_time) {
         auto current_prices = market_state_manager_.GetTradedInstrsBbo();
-        int64_t equity = portfolio_manager_.GetTotalEquity(current_prices);
-        int64_t cash = portfolio_manager_.GetCash();
-        int64_t realized = portfolio_manager_.GetRealizedPnL();
-        int64_t unrealized = equity - cash;
-        int64_t drawdown = portfolio_manager_.GetMaxEquitySeen() - equity;
+        money_t equity = portfolio_manager_.GetTotalEquity(current_prices);
+        money_t cash = portfolio_manager_.GetCash();
+        money_t realized = portfolio_manager_.GetRealizedPnL();
+        money_t unrealized = equity - cash;
+        money_t drawdown = portfolio_manager_.GetMaxEquitySeen() - static_cast<uint64_t>(equity);
         bool has_position = portfolio_manager_.HasAnyOpenPosition();
 
         report_generator_.RecordEquitySnapshot(current_time, equity, cash,

@@ -98,15 +98,14 @@ namespace backtester {
         const PortfolioManager& portfolio) const {
 
         const auto& trades = portfolio.GetTradeHistory();
-        int64_t initial = config_.initial_cash;
 
-        int64_t final_equity = initial;
+        money_t final_equity = config_.initial_cash;
         if (!equity_curve_.empty()) {
             final_equity = equity_curve_.back().equity;
         }
 
         PerformanceSummary summary = ComputeSummaryFromTrades(
-            trades, initial, final_equity);
+            trades, config_.initial_cash, final_equity);
 
         // Timing
         summary.backtest_start_ts = config_.start_time;
@@ -125,7 +124,7 @@ namespace backtester {
         summary.max_drawdown_duration_ns = max_dd_duration_ns_;
 
         // Max drawdown from equity curve
-        int64_t curve_peak = initial;
+        int64_t curve_peak = config_.initial_cash;
         int64_t max_dd = 0;
         for (const auto& snap : equity_curve_) {
             if (snap.equity > curve_peak) curve_peak = snap.equity;
@@ -139,9 +138,9 @@ namespace backtester {
 
         // CAGR
         double duration_years = summary.backtest_duration_days / 252.0;
-        if (duration_years > 0.0 && initial > 0) {
+        if (duration_years > 0.0) {
             double equity_ratio = static_cast<double>(final_equity) /
-                static_cast<double>(initial);
+                static_cast<double>(config_.initial_cash);
             if (equity_ratio > 0.0) {
                 summary.annualized_return_pct = std::pow(equity_ratio,
                     1.0 / duration_years) - 1.0;
@@ -195,8 +194,8 @@ namespace backtester {
 
     PerformanceSummary ReportGenerator::ComputeSummaryFromTrades(
         const std::vector<TradeRecord>& trades,
-        int64_t initial_capital,
-        int64_t final_equity) const {
+        money_t initial_capital,
+        money_t final_equity) const {
 
         PerformanceSummary s;
         s.initial_capital = initial_capital;
@@ -208,7 +207,7 @@ namespace backtester {
 
         if (trades.empty()) return s;
 
-        s.total_trades = static_cast<uint32_t>(trades.size());
+        s.total_trades = static_cast<int32_t>(trades.size());
 
         int64_t gross_profit = 0;
         int64_t gross_loss = 0;
@@ -219,8 +218,8 @@ namespace backtester {
 
         // Track position per instrument for duration calculation
         // (simplified: uses trade timestamps as proxy)
-        uint64_t first_trade_ts = trades.front().timestamp;
-        uint64_t last_trade_ts = trades.back().timestamp;
+        timestamp_t first_trade_ts = trades.front().timestamp;
+        timestamp_t last_trade_ts = trades.back().timestamp;
 
         for (const auto& trade : trades) {
             s.total_commissions += trade.commission;
@@ -252,7 +251,7 @@ namespace backtester {
         s.total_volume_traded = total_volume;
 
         // Win rate
-        uint32_t closed_trades = s.winning_trades + s.losing_trades;
+        int32_t closed_trades = s.winning_trades + s.losing_trades;
         if (closed_trades > 0) {
             s.win_rate_pct = static_cast<double>(s.winning_trades) / closed_trades;
         }

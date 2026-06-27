@@ -2,12 +2,13 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <cstdint>
 
 namespace backtester {
 
 namespace numericUtils{
     
-long long DoubleToFixedPoint(double val) {
+int64_t DoubleToFixedPoint(double val) {
     constexpr double scale = 1'000'000'000.0;
     
     // 1. Check for NaN

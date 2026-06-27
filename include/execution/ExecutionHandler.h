@@ -102,7 +102,7 @@ public:
     // -------------------------------------------------------------------
     bool IsMarketable(OrderSide side, int64_t order_price,
         const BidAskPair& current_bbo) const;
-    uint64_t GetCommissionsByInstr(uint32_t instrument_id, uint32_t fill_qty);
+    money_t GetCommissionsByInstr(uint32_t instrument_id, uint32_t fill_qty);
     void EmitFill(PendingOrder& order, int64_t fill_price,
         uint32_t fill_qty, uint64_t fill_ts);
 };

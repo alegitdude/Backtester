@@ -34,7 +34,7 @@ class IStrategy {
         int64_t price,
         uint32_t quantity,
         uint64_t timestamp) {
-    
+        
         return std::make_unique<StrategySignalEvent>(
             timestamp,
             next_signal_id_++,

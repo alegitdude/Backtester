@@ -63,13 +63,17 @@ namespace backtester {
 
         bool Erase(uint64_t order_id) {
             uint64_t slot = order_id & MASK;
+
             for (size_t i = 0; i < Capacity; ++i) {
-                Order& e = entries_[(slot + i) & MASK];
+                size_t index = (slot + i) & MASK;
+                Order& e = entries_[index];
+
                 if (e.order_id == order_id) {
-                    e.order_id = 0;
-                    Backshift((slot)&MASK);
+                    e.order_id = 0;          // Create the hole at the actual index
+                    Backshift(index); // Pass the actual index to Backshift
                     return true;
                 }
+
                 if (e.order_id == 0) return false;
             }
             return false;
@@ -90,12 +94,12 @@ namespace backtester {
 
         void Backshift(size_t hole) {
             size_t probe = (hole + 1) & MASK;
-            
+
             while (entries_[probe].order_id != 0) {
                 size_t ideal_slot = entries_[probe].order_id & MASK;
                 bool wants_to_shift = CheckIfShouldShift(ideal_slot, hole, probe);
 
-                if(wants_to_shift){
+                if (wants_to_shift) {
                     entries_[hole] = entries_[probe];
                     entries_[probe].order_id = 0;
                     hole = probe;

@@ -13,7 +13,7 @@ namespace backtester {
             if (event.type == EventType::kMarketTrade) {
                 snapshot_.cumulative_volume += event.size;
                 cumulative_notional_ += event.price * event.size;
-                snapshot_.vwap = cumulative_notional_ / snapshot_.cumulative_volume;
+                snapshot_.vwap = static_cast<price_t>(cumulative_notional_ / snapshot_.cumulative_volume);
 
                 snapshot_.last_trade.aggressor_side = event.side;
                 snapshot_.last_trade.price = event.price;

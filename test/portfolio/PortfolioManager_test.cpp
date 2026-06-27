@@ -63,7 +63,7 @@ class PortfolioManagerTest : public ::testing::Test {
             signal_id,
             "TestStrat",
             //1000,           // timestamp
-            kFutInstrumentId,  // symbol/id
+            instrument_id,  // symbol/id
             type,
             price,
             qty

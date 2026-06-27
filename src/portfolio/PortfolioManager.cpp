@@ -98,9 +98,9 @@ namespace backtester {
         
         // 3. Risk Check: Buying Power (Margin)
         if (signal->signal_id != -1) { // not eod
-            int64_t margin_required = CalculateMarginRequirement(signal->instrument_id,
+            money_t margin_required = CalculateMarginRequirement(signal->instrument_id,
                 signal->quantity, signal->price);
-            int64_t available_bp = GetBuyingPower(latest_prices, instr->instrument_type);
+            money_t available_bp = GetBuyingPower(latest_prices, instr->instrument_type);
 
             if (margin_required > available_bp) {
                 spdlog::warn("Portfolio: Insufficient Buying Power. Req: {}, Avail: {}",
@@ -417,7 +417,7 @@ namespace backtester {
     int64_t PortfolioManager::CloseOrReduce(Position& pos, const TradedInstrument* instr,
         const StrategyFillEvent& fill, int64_t fill_qty_signed) {
 
-        uint64_t quantity_closed = std::min(std::abs(pos.quantity), std::abs(fill_qty_signed));
+        int64_t quantity_closed = std::min(std::abs(pos.quantity), std::abs(fill_qty_signed));
         int64_t trade_pnl = 0;
 
         if (instr->instrument_type == InstrumentType::FUT) {
@@ -458,7 +458,7 @@ namespace backtester {
     // MARK: Valuation & Metrics
     // =============================================================================
 
-    int64_t PortfolioManager::GetUnrealizedPnL(const Position& pos, BidAskPair& cur_Bbo) const {
+    int64_t PortfolioManager::GetUnrealizedPnL(const Position& pos, const BidAskPair& cur_Bbo) const {
         if (pos.quantity == 0) return 0;
         const TradedInstrument* traded_instr_ptr = GetTradedInstr(pos.instrument_id);
         if(UNLIKELY (!traded_instr_ptr)) {
@@ -512,17 +512,18 @@ namespace backtester {
         return equity;
     }
 
-    int64_t PortfolioManager::GetBuyingPower(
+    // MARK: GET BUYING POWER
+    money_t PortfolioManager::GetBuyingPower(
         const std::unordered_map<uint32_t, BidAskPair>& cur_prices,
         InstrumentType instr_type) const {
 
         int64_t futures_unrealized = 0;
         for (const auto& pos : positions_) {
             const TradedInstrument* instr = GetTradedInstr(pos.instrument_id);
+            const auto& bbo_it = cur_prices.find(pos.instrument_id);
             if (instr && instr->instrument_type == InstrumentType::FUT
-                && pos.quantity != 0 && cur_prices.count(pos.instrument_id)) {
-                BidAskPair bbo = cur_prices.at(pos.instrument_id);
-                futures_unrealized += GetUnrealizedPnL(pos, bbo);
+                && pos.quantity != 0 && bbo_it != cur_prices.end()) {
+                futures_unrealized += GetUnrealizedPnL(pos, bbo_it->second);
             }
         }
 
@@ -540,8 +541,8 @@ namespace backtester {
     }
 
     void PortfolioManager::ReserveMargin(int32_t order_id, uint32_t instrument_id,
-        int64_t quantity, int64_t price) {
-        int64_t margin = CalculateMarginRequirement(instrument_id, quantity, price);
+        int64_t quantity, price_t price) {
+        money_t margin = CalculateMarginRequirement(instrument_id, quantity, price);
         reserved_margin_by_order_id_[order_id] = margin;
         reserved_margin_used_ += margin;
     }
@@ -562,12 +563,12 @@ namespace backtester {
 
         const TradedInstrument* traded_instr_ptr = GetTradedInstr(instrument_id);
 
-        int64_t mid_price = ((cur_Bbo.ask.price - cur_Bbo.bid.price) / 2) +
+        price_t mid_price = ((cur_Bbo.ask.price - cur_Bbo.bid.price) / 2) +
             cur_Bbo.bid.price;
 
         if (traded_instr_ptr->instrument_type == InstrumentType::FUT) {
             int64_t ticks = mid_price / traded_instr_ptr->tick_size;
-            int64_t contract_value = ticks * traded_instr_ptr->tick_value;
+            money_t contract_value = ticks * traded_instr_ptr->tick_value;
 
             return qty * contract_value;
         }
@@ -596,10 +597,10 @@ namespace backtester {
     // MARK: Helpers & Getters
     // =============================================================================
 
-    int64_t PortfolioManager::GetCurrentDrawdown(int64_t current_equity) const {
-        if (max_equity_seen_ == 0 || current_equity > max_equity_seen_) return 0;
+    money_t PortfolioManager::GetCurrentDrawdown(money_t current_equity) const {
+        if (max_equity_seen_ == 0 || current_equity >+ max_equity_seen_) return 0;
         return static_cast<int64_t>(
-            (static_cast<__int128_t>(max_equity_seen_ - current_equity) * 1'000'000'000LL)
+            (static_cast<__int128_t>((max_equity_seen_ - current_equity) * 1'000'000'000LL))
             / max_equity_seen_);
 
     }
@@ -618,8 +619,8 @@ namespace backtester {
         return pos.quantity;
     }
 
-    int64_t PortfolioManager::CalculateMarginRequirement(uint32_t instrument_id,
-        int64_t quantity, int64_t price) const {
+    money_t PortfolioManager::CalculateMarginRequirement(uint32_t instrument_id,
+        int64_t quantity, price_t price) const {
         const TradedInstrument* traded_instr_ptr = GetTradedInstr(instrument_id);
         if (traded_instr_ptr == nullptr) {
             spdlog::error("CalcMarginReq: Unknown instrument {}",
@@ -633,8 +634,8 @@ namespace backtester {
         return quantity * price;
     }
 
-    bool PortfolioManager::IsValidTick(uint32_t instrument_id, int64_t price) const {
-        uint64_t tick_size = GetTradedInstr(instrument_id)->tick_size;
+    bool PortfolioManager::IsValidTick(uint32_t instrument_id, price_t price) const {
+        int64_t tick_size = GetTradedInstr(instrument_id)->tick_size;
         if (tick_size == 0) return true; // Safety
         return (price % tick_size) == 0;
     }

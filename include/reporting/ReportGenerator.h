@@ -14,21 +14,21 @@ namespace backtester {
 // ==================================================================================
 
 struct EquitySnapshot {
-    uint64_t timestamp = 0;
-    int64_t equity = 0;
-    int64_t cash = 0;
-    int64_t realized_pnl = 0;
-    int64_t unrealized_pnl = 0;
+    timestamp_t timestamp = 0;
+    money_t equity = 0;
+    money_t cash = 0;
+    money_t realized_pnl = 0;
+    money_t unrealized_pnl = 0;
     int64_t drawdown = 0;
     bool has_open_position = false;
 };
 
 struct InstrumentSnapshot {
-    uint64_t timestamp = 0;
+    timestamp_t timestamp = 0;
     uint32_t instrument_id = 0;
     int64_t quantity = 0;
-    int64_t avg_entry_price = 0;
-    int64_t unrealized_pnl = 0;
+    price_t avg_entry_price = 0;
+    money_t unrealized_pnl = 0;
 };
 
 // ==================================================================================
@@ -37,19 +37,19 @@ struct InstrumentSnapshot {
 
 struct PerformanceSummary {
     // --- Return Metrics ---
-    int64_t initial_capital = 0;
-    int64_t final_equity = 0;
-    int64_t total_pnl = 0;
-    int64_t total_realized_pnl = 0;
-    int64_t total_unrealized_pnl = 0;
-    int64_t total_commissions = 0;
+    money_t initial_capital = 0;
+    money_t final_equity = 0;
+    money_t total_pnl = 0;
+    money_t total_realized_pnl = 0;
+    money_t total_unrealized_pnl = 0;
+    money_t total_commissions = 0;
     double total_return_pct = 0.0;
     double annualized_return_pct = 0.0;
 
     // --- Risk Metrics ---
     int64_t max_drawdown = 0;
     double max_drawdown_pct = 0.0;
-    uint64_t max_drawdown_duration_ns = 0;
+    timestamp_t max_drawdown_duration_ns = 0;
     double annualized_volatility = 0.0;
     double downside_deviation = 0.0;
 
@@ -60,9 +60,9 @@ struct PerformanceSummary {
     double profit_factor = 0.0;
 
     // --- Trade Statistics ---
-    uint32_t total_trades = 0;
-    uint32_t winning_trades = 0;
-    uint32_t losing_trades = 0;
+    int32_t total_trades = 0;
+    int32_t winning_trades = 0;
+    int32_t losing_trades = 0;
     double win_rate_pct = 0.0;
     int64_t avg_win = 0;
     int64_t avg_loss = 0;
@@ -110,9 +110,9 @@ class ReportGenerator {
     std::vector<EquitySnapshot> equity_curve_;
 
     // Peak tracking for drawdown duration
-    int64_t peak_equity_ = 0;
-    uint64_t peak_equity_ts_ = 0;
-    uint64_t max_dd_duration_ns_ = 0;
+    money_t peak_equity_ = 0;
+    timestamp_t peak_equity_ts_ = 0;
+    timestamp_t max_dd_duration_ns_ = 0;
 
     // -------------------------------------------------------------------
     // Metric Computation
@@ -124,8 +124,8 @@ class ReportGenerator {
 
     PerformanceSummary ComputeSummaryFromTrades(
         const std::vector<TradeRecord>& trades,
-        int64_t initial_capital,
-        int64_t final_equity) const;
+        money_t initial_capital,
+        money_t final_equity) const;
 
     // -------------------------------------------------------------------
     // Volatility & Risk Helpers

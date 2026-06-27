@@ -1,8 +1,7 @@
-
 namespace backtester {
 
 namespace numericUtils{
-    long long DoubleToFixedPoint(double val);
+    int64_t DoubleToFixedPoint(double val);
 }
 
 }

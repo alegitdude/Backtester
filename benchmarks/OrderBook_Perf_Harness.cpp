@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
     
     // 4. Results
     std::chrono::duration<double> elapsed = end - start;
-    double m_msgs = event_cache.size() / 1000000.0;
+    double m_msgs = static_cast<double>(event_cache.size()) / 1000000.0;
     std::cout << "Processed " << event_cache.size() << " events in " << elapsed.count() << "s\n";
     std::cout << "Throughput: " << (m_msgs / elapsed.count()) << " M/s\n";
 

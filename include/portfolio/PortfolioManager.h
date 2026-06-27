@@ -37,10 +37,10 @@ namespace backtester {
         int64_t GetTotalEquity(const std::unordered_map<uint32_t, BidAskPair>& latest_prices) const;
 
         // Buying Power = Equity - Margin Used
-        int64_t GetBuyingPower(const std::unordered_map<uint32_t, BidAskPair>& cur_prices,
+        money_t GetBuyingPower(const std::unordered_map<uint32_t, BidAskPair>& cur_prices,
             InstrumentType instr_type) const;
         // Returns PnL for a specific position object against a current price
-        int64_t GetUnrealizedPnL(const Position& pos, BidAskPair& current_price) const;
+        money_t GetUnrealizedPnL(const Position& pos, const BidAskPair& current_price) const;
 
         // Sum of Dollar Deltas for all positions
         int64_t GetTotalPortfolioDelta(const std::unordered_map<uint32_t, BidAskPair>& latest_prices) const;
@@ -50,7 +50,7 @@ namespace backtester {
         int64_t GetDelta(uint32_t instrument_id, BidAskPair current_Bbo) const;
 
         // Returns a ratio (0.0 to 1.0)
-        int64_t GetCurrentDrawdown(int64_t current_equity) const;
+        money_t GetCurrentDrawdown(money_t current_equity) const;
 
         // =========================================================================
         // MARK: Simple Accessors
@@ -66,7 +66,7 @@ namespace backtester {
 
         int64_t GetCash() const { return current_cash_; }
         int64_t GetRealizedPnL() const { return total_realized_pnl_; }
-        int64_t GetMaxEquitySeen() const { return max_equity_seen_; }
+        money_t GetMaxEquitySeen() const { return max_equity_seen_; }
 
         const std::vector<TradeRecord>& GetTradeHistory() const { return trade_history_; }
 
@@ -107,16 +107,16 @@ namespace backtester {
         }
 
         void ReserveMargin(int32_t order_id, uint32_t instrument_id,
-            int64_t quantity, int64_t price);
+            int64_t quantity, price_t price);
 
         void ReleaseMargin(int32_t order_id);
 
         // Calculates required margin/cash for a specific quantity and price
-        int64_t CalculateMarginRequirement(uint32_t instrument_id, int64_t quantity,
-            int64_t price) const;
+        money_t CalculateMarginRequirement(uint32_t instrument_id, int64_t quantity,
+            price_t price) const;
 
         // Validates that a price is a valid multiple of the tick size (Integer Modulo)
-        bool IsValidTick(uint32_t instrument_id, int64_t price) const;
+        bool IsValidTick(uint32_t instrument_id, price_t price) const;
 
         inline const TradedInstrument* GetTradedInstr(uint32_t instrument_id) const {
             for (auto& instr : config_.traded_instruments) {
@@ -129,12 +129,12 @@ namespace backtester {
         // MARK: Member Variables
         // =========================================================================
 
-        uint64_t initial_capital_;
-        int64_t current_cash_;
-        int64_t total_realized_pnl_ = 0;
-        int64_t max_equity_seen_ = 0;
-        int64_t maintenance_margin_used_ = 0;
-        int64_t reserved_margin_used_ = 0;
+        money_t initial_capital_;
+        money_t current_cash_;
+        money_t total_realized_pnl_ = 0;
+        money_t max_equity_seen_ = 0;
+        money_t maintenance_margin_used_ = 0;
+        money_t reserved_margin_used_ = 0;
         std::unordered_map<int32_t, int64_t> reserved_margin_by_order_id_;
         const AppConfig& config_;
 

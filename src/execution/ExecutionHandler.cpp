@@ -361,7 +361,7 @@ namespace backtester {
         return false;
     }
 
-    uint64_t ExecutionHandler::GetCommissionsByInstr(uint32_t instrument_id, uint32_t fill_qty) {
+    money_t ExecutionHandler::GetCommissionsByInstr(uint32_t instrument_id, uint32_t fill_qty) {
         auto instr = std::find_if(config_.traded_instruments.begin(),
             config_.traded_instruments.end(), [instrument_id](TradedInstrument traded_instr) {
                 return traded_instr.instrument_id == instrument_id;
@@ -372,19 +372,19 @@ namespace backtester {
             return fill_qty * config_.commission_struct.fut_per_contract;
         }
         else { // STOCK handling
-            int64_t base_comm = std::max(config_.commission_struct.stock_order_min,
+            money_t base_comm = std::max(config_.commission_struct.stock_order_min,
                 fill_qty * config_.commission_struct.stock_per_share);
-            int64_t clearing_total = fill_qty * config_.commission_struct.stock_clearing_fee;
+            money_t clearing_total = fill_qty * config_.commission_struct.stock_clearing_fee;
 
             return base_comm + clearing_total;
         }
     }
 
-    void ExecutionHandler::EmitFill(PendingOrder& order, int64_t fill_price,
-        uint32_t fill_qty, uint64_t fill_ts) {
+    void ExecutionHandler::EmitFill(PendingOrder& order, price_t fill_price,
+        uint32_t fill_qty, timestamp_t fill_ts) {
 
         order.remaining_qty -= fill_qty;
-        int64_t commission = GetCommissionsByInstr(order.instrument_id, fill_qty);
+        money_t commission = GetCommissionsByInstr(order.instrument_id, fill_qty);
         if(commission == kUndefPrice) {
             spdlog::error("Error emitting fill for unknown instrument with id {}" 
                 "submitted at {} ", order.instrument_id, order.submit_ts);
