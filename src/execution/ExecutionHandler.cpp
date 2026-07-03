@@ -133,7 +133,7 @@ namespace backtester {
 
         PendingOrder& pending = it->second;
         int64_t old_price = pending.price;
-        uint32_t old_qty = pending.remaining_qty;
+        qty_t old_qty = pending.remaining_qty;
 
         // Price change or size increase: loses queue priority (goes to back)
         bool loses_priority = (order.price != old_price) || order.quantity > old_qty;
@@ -254,8 +254,7 @@ namespace backtester {
                 }
 
                 if (pending.qty_ahead <= 0 && fill_size > 0) {
-                    uint32_t fill_qty = std::min(
-                        static_cast<uint32_t>(fill_size), pending.remaining_qty);
+                    qty_t fill_qty = std::min(fill_size, pending.remaining_qty);
 
                     EmitFill(pending, pending.price, fill_qty, mbo_event.timestamp);
 
@@ -361,7 +360,7 @@ namespace backtester {
         return false;
     }
 
-    money_t ExecutionHandler::GetCommissionsByInstr(uint32_t instrument_id, uint32_t fill_qty) {
+    money_t ExecutionHandler::GetCommissionsByInstr(uint32_t instrument_id, qty_t fill_qty) {
         auto instr = std::find_if(config_.traded_instruments.begin(),
             config_.traded_instruments.end(), [instrument_id](TradedInstrument traded_instr) {
                 return traded_instr.instrument_id == instrument_id;
@@ -381,7 +380,7 @@ namespace backtester {
     }
 
     void ExecutionHandler::EmitFill(PendingOrder& order, price_t fill_price,
-        uint32_t fill_qty, timestamp_t fill_ts) {
+        qty_t fill_qty, timestamp_t fill_ts) {
 
         order.remaining_qty -= fill_qty;
         money_t commission = GetCommissionsByInstr(order.instrument_id, fill_qty);

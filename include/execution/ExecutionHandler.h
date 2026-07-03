@@ -34,9 +34,9 @@ struct PendingOrder {
     uint32_t instrument_id;
     OrderSide side;
     int64_t price;
-    uint32_t remaining_qty;     // Quantity not yet filled
-    uint64_t submit_ts;         // Timestamp the order was submitted by strategy
-    uint64_t live_ts;           // submit_ts + latency — when order becomes eligible
+    qty_t remaining_qty;     // Quantity not yet filled
+    timestamp_t submit_ts;         // Timestamp the order was submitted by strategy
+    timestamp_t live_ts;           // submit_ts + latency — when order becomes eligible
     int64_t qty_ahead;          // Queue depth: total size resting ahead at placement
 
     bool IsLive(uint64_t current_ts) const { return current_ts >= live_ts; }
@@ -63,7 +63,7 @@ public:
     // -------------------------------------------------------------------
     void OnMarketEvent(const MarketByOrderEvent& mbo_event, const BidAskPair& current_bbo);
     std::vector<std::unique_ptr<StrategyFillEvent>> CancelAllPendingOrders(
-        uint64_t cancel_ts);
+        timestamp_t cancel_ts);
     // -------------------------------------------------------------------
     // Accessors
     // -------------------------------------------------------------------
@@ -75,7 +75,7 @@ public:
  private:
     EventQueue& event_queue_;
     const AppConfig& config_; 
-    uint64_t latency_ns_;
+    timestamp_t latency_ns_;
     FillModel fill_model_;
 
     // Shadow book: order_id -> PendingOrder
@@ -102,9 +102,11 @@ public:
     // -------------------------------------------------------------------
     bool IsMarketable(OrderSide side, int64_t order_price,
         const BidAskPair& current_bbo) const;
-    money_t GetCommissionsByInstr(uint32_t instrument_id, uint32_t fill_qty);
+        
+    money_t GetCommissionsByInstr(uint32_t instrument_id, qty_t fill_qty);
+
     void EmitFill(PendingOrder& order, int64_t fill_price,
-        uint32_t fill_qty, uint64_t fill_ts);
+        qty_t fill_qty, timestamp_t fill_ts);
 };
 
 }

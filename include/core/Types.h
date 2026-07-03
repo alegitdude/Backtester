@@ -21,7 +21,7 @@ static constexpr auto kUndefPrice = std::numeric_limits<std::int64_t>::max();
 using price_t     = int64_t;   // fixed-point, 1e-9 units
 using timestamp_t = uint64_t;  // unix nanos
 using qty_t       = int64_t;   
-using order_id_t  = int64_t;   // our internal IDs (wire IDs stay uint64_t)
+using order_id_t  = int64_t;   // internal IDs (wire IDs stay uint64_t)
 using money_t     = int64_t;
 
 enum class DataSchema {

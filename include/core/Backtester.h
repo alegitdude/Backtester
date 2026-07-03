@@ -19,9 +19,9 @@ class Backtester {
 				report_generator_(rg), execution_handler_(eh), 
 				strategy_manager_(sm) {}
 
-  int RunLoop(const AppConfig& config);
-	void EmitClosingOrders(uint64_t close_ts);
-	void RecordSnapshot(uint64_t current_time);
+  	int RunLoop(const AppConfig& config);
+	void EmitClosingOrders(timestamp_t close_ts);
+	void RecordSnapshot(timestamp_t current_time);
 
  private:
     EventQueue& event_queue_;
@@ -34,12 +34,12 @@ class Backtester {
 	};
 
 	inline bool isMarketEvent(EventType type) {
-    	return type == EventType::kMarketOrderAdd || 
-			type == EventType::kMarketOrderCancel     || 
-			type == EventType::kMarketOrderModify     || 
-			type == EventType::kMarketOrderClear      || 
-			type == EventType::kMarketTrade 			    ||
-			type == EventType::kMarketFill            ||
+    	return type == EventType::kMarketOrderAdd   || 
+			type == EventType::kMarketOrderCancel   || 
+			type == EventType::kMarketOrderModify   || 
+			type == EventType::kMarketOrderClear    || 
+			type == EventType::kMarketTrade 		||
+			type == EventType::kMarketFill          ||
 			type == EventType::kMarketHeartbeat;
 	}
 	inline bool isStrategySignalEvent(EventType type) {
@@ -47,12 +47,12 @@ class Backtester {
 	}
 	inline bool isStrategyOrderEvent(EventType type){
 		return type == EventType::kStrategyOrderAdd  ||
-			type == EventType::kStrategyOrderModify    ||
-			type == EventType::kStrategyOrderCancel    ||
+			type == EventType::kStrategyOrderModify  ||
+			type == EventType::kStrategyOrderCancel  ||
 			type == EventType::kStrategyOrderClear;
 	}
 	inline bool isControlEvent(EventType type) {
-		return type == EventType::kBacktestControlStart    || 
+		return type == EventType::kBacktestControlStart      || 
 			type == EventType::kBacktestControlEndOfBacktest ||
 			type == EventType::kBacktestControlSnapshot      ||
 			type == EventType::kBacktestControlEndOfDay;

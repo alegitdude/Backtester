@@ -46,7 +46,7 @@ namespace backtester {
         }
     }
 
-    // MARK: HandleAdd
+    // MARK: HANDLE ADD
     std::unique_ptr<Event> PortfolioManager::HandleAddRequest(
         const StrategySignalEvent* signal,
         const std::unordered_map<uint32_t, BidAskPair>& latest_prices) {
@@ -55,13 +55,13 @@ namespace backtester {
         if (instr == nullptr) {
             spdlog::error(R"(Strategy {} is trying to trade instrument {} that is 
             not specified in config.traded_instruments. Add it or fix the strategy)"
-            , signal->strategy_id, signal->instrument_id);
+                , signal->strategy_id, signal->instrument_id);
             throw std::runtime_error(fmt::format(R"(Strategy {} is trying to trade 
             instrument {} that is not specified in conig.traded_instruments. Add 
             it or fix the strategy)", signal->strategy_id, signal->instrument_id));
         }
 
-        if (!IsValidTick(signal->instrument_id, signal->price)) {
+        if (!IsValidTick(*instr, signal->price)) {
             spdlog::warn("Portfolio: Rejected price {} - not a valid tick multiple.",
                 signal->price);
             return std::make_unique<StrategyOrderRejectionEvent>(
@@ -95,7 +95,7 @@ namespace backtester {
                 );
             }
         }
-        
+
         // 3. Risk Check: Buying Power (Margin)
         if (signal->signal_id != -1) { // not eod
             money_t margin_required = CalculateMarginRequirement(signal->instrument_id,
@@ -160,12 +160,22 @@ namespace backtester {
         );
     }
 
-    // MARK: HandleModify
+    // MARK: HANDLE MODIFY
     std::unique_ptr<Event> PortfolioManager::HandleModifyRequest(
         const StrategySignalEvent* signal,
         const std::unordered_map<uint32_t, BidAskPair>& latest_prices) {
 
-        if (!IsValidTick(signal->instrument_id, signal->price)) {
+        const TradedInstrument* instr = GetTradedInstr(signal->instrument_id);
+        if (!instr) {
+            spdlog::error(R"(Strategy {} is trying to trade instrument {} that is 
+            not specified in config.traded_instruments. Add it or fix the strategy)"
+                , signal->strategy_id, signal->instrument_id);
+            throw std::runtime_error(fmt::format(R"(Strategy {} is trying to trade 
+            instrument {} that is not specified in conig.traded_instruments. Add 
+            it or fix the strategy)", signal->strategy_id, signal->instrument_id));
+        }
+
+        if (!IsValidTick(*instr, signal->price)) {
             spdlog::warn("Portfolio: Modify rejected. Invalid tick price {}.", signal->price);
             return std::make_unique<StrategyOrderRejectionEvent>(
                 signal->timestamp,
@@ -176,22 +186,6 @@ namespace backtester {
                 signal->price,
                 signal->quantity,
                 RejectionReason::kInvalidTick
-            );
-        }
-
-        const TradedInstrument* instr = GetTradedInstr(signal->instrument_id);
-        if (!instr) {
-            spdlog::warn("Portfolio: Modify rejected. Unknown instrument {}.",
-                signal->instrument_id);
-            return std::make_unique<StrategyOrderRejectionEvent>(
-                signal->timestamp,
-                signal->signal_id,
-                signal->strategy_id,
-                signal->instrument_id,
-                signal->signal_type,
-                signal->price,
-                signal->quantity,
-                RejectionReason::kNonTradableInstr
             );
         }
 
@@ -461,14 +455,14 @@ namespace backtester {
     int64_t PortfolioManager::GetUnrealizedPnL(const Position& pos, const BidAskPair& cur_Bbo) const {
         if (pos.quantity == 0) return 0;
         const TradedInstrument* traded_instr_ptr = GetTradedInstr(pos.instrument_id);
-        if(UNLIKELY (!traded_instr_ptr)) {
+        if (UNLIKELY(!traded_instr_ptr)) {
             spdlog::error(R"(Tried to access position instrument {} from strategy 
                 {}, but was not found in config. Postion last ts: {}, 
-                Position order id: {})", pos.instrument_id, pos.strategy_id, 
+                Position order id: {})", pos.instrument_id, pos.strategy_id,
                 pos.last_update_ts, pos.last_order_id);
             throw std::runtime_error(fmt::format(R"(Tried to access position 
                 instrument {} from strategy {}, but was not found in config. 
-                Postion last ts: {}, Position order id: {})", pos.instrument_id, 
+                Postion last ts: {}, Position order id: {})", pos.instrument_id,
                 pos.strategy_id, pos.last_update_ts, pos.last_order_id));
         }
 
@@ -598,7 +592,7 @@ namespace backtester {
     // =============================================================================
 
     money_t PortfolioManager::GetCurrentDrawdown(money_t current_equity) const {
-        if (max_equity_seen_ == 0 || current_equity >+ max_equity_seen_) return 0;
+        if (max_equity_seen_ == 0 || current_equity >= max_equity_seen_) return 0;
         return static_cast<int64_t>(
             (static_cast<__int128_t>((max_equity_seen_ - current_equity) * 1'000'000'000LL))
             / max_equity_seen_);
@@ -633,11 +627,4 @@ namespace backtester {
         // Stocks: Qty * Price
         return quantity * price;
     }
-
-    bool PortfolioManager::IsValidTick(uint32_t instrument_id, price_t price) const {
-        int64_t tick_size = GetTradedInstr(instrument_id)->tick_size;
-        if (tick_size == 0) return true; // Safety
-        return (price % tick_size) == 0;
-    }
-
 }

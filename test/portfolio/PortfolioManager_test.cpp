@@ -13,7 +13,7 @@ class PortfolioManagerTest : public ::testing::Test {
  protected:
     const uint32_t kFutInstrumentId = 1;
     const std::string kSymbolStr = "ESZ5";
-    const uint64_t kInitialCash = 100000'000'000'000;
+    const money_t kInitialCash = 100000'000'000'000;
     BidAskPair kEmptyBbo = {0, 0, 0, 0, 0, 0};
     // Config objects
     AppConfig config_fut_;

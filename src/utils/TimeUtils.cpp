@@ -122,9 +122,9 @@ namespace backtester {
 
         std::string EpochToString(uint64_t epoch_nanos, const std::string& timezone) {
             uint64_t epoch_seconds = epoch_nanos / 1000000000ULL;
-            uint32_t nanos = epoch_nanos % 1000000000ULL;
+            uint64_t nanos = epoch_nanos % 1000000000ULL;
 
-            int tz_offset = GetTimezoneOffset(timezone);
+            uint64_t tz_offset = GetTimezoneOffset(timezone);
             epoch_seconds += tz_offset;
 
             time_t time = static_cast<time_t>(epoch_seconds);  // time_t = long int
@@ -150,7 +150,7 @@ namespace backtester {
 
         // MARK: Get Timezone offset
 
-        int GetTimezoneOffset(const std::string& timezone) {
+        timestamp_t GetTimezoneOffset(const std::string& timezone) {
             if (timezone == "UTC" || timezone == "GMT") {
                 return 0;
             }

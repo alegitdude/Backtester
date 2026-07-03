@@ -25,8 +25,6 @@ class DataReaderManager {
         const std::string& line
     );
 
-    uint64_t ParseIsoToUnix(std::string str);
-
     std::string_view GetNextToken(size_t& start_pos, std::string_view& current_view);
 
     // std::unique_ptr<Event> ParseOhlcvLineToEvent(  // TODO

@@ -140,7 +140,7 @@ namespace backtester {
         return 0;
     }
 
-    void Backtester::EmitClosingOrders(uint64_t close_ts) {
+    void Backtester::EmitClosingOrders(timestamp_t close_ts) {
         auto current_prices = market_state_manager_.GetTradedInstrsBbo();
 
         for (const auto& pos : portfolio_manager_.GetPositions()) {
@@ -176,13 +176,13 @@ namespace backtester {
         }
     }
 
-    void Backtester::RecordSnapshot(uint64_t current_time) {
+    void Backtester::RecordSnapshot(timestamp_t current_time) {
         auto current_prices = market_state_manager_.GetTradedInstrsBbo();
         money_t equity = portfolio_manager_.GetTotalEquity(current_prices);
         money_t cash = portfolio_manager_.GetCash();
         money_t realized = portfolio_manager_.GetRealizedPnL();
         money_t unrealized = equity - cash;
-        money_t drawdown = portfolio_manager_.GetMaxEquitySeen() - static_cast<uint64_t>(equity);
+        money_t drawdown = portfolio_manager_.GetMaxEquitySeen() - equity;
         bool has_position = portfolio_manager_.HasAnyOpenPosition();
 
         report_generator_.RecordEquitySnapshot(current_time, equity, cash,

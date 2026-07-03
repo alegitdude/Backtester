@@ -122,7 +122,6 @@ namespace backtester {
   }
   /////////// Private
   void OrderBook::UpdateBboCache() {
-    BidAskPair prev_bbo = bbo_cache_;
     if (LIKELY(!bids_.empty())) {
       PriceLevel bid_level = GetBidLevel();
       bbo_cache_.bid = { bid_level.price, bid_level.size, bid_level.count };

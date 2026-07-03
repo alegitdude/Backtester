@@ -62,7 +62,7 @@ namespace backtester {
         // Returns signed quantity
         int64_t GetPositionQty(uint32_t instrument_id) const;
 
-        bool HasAnyOpenPosition() const {return !positions_.empty() ;} 
+        bool HasAnyOpenPosition() const { return !positions_.empty(); }
 
         int64_t GetCash() const { return current_cash_; }
         int64_t GetRealizedPnL() const { return total_realized_pnl_; }
@@ -116,7 +116,11 @@ namespace backtester {
             price_t price) const;
 
         // Validates that a price is a valid multiple of the tick size (Integer Modulo)
-        bool IsValidTick(uint32_t instrument_id, price_t price) const;
+        inline bool IsValidTick(const TradedInstrument& instr, price_t price) const {
+            int64_t tick_size = instr.tick_size;
+            if (tick_size == 0) return true; // Safety
+            return (price % tick_size) == 0;
+        }
 
         inline const TradedInstrument* GetTradedInstr(uint32_t instrument_id) const {
             for (auto& instr : config_.traded_instruments) {

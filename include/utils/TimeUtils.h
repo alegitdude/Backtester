@@ -33,7 +33,7 @@ inline TimeOfDay GetTimeOfDay(uint64_t epoch_nanos) {
 std::string EpochToString(uint64_t epoch_nanos, 
 		                               const std::string& time_zone = "UTC");
 
-int GetTimezoneOffset(const std::string& timezone);
+timestamp_t GetTimezoneOffset(const std::string& timezone);
 
 TimeParseResult ParseIsoToUnix(std::string_view s);
 

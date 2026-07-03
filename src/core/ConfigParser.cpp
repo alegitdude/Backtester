@@ -17,12 +17,12 @@ namespace backtester {
 		std::filesystem::path kDefaultLogDir = kRootFolder / "logs";
 		std::filesystem::path kDefaultReportDir = kRootFolder / "reports";
 
-		constexpr uint64_t kDefaultInitialCash = 100'000;
-		constexpr uint64_t kDefaultExecLatencyMs = 200;
-		constexpr uint64_t kDefaultSnapshotIntervalMs = 1'000;
-		constexpr uint64_t kOneDayInMs = 86'400'000;
-		constexpr uint64_t kFxdPntMultiplier = 1'000'000'000;
-		constexpr uint64_t kDefaultMaxPositionSize = 3;
+		constexpr money_t kDefaultInitialCash = 100'000;
+		constexpr timestamp_t kDefaultExecLatencyMs = 200;
+		constexpr timestamp_t kDefaultSnapshotIntervalMs = 1'000;
+		constexpr timestamp_t kOneDayInMs = 86'400'000;
+		constexpr int64_t kFxdPntMultiplier = 1'000'000'000;
+		constexpr int64_t kDefaultMaxPositionSize = 3;
 		constexpr double kDefaultMaxRiskPerTradePct = .02;
 		constexpr double kDefaultMaxPortfolioDelta = 0;
 		constexpr double kDefaultMaxDrawdownPct = .4;
@@ -114,7 +114,7 @@ namespace backtester {
 		config.snapshot_interval_ns = interval_ms * 1'000'000;
 
 		// MARK: Initial Cash
-		config.initial_cash = GetOptional<uint64_t>(data, "initial_cash",
+		config.initial_cash = GetOptional<money_t>(data, "initial_cash",
 			"Global Settings").value_or(kDefaultInitialCash);
 		if (config.initial_cash < 1) {
 			spdlog::warn("Initial Cash below 1, using default config initial cash");

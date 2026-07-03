@@ -34,7 +34,7 @@ add_compile_options(-g -fno-omit-frame-pointer)
 add_library(project_warnings INTERFACE)
 target_compile_options(project_warnings INTERFACE
   -Wall -Wextra -Wpedantic
-  -Wshadow             
+  #-Wshadow             
   -Wnon-virtual-dtor
   -Wnull-dereference
   -Wdouble-promotion
