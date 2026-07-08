@@ -6,6 +6,7 @@
 #include <string>
 #include <iostream>
 #include <unordered_map>
+#include <algorithm>
 
 namespace backtester {
 
@@ -71,6 +72,18 @@ namespace backtester {
         const std::vector<TradeRecord>& GetTradeHistory() const { return trade_history_; }
 
     private:
+        struct PendingOrder {
+            order_id_t order_id;
+            uint32_t instrument_id;
+            qty_t remaining_qty; // can be negative for shorts
+            money_t per_qty_margin;
+            money_t per_qty_com;
+
+            PendingOrder(order_id_t id, uint32_t in_id, qty_t qty, money_t qty_marg, 
+                money_t qty_com ) : order_id(id), instrument_id(in_id), 
+                remaining_qty(qty), per_qty_margin(qty_marg), per_qty_com(qty_com) {}
+        };
+
         // =========================================================================
         // MARK: Internal Logic Handlers
         // =========================================================================
@@ -106,14 +119,10 @@ namespace backtester {
             return nullptr;
         }
 
-        void ReserveMargin(int32_t order_id, uint32_t instrument_id,
-            int64_t quantity, price_t price);
-
-        void ReleaseMargin(int32_t order_id);
-
         // Calculates required margin/cash for a specific quantity and price
-        money_t CalculateMarginRequirement(uint32_t instrument_id, int64_t quantity,
-            price_t price) const;
+        money_t CalcPerUnitMarginReq(uint32_t instrument_id, price_t price) const;
+
+        money_t GetCommissionsByInstr(uint32_t instrument_id, qty_t fill_qty);
 
         // Validates that a price is a valid multiple of the tick size (Integer Modulo)
         inline bool IsValidTick(const TradedInstrument& instr, price_t price) const {
@@ -123,10 +132,14 @@ namespace backtester {
         }
 
         inline const TradedInstrument* GetTradedInstr(uint32_t instrument_id) const {
-            for (auto& instr : config_.traded_instruments) {
-                if (instr.instrument_id == instrument_id) return &instr;
+            auto it = std::find_if(config_.traded_instruments.begin(),
+                config_.traded_instruments.end(), [instrument_id](const TradedInstrument& traded_instr) {
+                    return traded_instr.instrument_id == instrument_id;
+                });
+            if (it == config_.traded_instruments.end()) {
+                return nullptr;
             }
-            return nullptr;
+            return &(*it);
         }
 
         // =========================================================================
@@ -139,7 +152,8 @@ namespace backtester {
         money_t max_equity_seen_ = 0;
         money_t maintenance_margin_used_ = 0;
         money_t reserved_margin_used_ = 0;
-        std::unordered_map<int32_t, int64_t> reserved_margin_by_order_id_;
+        std::vector<PendingOrder> pending_orders_;
+        //std::unordered_map<int32_t, int64_t> reserved_margin_by_order_id_;
         const AppConfig& config_;
 
         std::vector<Position> positions_;

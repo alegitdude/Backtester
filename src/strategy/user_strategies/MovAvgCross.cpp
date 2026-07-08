@@ -34,7 +34,8 @@ namespace backtester {
 
     enum class CrossType {
         kCrossBelow,
-        kCrossAbove
+        kCrossAbove,
+        kNone
     };
 
     class MovAvgCross : public IStrategy {
@@ -151,7 +152,7 @@ namespace backtester {
         uint32_t traded_instr_;
         int64_t slow_window_;
         int64_t fast_window_;
-        CrossType last_cross_;
+        CrossType last_cross_ = CrossType::kNone;
 
         bool SamplePrice(uint64_t ts) {
             if (last_sample_ts_ != 0 &&

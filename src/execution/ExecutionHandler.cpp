@@ -67,7 +67,7 @@ namespace backtester {
                 order.instrument_id,
                 order.side,
                 order.price,
-                static_cast<uint32_t>(order.quantity),
+                order.quantity,
                 submit_ts,
                 live_ts,
                 0  // No queue — crossing the spread
@@ -77,8 +77,7 @@ namespace backtester {
                 "(submitted={}, live={})",
                 order.order_id, fill_price, submit_ts, live_ts);
 
-            EmitFill(aggressive_order, fill_price,
-                static_cast<uint32_t>(order.quantity), live_ts);
+            EmitFill(aggressive_order, fill_price, order.quantity, live_ts);
             return;
         }
 

@@ -25,8 +25,6 @@ enum class FillModel {
 // MARK: Pending Order (Shadow Book Entry)
 // ==================================================================================
 // Represents a strategy order living in the execution handler's shadow book.
-// This is NOT placed into the real OrderBook — it exists only here, tracking
-// queue position as real market events drain or add size at the price level.
 
 struct PendingOrder {
     int32_t order_id;
@@ -35,9 +33,9 @@ struct PendingOrder {
     OrderSide side;
     int64_t price;
     qty_t remaining_qty;     // Quantity not yet filled
-    timestamp_t submit_ts;         // Timestamp the order was submitted by strategy
-    timestamp_t live_ts;           // submit_ts + latency — when order becomes eligible
-    int64_t qty_ahead;          // Queue depth: total size resting ahead at placement
+    timestamp_t submit_ts;   // Timestamp the order was submitted by strategy
+    timestamp_t live_ts;     // submit_ts + latency — when order becomes eligible
+    int64_t qty_ahead;       // Queue depth: total size resting ahead at placement
 
     bool IsLive(uint64_t current_ts) const { return current_ts >= live_ts; }
 };

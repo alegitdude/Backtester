@@ -1,6 +1,5 @@
 #include "portfolio/PortfolioManager.h"
 #include "spdlog/spdlog.h"
-#include <vector>
 
 namespace backtester {
 
@@ -51,6 +50,7 @@ namespace backtester {
         const StrategySignalEvent* signal,
         const std::unordered_map<uint32_t, BidAskPair>& latest_prices) {
 
+        // 1. Is Valid Order
         const TradedInstrument* instr = GetTradedInstr(signal->instrument_id);
         if (instr == nullptr) {
             spdlog::error(R"(Strategy {} is trying to trade instrument {} that is 
@@ -84,7 +84,6 @@ namespace backtester {
                     static_cast<double>(config_.risk_limits.max_drawdown_pct) / 1e7);
                 return std::make_unique<StrategyOrderRejectionEvent>(
                     signal->timestamp,
-
                     signal->signal_id,
                     signal->strategy_id,
                     signal->instrument_id,
@@ -95,19 +94,27 @@ namespace backtester {
                 );
             }
         }
+        // Set up Commission/Fees
+        money_t per_unit_init_marg = instr->init_margin_req;
+        money_t per_unit_commission;
+        if (instr->instrument_type == InstrumentType::FUT) {
+            per_unit_commission = config_.commission_struct.fut_per_contract;
+        }
+        else {
+            per_unit_commission = config_.commission_struct.stock_per_share;
+            per_unit_init_marg = signal->price;
+        }
 
         // 3. Risk Check: Buying Power (Margin)
         if (signal->signal_id != -1) { // not eod
-            money_t margin_required = CalculateMarginRequirement(signal->instrument_id,
-                signal->quantity, signal->price);
             money_t available_bp = GetBuyingPower(latest_prices, instr->instrument_type);
-
+            money_t margin_required = (signal->quantity * per_unit_commission) +
+                (signal->quantity * per_unit_init_marg);
             if (margin_required > available_bp) {
                 spdlog::warn("Portfolio: Insufficient Buying Power. Req: {}, Avail: {}",
                     margin_required, available_bp);
                 return std::make_unique<StrategyOrderRejectionEvent>(
                     signal->timestamp,
-
                     signal->signal_id,
                     signal->strategy_id,
                     signal->instrument_id,
@@ -123,7 +130,7 @@ namespace backtester {
         if (signal->signal_id != -1) { // not eod
             int64_t current_qty = GetPositionQty(signal->instrument_id);
             int64_t potential_qty = current_qty + (signal->signal_type == SignalType::kBuySignal ?
-                signal->quantity : -static_cast<int64_t>(signal->quantity));
+                signal->quantity : -(signal->quantity));
 
             if (config_.risk_limits.max_position_size > 0 &&
                 std::abs(potential_qty) > config_.risk_limits.max_position_size) {
@@ -131,7 +138,6 @@ namespace backtester {
                     current_qty, potential_qty);
                 return std::make_unique<StrategyOrderRejectionEvent>(
                     signal->timestamp,
-
                     signal->signal_id,
                     signal->strategy_id,
                     signal->instrument_id,
@@ -142,11 +148,17 @@ namespace backtester {
                 );
             }
         }
+
+        // Reserve Margin
+        pending_orders_.emplace_back(signal->signal_id, signal->instrument_id,
+            signal->quantity, per_unit_init_marg, per_unit_commission);
+        reserved_margin_used_ += (signal->quantity * per_unit_commission) +
+            (signal->quantity * per_unit_init_marg);
+
+
         // 5. Construct Order Event
         OrderSide side = (signal->signal_type == SignalType::kBuySignal) ?
             OrderSide::kBid : OrderSide::kAsk;
-        ReserveMargin(signal->signal_id, signal->instrument_id, signal->quantity,
-            signal->price);
 
         return std::make_unique<StrategyOrderEvent>(
             signal->timestamp,
@@ -190,8 +202,9 @@ namespace backtester {
         }
 
         // Only pending orders can be modified
-        auto it = reserved_margin_by_order_id_.find(signal->signal_id);
-        if (it == reserved_margin_by_order_id_.end()) {
+        auto prev_order = std::find_if(pending_orders_.begin(), pending_orders_.end(),
+            [&](PendingOrder& order) {return order.order_id == signal->signal_id;});
+        if (prev_order == pending_orders_.end()) {
             spdlog::warn("Portfolio: Modify rejected. No pending order found for "
                 "order_id {}.", signal->signal_id);
             return std::make_unique<StrategyOrderRejectionEvent>(
@@ -208,23 +221,26 @@ namespace backtester {
 
         OrderSide side = (signal->signal_type == SignalType::kBuySignal) ?
             OrderSide::kBid : OrderSide::kAsk;
-        int64_t current_qty = GetPositionQty(signal->instrument_id);
-        bool is_increasing = (current_qty >= 0 && side == OrderSide::kBid) ||
-            (current_qty <= 0 && side == OrderSide::kAsk);
+  
+        bool is_increasing = (side == OrderSide::kBid &&
+            prev_order->remaining_qty < signal->quantity) ||
+            (side == OrderSide::kAsk &&
+            prev_order->remaining_qty > signal->quantity);
 
-        int64_t new_margin = CalculateMarginRequirement(signal->instrument_id,
-            signal->quantity, signal->price);
-        int64_t old_margin = it->second;
+        int64_t new_margin = std::abs((signal->quantity * prev_order->per_qty_margin) +
+            (signal->quantity * prev_order->per_qty_com));
+        int64_t old_margin = std::abs((prev_order->remaining_qty * prev_order->per_qty_margin) +
+            (prev_order->remaining_qty * prev_order->per_qty_com));
         int64_t margin_delta = new_margin - old_margin;
 
         if (is_increasing && margin_delta > 0) {
             // Run risk checks only when exposure is increasing
+            // Max Drawdown Check
             int64_t current_equity = GetTotalEquity(latest_prices);
             if (GetCurrentDrawdown(current_equity) > config_.risk_limits.max_drawdown_pct) {
                 spdlog::warn("Portfolio: Modify rejected. Max drawdown exceeded.");
                 return std::make_unique<StrategyOrderRejectionEvent>(
                     signal->timestamp,
-
                     signal->signal_id,
                     signal->strategy_id,
                     signal->instrument_id,
@@ -234,15 +250,15 @@ namespace backtester {
                     RejectionReason::kDrawdownLimit
                 );
             }
+            // Max Position Size Check
+            int64_t potential_qty = GetPositionQty(signal->instrument_id) + 
+                (side == OrderSide::kBid ? signal->quantity : -signal->quantity);
 
-            int64_t potential_qty = current_qty + (side == OrderSide::kBid ?
-                signal->quantity : -static_cast<int64_t>(signal->quantity));
             if (config_.risk_limits.max_position_size > 0 &&
                 std::abs(potential_qty) > config_.risk_limits.max_position_size) {
                 spdlog::warn("Portfolio: Modify rejected. Position limit exceeded.");
                 return std::make_unique<StrategyOrderRejectionEvent>(
                     signal->timestamp,
-
                     signal->signal_id,
                     signal->strategy_id,
                     signal->instrument_id,
@@ -252,14 +268,13 @@ namespace backtester {
                     RejectionReason::kPositionLimit
                 );
             }
-
+            // Buying Power Check
             int64_t available_bp = GetBuyingPower(latest_prices, instr->instrument_type);
-            if (margin_delta > available_bp) {
+            if (new_margin > available_bp) {
                 spdlog::warn("Portfolio: Modify rejected. Insufficient buying power. "
                     "Required: {}, Available: {}", margin_delta, available_bp);
                 return std::make_unique<StrategyOrderRejectionEvent>(
                     signal->timestamp,
-
                     signal->signal_id,
                     signal->strategy_id,
                     signal->instrument_id,
@@ -271,7 +286,8 @@ namespace backtester {
             }
         }
 
-        it->second = new_margin;
+        // Reserve Margin
+        prev_order->remaining_qty = signal->quantity;
         reserved_margin_used_ += margin_delta;
 
         return std::make_unique<StrategyOrderEvent>(
@@ -291,8 +307,9 @@ namespace backtester {
         const StrategySignalEvent* signal) {
 
         // Only pending orders can be cancelled
-        auto it = reserved_margin_by_order_id_.find(signal->signal_id);
-        if (it == reserved_margin_by_order_id_.end()) {
+        auto prev_order = std::find_if(pending_orders_.begin(), pending_orders_.end(),
+            [&](PendingOrder& order) {return order.order_id == signal->signal_id;});
+        if (prev_order == pending_orders_.end()) {
             spdlog::warn("Portfolio: Cancel rejected. No pending order found for "
                 "order_id {}.", signal->signal_id);
             return std::make_unique<StrategyOrderRejectionEvent>(
@@ -309,7 +326,12 @@ namespace backtester {
 
         OrderSide side = (signal->signal_type == SignalType::kBuySignal) ?
             OrderSide::kBid : OrderSide::kAsk;
-        ReleaseMargin(signal->signal_id);
+
+        //Release Margin
+        reserved_margin_used_ -= std::abs((prev_order->remaining_qty * prev_order->per_qty_margin) +
+            (prev_order->remaining_qty * prev_order->per_qty_com));
+        pending_orders_.erase(prev_order);
+
         return std::make_unique<StrategyOrderEvent>(
             signal->timestamp,
             EventType::kStrategyOrderCancel,
@@ -328,8 +350,29 @@ namespace backtester {
 
     // MARK: ProcesFill
     void PortfolioManager::ProcessFill(const StrategyFillEvent& fill) {
-        ReleaseMargin(fill.order_id);
+        const TradedInstrument* instr = GetTradedInstr(fill.instrument_id);
 
+        //Release initial Margin
+        auto pend_order = std::find_if(pending_orders_.begin(), pending_orders_.end(),
+            [&](PendingOrder& order) {return order.order_id == fill.order_id; });
+        if(pend_order == pending_orders_.end()) throw std::runtime_error(fmt::format(R"(
+            Fill processed for unknown strategy order. Fill order id: {} )", 
+            fill.order_id));
+
+        int64_t init_margin_released = fill.fill_quantity * pend_order->per_qty_com;
+        if(instr->instrument_type == InstrumentType::FUT){
+            init_margin_released += fill.fill_quantity * pend_order->per_qty_margin;
+        } else { //STOCK price can be better than order limit
+            init_margin_released += fill.fill_quantity * fill.fill_price;
+        }
+        reserved_margin_used_ -= init_margin_released;
+
+        pend_order->remaining_qty -= fill.side == OrderSide::kBid ? fill.fill_quantity :
+            -(fill.fill_quantity);
+        
+        if(pend_order->remaining_qty == 0) pending_orders_.erase(pend_order);
+
+        // Create Position
         Position* prev_pos = FindPosition(fill.instrument_id, fill.strategy_id);
         if (prev_pos == nullptr) {
             // First fill for this strategy/instrument pair — create new position
@@ -339,9 +382,6 @@ namespace backtester {
             prev_pos->strategy_id = fill.strategy_id;
         }
 
-        const TradedInstrument* instr = GetTradedInstr(fill.instrument_id);
-
-        // fill qty is uint32_t
         int64_t fill_qty_signed = (fill.side == OrderSide::kBid) ?
             fill.fill_quantity : -static_cast<int64_t>(fill.fill_quantity);
 
@@ -368,7 +408,6 @@ namespace backtester {
             total_realized_pnl_ += trade_pnl;
 
             // Step 2: Open remaining quantity in opposite direction
-            // e.g. long 2, fill -5: close 2, then open 3 short
             int64_t remaining_qty_signed = fill_qty_signed - close_qty_signed;
             // pos.quantity is now 0 after close, safe to open
             OpenOrIncrease(*prev_pos, instr, fill, remaining_qty_signed);
@@ -379,15 +418,16 @@ namespace backtester {
             total_realized_pnl_ += trade_pnl;
         }
 
-        TradeRecord record;
-        record.timestamp = fill.timestamp;
-        record.instrument_id = fill.instrument_id;
-        record.side = fill.side;
-        record.price = fill.fill_price;
-        record.quantity = fill.fill_quantity;
-        record.strategy_id = fill.strategy_id;
-        record.realized_pnl = trade_pnl;
-        record.commission = fill.commission;
+        TradeRecord record = {
+            fill.timestamp,
+            fill.strategy_id,
+            fill.instrument_id,
+            fill.side,
+            fill.fill_price,
+            fill.fill_quantity,
+            trade_pnl,
+            fill.commission
+        };
         trade_history_.push_back(record);
     }
 
@@ -534,20 +574,6 @@ namespace backtester {
         }
     }
 
-    void PortfolioManager::ReserveMargin(int32_t order_id, uint32_t instrument_id,
-        int64_t quantity, price_t price) {
-        money_t margin = CalculateMarginRequirement(instrument_id, quantity, price);
-        reserved_margin_by_order_id_[order_id] = margin;
-        reserved_margin_used_ += margin;
-    }
-
-    void PortfolioManager::ReleaseMargin(int32_t order_id) {
-        auto it = reserved_margin_by_order_id_.find(order_id);
-        if (it == reserved_margin_by_order_id_.end()) return;
-        reserved_margin_used_ -= it->second;
-        reserved_margin_by_order_id_.erase(it);
-    }
-
     int64_t PortfolioManager::GetDelta(uint32_t instrument_id, BidAskPair cur_Bbo) const {
         int64_t qty = GetPositionQty(instrument_id);
         if (qty == 0) return 0;
@@ -593,10 +619,8 @@ namespace backtester {
 
     money_t PortfolioManager::GetCurrentDrawdown(money_t current_equity) const {
         if (max_equity_seen_ == 0 || current_equity >= max_equity_seen_) return 0;
-        return static_cast<int64_t>(
-            (static_cast<__int128_t>((max_equity_seen_ - current_equity) * 1'000'000'000LL))
-            / max_equity_seen_);
-
+        auto numerator = static_cast<__int128_t>(max_equity_seen_ - current_equity) * 1'000'000'000LL;
+        return static_cast<int64_t>(numerator / max_equity_seen_);
     }
 
     const Position& PortfolioManager::GetPositionByInstrId(uint32_t instrument_id) const {
@@ -613,18 +637,39 @@ namespace backtester {
         return pos.quantity;
     }
 
-    money_t PortfolioManager::CalculateMarginRequirement(uint32_t instrument_id,
-        int64_t quantity, price_t price) const {
+    money_t PortfolioManager::CalcPerUnitMarginReq(uint32_t instrument_id,
+        price_t price) const {
         const TradedInstrument* traded_instr_ptr = GetTradedInstr(instrument_id);
-        if (traded_instr_ptr == nullptr) {
+
+        if (!traded_instr_ptr) {
             spdlog::error("CalcMarginReq: Unknown instrument {}",
                 instrument_id);
             return 0;
         }
         if (traded_instr_ptr->instrument_type == InstrumentType::FUT) {
-            return quantity * traded_instr_ptr->init_margin_req;
+            return traded_instr_ptr->init_margin_req;
         }
-        // Stocks: Qty * Price
-        return quantity * price;
+        // Stocks: Price
+        return price;
     }
+
+    money_t PortfolioManager::GetCommissionsByInstr(uint32_t instrument_id, qty_t fill_qty) {
+        auto instr = std::find_if(config_.traded_instruments.begin(),
+            config_.traded_instruments.end(), [instrument_id](TradedInstrument traded_instr) {
+                return traded_instr.instrument_id == instrument_id;
+            });
+        if (instr == config_.traded_instruments.end()) return kUndefPrice;
+
+        if (instr->instrument_type == InstrumentType::FUT) {
+            return fill_qty * config_.commission_struct.fut_per_contract;
+        }
+        else { // STOCK handling
+            money_t base_comm = std::max(config_.commission_struct.stock_order_min,
+                fill_qty * config_.commission_struct.stock_per_share);
+            money_t clearing_total = fill_qty * config_.commission_struct.stock_clearing_fee;
+
+            return base_comm + clearing_total;
+        }
+    }
+
 }

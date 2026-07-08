@@ -136,7 +136,7 @@ struct StrategySignalEvent : Event {
         uint32_t instrument_id, 
         SignalType signal_type, 
         int64_t price,
-        uint32_t quantity
+        int64_t quantity
     ) : Event(ts, EventType::kStrategySignal), 
         signal_id(signal_id),
         strategy_id(strategy_id),
@@ -152,7 +152,7 @@ struct StrategySignalEvent : Event {
     uint32_t instrument_id;
     SignalType signal_type; // BUY, SELL, Cancel, Mod
     int64_t price; 
-    uint32_t quantity;
+    int64_t quantity;
 };
 
 struct StrategyOrderEvent : Event {
@@ -163,7 +163,7 @@ struct StrategyOrderEvent : Event {
         uint32_t instrument_id,  
         OrderSide side, 
         int64_t price, 
-        uint32_t qty,       
+        int64_t qty,       
         std::string strategy_id
     ) : Event(ts, event_type), 
         order_id(order_id),
@@ -179,7 +179,7 @@ struct StrategyOrderEvent : Event {
     uint32_t instrument_id;
     OrderSide side;
     int64_t price;
-    uint32_t quantity;
+    int64_t quantity;
     std::string strategy_id;
 };
 

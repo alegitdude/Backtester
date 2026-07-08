@@ -32,7 +32,7 @@ class IStrategy {
         SignalType signal_type,
         uint32_t instrument_id,
         int64_t price,
-        uint32_t quantity,
+        qty_t quantity,
         uint64_t timestamp) {
         
         return std::make_unique<StrategySignalEvent>(
@@ -47,7 +47,7 @@ class IStrategy {
     }
 
     std::string strategy_id_;
-    int32_t next_signal_id_ = 0;
+    order_id_t next_signal_id_ = 1;
     const IMarketDataProvider& market_data_;
 };
 
