@@ -1,6 +1,5 @@
 #pragma once
 #include "../core/Types.h"
-#include <vector>
 #include <unordered_map>
 
 namespace backtester {

@@ -1,6 +1,5 @@
 #pragma once
 #include "OrderBook.h"
-#include <vector>
 
 namespace backtester {
 

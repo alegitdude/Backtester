@@ -4,7 +4,6 @@
 #include "InstrumentState.h"
 #include "OrderBook.h"
 #include "spdlog/spdlog.h"
-#include <iostream>
 
 namespace backtester {
 

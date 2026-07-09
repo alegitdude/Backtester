@@ -3,8 +3,6 @@
 #include "../core/Event.h"
 #include "../core/Types.h"
 #include "../market_state/IMarketDataProvider.h"
-#include <memory>
-#include <vector>
 #include <unordered_map>
 
 namespace backtester {

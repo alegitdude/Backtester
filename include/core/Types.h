@@ -1,7 +1,6 @@
 #pragma once
 #include "../data_ingestion/CsvZstReader.h"
 #include "Event.h"
-#include <iostream>
 #include <memory>
 #include <vector>
 #include <limits>

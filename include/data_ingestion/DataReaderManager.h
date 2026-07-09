@@ -4,8 +4,6 @@
 #include "../core/Types.h"
 #include "../core/Constants.h"
 #include <unordered_map>
-#include <string>
-#include <memory>
 
 namespace backtester {
 class EventQueue;

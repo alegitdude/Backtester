@@ -1,11 +1,5 @@
 #include "data_ingestion/CsvZstReader.h"
 #include "spdlog/spdlog.h"
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <string>
-#include <zstd.h>
 
 namespace backtester {
     

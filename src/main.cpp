@@ -10,12 +10,6 @@
 #include <nlohmann/json.hpp>
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
-#include <iostream>
-#include <vector>
-#include <string>
-#include <charconv>
-#include <memory>
-#include <fstream>
 
 void SetupLogging(std::string log_path) {
     auto now = std::chrono::system_clock::now();

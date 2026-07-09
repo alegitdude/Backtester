@@ -5,7 +5,6 @@
 #include "spdlog/spdlog.h"
 #include <filesystem>
 #include <charconv>
-#include <string>
 
 namespace backtester {
 

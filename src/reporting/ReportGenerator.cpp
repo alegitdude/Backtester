@@ -1,7 +1,6 @@
 #include "reporting/ReportGenerator.h"
 #include "utils/TimeUtils.h"
 #include "spdlog/spdlog.h"
-#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <numeric>

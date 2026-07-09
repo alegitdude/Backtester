@@ -1,8 +1,6 @@
 #include "market_state/OrderBook.h"
 #include "core/Event.h"
 #include "spdlog/spdlog.h"
-#include <iostream>
-#include <string>
 #include <algorithm>
 
 
@@ -239,7 +237,7 @@ namespace backtester {
   void OrderBook::Modify(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo, backtester::OrderTable<65536UL>::Order* prev_order_ptr) {
     auto prev_lvl_it = GetLevelIt(levels, prev_order_ptr->price, comp);
    
-    if(UNLIKELY (prev_lvl_it == levels.end())){
+    if(UNLIKELY (prev_lvl_it == levels.rend())){
       throw std::runtime_error(fmt::format("Tried to access unknown level" 
         "trying to modify order: {}", prev_order_ptr->order_id));
     } 

@@ -1,7 +1,6 @@
 #include "core/EventQueue.h"
 #include <iostream>
 #include <queue>
-#include <memory>
 
 namespace backtester {
 

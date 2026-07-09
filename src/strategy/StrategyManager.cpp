@@ -3,7 +3,7 @@
 #include "market_state/OBTypes.h"
 #include "strategy/StrategyRegistry.h"
 #include "spdlog/spdlog.h"
-#include <vector>
+
 namespace backtester {
 
 void StrategyManager::InitializeStrategies(const IMarketDataProvider& provider) {

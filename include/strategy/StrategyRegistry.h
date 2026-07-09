@@ -1,9 +1,8 @@
 #pragma once
-#include <string>
+#include "IStrategy.h"
 #include <unordered_map>
 #include <functional>
-#include <memory>
-#include "IStrategy.h"
+
 
 namespace backtester{
 

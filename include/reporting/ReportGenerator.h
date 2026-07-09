@@ -2,10 +2,6 @@
 #include "../core/Event.h"
 #include "../core/Types.h"
 #include "../portfolio/PortfolioManager.h"
-#include <cstdint>
-#include <string>
-#include <vector>
-#include <unordered_map>
 
 namespace backtester {
 

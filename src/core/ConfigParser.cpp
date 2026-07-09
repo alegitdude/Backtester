@@ -3,12 +3,7 @@
 #include "utils/NumericUtils.h"
 #include "core/Types.h"
 #include <fstream>
-#include <string>
-#include <iostream>
-#include <fstream>
 #include <sstream>
-#include <vector>
-#include <string>
 
 namespace backtester {
 
