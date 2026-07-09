@@ -30,6 +30,13 @@ namespace backtester {
 
         int64_t CloseOrReduce(Position& pos, const TradedInstrument* instr,
             const StrategyFillEvent& fill, int64_t fill_qty_signed);
+
+        void CancelAllPendingOrders();
+
+        inline void UpdateMaxEquity(money_t current_equity) {
+            max_equity_seen_ = std::max(max_equity_seen_, current_equity);
+        };
+        
         // =========================================================================
         // MARK: Metrics & PnL Accessors (All return Scaled int64_t)
         // =========================================================================

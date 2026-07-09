@@ -53,34 +53,6 @@ namespace backtester {
         uint64_t submit_ts = order.timestamp;
         uint64_t live_ts = submit_ts + latency_ns_;
 
-        // Marketable order: crosses the spread, fill immediately at resting price.
-        // The fill timestamp is live_ts (order arrives at exchange after latency).
-        if (IsMarketable(order.side, order.price, current_bbo)) {
-            int64_t fill_price = (order.side == OrderSide::kBid)
-                ? current_bbo.ask.price
-                : current_bbo.bid.price;
-
-            // Build a temporary PendingOrder just for the EmitFill call
-            PendingOrder aggressive_order{
-                order.order_id,
-                order.strategy_id,
-                order.instrument_id,
-                order.side,
-                order.price,
-                order.quantity,
-                submit_ts,
-                live_ts,
-                0  // No queue — crossing the spread
-            };
-
-            spdlog::info("Execution: Marketable order {} filled immediately at {} "
-                "(submitted={}, live={})",
-                order.order_id, fill_price, submit_ts, live_ts);
-
-            EmitFill(aggressive_order, fill_price, order.quantity, live_ts);
-            return;
-        }
-
         // Passive order: joins the back of the queue at its price level.
         PendingOrder pending{
             order.order_id,
@@ -113,7 +85,7 @@ namespace backtester {
             return;
         }
 
-        spdlog::debug("Execution: Order {} cancelled", order.order_id);
+        spdlog::info("Execution: Order {} cancelled", order.order_id);
         pending_orders_.erase(it);
     }
 
@@ -134,24 +106,23 @@ namespace backtester {
         int64_t old_price = pending.price;
         qty_t old_qty = pending.remaining_qty;
 
-        // Price change or size increase: loses queue priority (goes to back)
-        bool loses_priority = (order.price != old_price) || order.quantity > old_qty;
-
         pending.price = order.price;
         pending.remaining_qty = order.quantity;
+        // Price change or size increase: loses queue priority (goes to back)
+        bool loses_priority = (order.price != old_price) || order.quantity > old_qty;
 
         if (loses_priority) {
             pending.qty_ahead = queue_depth_at_level;
             pending.live_ts = static_cast<uint64_t>(order.timestamp) + latency_ns_;
 
-            spdlog::debug("Execution: Order {} modified (lost priority). "
+            spdlog::info("Execution: Order {} modified (lost priority). "
                 "new_price={} new_qty={} new_qty_ahead={}",
                 order.order_id, pending.price, pending.remaining_qty,
                 pending.qty_ahead);
         }
         else {
             // Size decrease: retains queue position
-            spdlog::debug("Execution: Order {} modified (retained priority). "
+            spdlog::info("Execution: Order {} modified (retained priority). "
                 "new_qty={}", order.order_id, pending.remaining_qty);
         }
     }
@@ -270,31 +241,11 @@ namespace backtester {
         }
     }
 
-    std::vector<std::unique_ptr<StrategyFillEvent>> ExecutionHandler::CancelAllPendingOrders(
-        uint64_t cancel_ts) {
-
-        if (pending_orders_.empty()) return {};
-
+    void ExecutionHandler::CancelAllPendingOrders() {
         spdlog::info("ExecutionHandler: Cancelling {} pending orders.",
             pending_orders_.size());
 
-        std::vector<std::unique_ptr<StrategyFillEvent>> cancel_fills;
-        cancel_fills.reserve(pending_orders_.size());
-
-        for (auto& [order_id, pending] : pending_orders_) {
-            cancel_fills.push_back(std::make_unique<StrategyFillEvent>(
-                cancel_ts,
-                order_id,
-                pending.instrument_id,
-                pending.side,
-                pending.price,
-                0,  // zero fill quantity — no shares actually traded
-                pending.strategy_id
-            ));
-        }
-
         pending_orders_.clear();
-        return cancel_fills;
     }
 
     // =============================================================================

@@ -238,7 +238,12 @@ namespace backtester {
   template <class Compare>
   void OrderBook::Modify(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo, backtester::OrderTable<65536UL>::Order* prev_order_ptr) {
     auto prev_lvl_it = GetLevelIt(levels, prev_order_ptr->price, comp);
-    // TODO check for prev_lvl_it != rend()
+   
+    if(UNLIKELY (prev_lvl_it == levels.end())){
+      throw std::runtime_error(fmt::format("Tried to access unknown level" 
+        "trying to modify order: {}", prev_order_ptr->order_id));
+    } 
+
     LevelQueue& prev_level = prev_lvl_it->second;
     if (prev_order_ptr->price != mbo.price) {
       // delete from old level

@@ -47,6 +47,12 @@ namespace backtester {
 
                     BidAskPair bbo = market_state_manager_.GetInstrumentBbo(market_event->instrument_id);
                     execution_handler_.OnMarketEvent(*market_event, bbo);
+                    if (portfolio_manager_.HasAnyOpenPosition()) {
+                        auto current_prices = market_state_manager_.GetTradedInstrsBbo();
+                        money_t equity = portfolio_manager_.GetTotalEquity(current_prices);
+                        portfolio_manager_.UpdateMaxEquity(equity);
+                    }
+
                 }
 
                 if (!backtest_complete) {
@@ -79,12 +85,13 @@ namespace backtester {
                     order_event->instrument_id);
                 int64_t queue_depth = market_state_manager_.GetQueueDepth(
                     order_event->instrument_id, order_event->side, order_event->price);
-                if(queue_depth == kUndefPrice) {
+                if (queue_depth == kUndefPrice) {
                     spdlog::error("Tried to get queue depth for unknown instrument: {}"
                         "for strategy order {} at ts: {}", order_event->instrument_id,
-                    order_event->order_id, order_event->timestamp);
-                } else {
-                    execution_handler_.OnStrategyOrder(*order_event, cur_bbo, queue_depth); 
+                        order_event->order_id, order_event->timestamp);
+                }
+                else {
+                    execution_handler_.OnStrategyOrder(*order_event, cur_bbo, queue_depth);
                 }
             }
 
@@ -105,10 +112,8 @@ namespace backtester {
             if (isControlEvent(eventType)) {
                 if (eventType == EventType::kBacktestControlEndOfBacktest) {
                     // Cancel all pending orders first
-                    auto cancel_fills = execution_handler_.CancelAllPendingOrders(current_time);
-                    for (auto& fill : cancel_fills) {
-                        portfolio_manager_.ProcessFill(*fill);
-                    }
+                    execution_handler_.CancelAllPendingOrders();
+                    portfolio_manager_.CancelAllPendingOrders();
                     // Emit EOD orders
                     EmitClosingOrders(current_time);
                     // Notify strategies

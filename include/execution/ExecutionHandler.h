@@ -60,8 +60,8 @@ public:
     // Generates FillEvents and pushes them onto the EventQueue.
     // -------------------------------------------------------------------
     void OnMarketEvent(const MarketByOrderEvent& mbo_event, const BidAskPair& current_bbo);
-    std::vector<std::unique_ptr<StrategyFillEvent>> CancelAllPendingOrders(
-        timestamp_t cancel_ts);
+
+    void CancelAllPendingOrders();
     // -------------------------------------------------------------------
     // Accessors
     // -------------------------------------------------------------------

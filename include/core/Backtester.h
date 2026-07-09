@@ -25,12 +25,12 @@ class Backtester {
 
  private:
     EventQueue& event_queue_;
-		DataReaderManager& data_reader_manager_;
-		MarketStateManager& market_state_manager_; 
-		PortfolioManager& portfolio_manager_;
-		ReportGenerator& report_generator_;
-		ExecutionHandler& execution_handler_;
-		StrategyManager& strategy_manager_;
+	DataReaderManager& data_reader_manager_;
+	MarketStateManager& market_state_manager_; 
+	PortfolioManager& portfolio_manager_;
+	ReportGenerator& report_generator_;
+	ExecutionHandler& execution_handler_;
+	StrategyManager& strategy_manager_;
 	};
 
 	inline bool isMarketEvent(EventType type) {

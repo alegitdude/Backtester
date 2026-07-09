@@ -344,6 +344,11 @@ namespace backtester {
         );
     }
 
+    void PortfolioManager::CancelAllPendingOrders() {
+        pending_orders_.clear();
+        reserved_margin_used_ = 0;
+    }
+
     // =============================================================================
     // MARK: Execution & Position Management
     // =============================================================================
@@ -488,6 +493,7 @@ namespace backtester {
 
         return trade_pnl;
     }
+
     // =============================================================================
     // MARK: Valuation & Metrics
     // =============================================================================
@@ -539,11 +545,7 @@ namespace backtester {
             unrealized += GetUnrealizedPnL(pos, bbo);
         }
 
-        int64_t equity = current_cash_ + unrealized;
-        if (equity > max_equity_seen_) {
-            const_cast<PortfolioManager*>(this)->max_equity_seen_ = equity;
-        }
-        return equity;
+        return current_cash_ + unrealized;
     }
 
     // MARK: GET BUYING POWER
