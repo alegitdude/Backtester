@@ -88,7 +88,6 @@ target_link_libraries(CoreLogic
   PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog 
   PRIVATE zstd project_warnings project_sanitizers
 )
-
 ########################
 # Main executable
 # --whole-archive keeps the self-registering REGISTER_STRATEGY statics from
@@ -102,16 +101,15 @@ target_link_libraries(Backtester PRIVATE
 ########################
 # Tests
 ########################
-add_executable(tests test/execution/ExecutionHandler_test.cpp)
-# add_executable(tests
-#   test/core/ConfigParser_test.cpp
-#   test/core/EventQueue_test.cpp
-#   test/data_ingestion/CsvZstReader_test.cpp
-#   test/portfolio/PortfolioManager_test.cpp
-#   test/utils/TimeUtils_test.cpp
-#   test/execution/ExecutionHandler_test.cpp
-#   test/market_state/OrderBook_test.cpp
-# )
+add_executable(tests
+  test/core/ConfigParser_test.cpp
+  test/core/EventQueue_test.cpp
+  test/data_ingestion/CsvZstReader_test.cpp
+  test/portfolio/PortfolioManager_test.cpp
+  test/utils/TimeUtils_test.cpp
+  test/execution/ExecutionHandler_test.cpp
+  test/market_state/OrderBook_test.cpp
+)
 
 target_compile_definitions(tests PRIVATE
   TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/test_data"
