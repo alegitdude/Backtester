@@ -44,6 +44,7 @@ namespace backtester {
         // Buying Power = Equity - Margin Used
         money_t GetBuyingPower(const std::unordered_map<uint32_t, BidAskPair>& cur_prices,
             InstrumentType instr_type) const;
+            
         // Returns PnL for a specific position object against a current price
         money_t GetUnrealizedPnL(const Position& pos, const BidAskPair& current_price) const;
 
@@ -51,8 +52,7 @@ namespace backtester {
         int64_t GetTotalPortfolioDelta(const std::unordered_map<uint32_t, BidAskPair>& latest_prices) const;
 
         // Dollar/Currency Delta for a specific instrument
-        // Futures Dollar Value = (Price / TickSize) * TickValue
-        int64_t GetDelta(uint32_t instrument_id, BidAskPair current_Bbo) const;
+        int64_t GetInstrPosDelta(uint32_t instrument_id, BidAskPair current_Bbo) const;
 
         // Returns a ratio (0.0 to 1.0)
         money_t GetCurrentDrawdown(money_t current_equity) const;

@@ -184,7 +184,7 @@ namespace backtester {
                 return -7 * 3600;
             }
             else {
-                std::cerr << "Warning: Unknown timezone '" << timezone << "', using UTC" << std::endl;
+                spdlog::error("Warning: Unknown timezone '{}', using UTC", timezone );
                 return 0;
             }
         }

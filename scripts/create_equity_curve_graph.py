@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.ticker as mtick
 
-CSV_FILE_NAME = '../reports/equity_curve.csv'
-OUTPUT_IMAGE_NAME = '../reports/equity_curve_plot.png'
+CSV_FILE_NAME = './reports/equity_curve.csv'
+OUTPUT_IMAGE_NAME = './reports/equity_curve_plot.png'
 
 x_data = []
 y_data = []

@@ -172,7 +172,7 @@ namespace backtester {
                     double raw_price;
                     std::from_chars(token.data(), token.data() + token.size(), raw_price);
                     raw_price *= 1000000000;
-                    if(UNLIKELY(raw_price < 0)){
+                    if(BT_UNLIKELY(raw_price < 0)){
                         throw std::runtime_error("Price below zero in data");
                     }
                     price = static_cast<price_t>(raw_price);

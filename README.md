@@ -289,7 +289,14 @@ and drop the `sudo` from the script.
 ## Analysis & Visualization
 
 After a backtest, the `scripts/create_equity_curve_graph.py` script renders the equity
-curve from `reports/equity_curve.csv` into the reports folder:
+curve from `reports/equity_curve.csv` into the reports folder. This script requires 
+Python 3. On Ubuntu/Debian systems, you must explicitly install the Python 
+virtual environment package and pip:
+
+```bash
+sudo apt update && sudo apt install -y python3-venv python3-pip
+```
+Then you can run the script to create the equity curve graph:
 
 ```bash
 # From the project root

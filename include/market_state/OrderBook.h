@@ -163,7 +163,7 @@ namespace backtester {
                     return comp(p, price);
                 });
 
-            if (LIKELY(rit != levels.rend() && rit->first == price)) {
+            if (BT_LIKELY(rit != levels.rend() && rit->first == price)) {
                 return rit->second;
             }
             else {

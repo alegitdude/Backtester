@@ -41,7 +41,7 @@ class InstrumentState {
             return publisher_id == ob.publisher_id;
         });
         
-        if(LIKELY (it != books_.end())){
+        if(BT_LIKELY (it != books_.end())){
             return *it;
         }
         else {

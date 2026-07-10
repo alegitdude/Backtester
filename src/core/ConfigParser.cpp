@@ -40,7 +40,7 @@ namespace backtester {
 		using json = nlohmann::json;
 
 		if (!std::filesystem::exists(config_path)) {
-			std::cout << "The file '" << config_path.c_str() << "' does not exist." << std::endl;
+			spdlog::error("The file '{}' does not exist.", config_path.c_str());
 			throw std::runtime_error("Config file not found at: " + config_path.generic_string());
 		}
 
@@ -269,7 +269,7 @@ namespace backtester {
 				}
 				catch (const std::exception& e) {
 					// Handles cases where column 2 is not a valid number
-					std::cerr << "Skipping row due to conversion error: " << e.what() << std::endl;
+					spdlog::error("Skipping row due to conversion error: {}", e.what());
 				}
 			}
 		}

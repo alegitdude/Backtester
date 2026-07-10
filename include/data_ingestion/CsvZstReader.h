@@ -1,17 +1,16 @@
 #pragma once
-
+#include "IDataReader.h"
 #include <iostream>
 // Include file stream for reading binary files
 #include <fstream>
 // Include string stream for parsing CSV lines
 #include <sstream>
 #include <vector>
-#include <string>
 #include <zstd.h>
 
 namespace backtester {
 
-class CsvZstReader { 
+class CsvZstReader : public IDataReader{ 
  public:
     CsvZstReader() : dstream_(nullptr), output_pos_(0), output_size_(0), 
                      input_pos_(0), input_valid_size_(0), eof_reached_(false) {
@@ -21,11 +20,11 @@ class CsvZstReader {
     
     ~CsvZstReader();
 
-    bool Open(const std::string& filename);
+    bool Open(const std::string& filename) override;
     
-    void Close();
+    void Close() override ;
     
-    bool ReadLine(std::string& line); 
+    bool ReadLine(std::string& line) override ; 
 
  private:
     std::ifstream file_;

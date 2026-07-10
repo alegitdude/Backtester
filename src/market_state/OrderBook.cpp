@@ -120,7 +120,7 @@ namespace backtester {
   }
   /////////// Private
   void OrderBook::UpdateBboCache() {
-    if (LIKELY(!bids_.empty())) {
+    if (BT_LIKELY(!bids_.empty())) {
       PriceLevel bid_level = GetBidLevel();
       bbo_cache_.bid = { bid_level.price, bid_level.size, bid_level.count };
     }
@@ -128,7 +128,7 @@ namespace backtester {
       bbo_cache_.bid = {};
     }
 
-    if (LIKELY(!offers_.empty())) {
+    if (BT_LIKELY(!offers_.empty())) {
       PriceLevel ask_level = GetAskLevel();
       bbo_cache_.ask = { ask_level.price, ask_level.size, ask_level.count };
     }
@@ -173,7 +173,7 @@ namespace backtester {
   void OrderBook::Add(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo) {
     //Not using normalized/aggregate sets so should not encounter TOB flags  
     auto inserted = orders_by_id_.Insert(mbo.order_id, mbo.price, mbo.side, mbo.size);
-    if (UNLIKELY(!inserted)) {
+    if (BT_UNLIKELY(!inserted)) {
       throw std::invalid_argument{ "Received duplicated order ID " +
                                  std::to_string(mbo.order_id) };
     }
@@ -193,12 +193,12 @@ namespace backtester {
   template <class Compare>
   void OrderBook::Cancel(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo) {
     auto order_it = orders_by_id_.Find(mbo.order_id);
-    if (UNLIKELY(!order_it)) {
+    if (BT_UNLIKELY(!order_it)) {
       throw std::invalid_argument{ "Received cancel order not in orders " +
         std::to_string(mbo.order_id) };
     } 
     auto level_it = GetLevelIt(levels, order_it->price, comp);
-    if (UNLIKELY(level_it == levels.rend())) {
+    if (BT_UNLIKELY(level_it == levels.rend())) {
       throw std::invalid_argument{ "Received cancel with price not in OB " +
         std::to_string(mbo.order_id) };
     } 
@@ -218,11 +218,11 @@ namespace backtester {
   // MARK: Modify
   void OrderBook::Modify(const MarketByOrderEvent& mbo) {
     auto orders_it = orders_by_id_.Find(mbo.order_id);
-    if (UNLIKELY(!orders_it)) {
+    if (BT_UNLIKELY(!orders_it)) {
       Add(mbo);
       return;
     }
-    if (UNLIKELY(orders_it->side != mbo.side)) {
+    if (BT_UNLIKELY(orders_it->side != mbo.side)) {
       [&] () __attribute__((noinline, cold)) {
         throw std::logic_error{ "Order " + std::to_string(mbo.order_id) + " changed side" };
       }();
@@ -237,7 +237,7 @@ namespace backtester {
   void OrderBook::Modify(SideLevels& levels, Compare comp, const MarketByOrderEvent& mbo, backtester::OrderTable<65536UL>::Order* prev_order_ptr) {
     auto prev_lvl_it = GetLevelIt(levels, prev_order_ptr->price, comp);
    
-    if(UNLIKELY (prev_lvl_it == levels.rend())){
+    if(BT_UNLIKELY (prev_lvl_it == levels.rend())){
       throw std::runtime_error(fmt::format("Tried to access unknown level" 
         "trying to modify order: {}", prev_order_ptr->order_id));
     } 

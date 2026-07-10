@@ -1,5 +1,5 @@
 #pragma once
-#include "../data_ingestion/CsvZstReader.h"
+#include "../data_ingestion/IDataReader.h"
 #include "Event.h"
 #include <memory>
 #include <vector>
@@ -8,8 +8,8 @@
 
 namespace backtester {
 #if defined(__GNUC__) || defined(__clang__)
-    #define LIKELY(x)       __builtin_expect(!!(x), 1)
-    #define UNLIKELY(x)     __builtin_expect(!!(x), 0)
+    #define BT_LIKELY(x)       __builtin_expect(!!(x), 1)
+    #define BT_UNLIKELY(x)     __builtin_expect(!!(x), 0)
 #else
     #define LIKELY(x)       (x)
     #define UNLIKELY(x)     (x)
@@ -78,7 +78,7 @@ struct DataSourceConfig {
 };
 
 struct DataStream {
-    std::unique_ptr<CsvZstReader> reader;
+    std::unique_ptr<IDataReader> reader;
     DataSourceConfig config;
 };
 

@@ -501,7 +501,7 @@ namespace backtester {
     int64_t PortfolioManager::GetUnrealizedPnL(const Position& pos, const BidAskPair& cur_Bbo) const {
         if (pos.quantity == 0) return 0;
         const TradedInstrument* traded_instr_ptr = GetTradedInstr(pos.instrument_id);
-        if (UNLIKELY(!traded_instr_ptr)) {
+        if (BT_UNLIKELY(!traded_instr_ptr)) {
             spdlog::error(R"(Tried to access position instrument {} from strategy 
                 {}, but was not found in config. Postion last ts: {}, 
                 Position order id: {})", pos.instrument_id, pos.strategy_id,
@@ -576,21 +576,26 @@ namespace backtester {
         }
     }
 
-    int64_t PortfolioManager::GetDelta(uint32_t instrument_id, BidAskPair cur_Bbo) const {
+    int64_t PortfolioManager::GetInstrPosDelta(uint32_t instrument_id, BidAskPair cur_Bbo) const {
         int64_t qty = GetPositionQty(instrument_id);
         if (qty == 0) return 0;
 
         if (cur_Bbo.bid.price == 0 || cur_Bbo.ask.price == 0 ||
             cur_Bbo.ask.price == kUndefPrice || cur_Bbo.bid.price == kUndefPrice) return 0;
 
-        const TradedInstrument* traded_instr_ptr = GetTradedInstr(instrument_id);
+        const TradedInstrument* instr_ptr = GetTradedInstr(instrument_id);
+        if (instr_ptr == nullptr) {
+            spdlog::error(R"(Error trying to get position for unknown instrument: 
+                {})",instrument_id);
+            return 0;
+        }
 
         price_t mid_price = ((cur_Bbo.ask.price - cur_Bbo.bid.price) / 2) +
             cur_Bbo.bid.price;
 
-        if (traded_instr_ptr->instrument_type == InstrumentType::FUT) {
-            int64_t ticks = mid_price / traded_instr_ptr->tick_size;
-            money_t contract_value = ticks * traded_instr_ptr->tick_value;
+        if (instr_ptr->instrument_type == InstrumentType::FUT) {
+            int64_t ticks = mid_price / instr_ptr->tick_size;
+            money_t contract_value = ticks * instr_ptr->tick_value;
 
             return qty * contract_value;
         }
@@ -610,7 +615,7 @@ namespace backtester {
                 bbo = cur_prices.at(pos.instrument_id);
             }
 
-            total_delta += GetDelta(pos.instrument_id, bbo);
+            total_delta += GetInstrPosDelta(pos.instrument_id, bbo);
         }
         return total_delta;
     }
