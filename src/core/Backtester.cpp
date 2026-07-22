@@ -23,6 +23,7 @@ namespace backtester {
         uint64_t last_snapshot_ts_ = 0;
         uint64_t event_tally = 0;
         bool backtest_complete = false;
+        bool end_of_bt_pushed = false;
 
         while (!event_queue_.IsEmpty()) {
             auto current_event = event_queue_.PopTopEvent();
@@ -45,14 +46,10 @@ namespace backtester {
                         }
                     }
 
-                    BidAskPair bbo = market_state_manager_.GetInstrumentBbo(market_event->instrument_id);
-                    execution_handler_.OnMarketEvent(*market_event, bbo);
+                    execution_handler_.OnMarketEvent(*market_event);
                     if (portfolio_manager_.HasAnyOpenPosition()) {
-                        auto current_prices = market_state_manager_.GetTradedInstrsBbo();
-                        money_t equity = portfolio_manager_.GetTotalEquity(current_prices);
-                        portfolio_manager_.UpdateMaxEquity(equity);
+                        portfolio_manager_.UpdateMaxEquity();
                     }
-
                 }
 
                 if (!backtest_complete) {
@@ -69,8 +66,7 @@ namespace backtester {
                     static_cast<const StrategySignalEvent*>(current_event.get());
 
                 auto current_prices = market_state_manager_.GetTradedInstrsBbo();
-                auto order_event = portfolio_manager_.RequestOrder(signal_event,
-                    current_prices);
+                auto order_event = portfolio_manager_.RequestOrder(signal_event);
 
                 if (order_event) {
                     event_queue_.PushEvent(std::move(order_event));
@@ -81,18 +77,9 @@ namespace backtester {
             if (isStrategyOrderEvent(eventType)) {
                 const StrategyOrderEvent* order_event =
                     static_cast<const StrategyOrderEvent*>(current_event.get());
-                const BidAskPair cur_bbo = market_state_manager_.GetInstrumentBbo(
-                    order_event->instrument_id);
-                int64_t queue_depth = market_state_manager_.GetQueueDepth(
-                    order_event->instrument_id, order_event->side, order_event->price);
-                if (queue_depth == kUndefPrice) {
-                    spdlog::error("Tried to get queue depth for unknown instrument: {}"
-                        "for strategy order {} at ts: {}", order_event->instrument_id,
-                        order_event->order_id, order_event->timestamp);
-                }
-                else {
-                    execution_handler_.OnStrategyOrder(*order_event, cur_bbo, queue_depth);
-                }
+              
+                execution_handler_.OnStrategyOrder(*order_event);
+                
             }
 
             if (eventType == EventType::kStrategyOrderFill) {
@@ -110,7 +97,8 @@ namespace backtester {
             }
 
             if (isControlEvent(eventType)) {
-                if (eventType == EventType::kBacktestControlEndOfBacktest) {
+                if (eventType == EventType::kBacktestControlEndOfBacktest 
+                        && !backtest_complete) {
                     // Cancel all pending orders first
                     execution_handler_.CancelAllPendingOrders();
                     portfolio_manager_.CancelAllPendingOrders();
@@ -122,10 +110,11 @@ namespace backtester {
                 }
             }
 
-            if ((event_queue_.IsEmpty() || current_time > config.end_time) &&
-                !backtest_complete) {
+            if (((event_queue_.IsEmpty() || current_time > config.end_time) &&
+                !backtest_complete) && !end_of_bt_pushed) {
                 event_queue_.PushEvent(std::make_unique<Event>(current_time,
                     EventType::kBacktestControlEndOfBacktest));
+                end_of_bt_pushed = true;
             }
             if (current_time >= config.start_time &&
                 current_time - last_snapshot_ts_ >= config.snapshot_interval_ns) {
@@ -183,7 +172,7 @@ namespace backtester {
 
     void Backtester::RecordSnapshot(timestamp_t current_time) {
         auto current_prices = market_state_manager_.GetTradedInstrsBbo();
-        money_t equity = portfolio_manager_.GetTotalEquity(current_prices);
+        money_t equity = portfolio_manager_.GetTotalEquity();
         money_t cash = portfolio_manager_.GetCash();
         money_t realized = portfolio_manager_.GetRealizedPnL();
         money_t unrealized = equity - cash;

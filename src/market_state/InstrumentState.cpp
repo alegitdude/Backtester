@@ -1,5 +1,6 @@
 #include "market_state/InstrumentState.h"
 #include "market_state/OrderBook.h"
+#include <span>
 
 namespace backtester {
 
@@ -25,7 +26,7 @@ namespace backtester {
             }
             else if (event.type != EventType::kMarketFill && event.flags & 0x80) {
                 UpdateInstrumentBbo();
-                           
+
                 // Update WMP - equation : (bid_price * ask_size + ask_price * bid_size) / (bid_size + ask_size)
                 int64_t total_size = instrument_Bbo_.bid.size + instrument_Bbo_.ask.size;
                 if (total_size > 0 && instrument_Bbo_.bid.price != kUndefPrice &&
@@ -37,7 +38,7 @@ namespace backtester {
         }
     }
 
-    void InstrumentState::UpdateInstrumentBbo() {      
+    void InstrumentState::UpdateInstrumentBbo() {
         instrument_Bbo_.bid = {};
         instrument_Bbo_.ask = {};
 
@@ -64,7 +65,6 @@ namespace backtester {
                 }
             }
         }
-
         snapshot_.bbo = instrument_Bbo_;
     }
 
@@ -77,11 +77,48 @@ namespace backtester {
         return book ? book->GetSnapshot(level_count) : EMPTY_SNAPSHOT;
     }
 
+    void InstrumentState::GetAggOBBidsSnapshot(std::span<PriceLevel> snapshot) const {
+        size_t num_books = books_.size();
+        std::vector<size_t> book_indices(num_books, 0);
+        size_t snap_i = 0;
+        size_t book_i = 0;
+
+        while(snap_i < snapshot.size()){
+            for(book_i; book_i < num_books; book_i++){
+                PriceLevel level = books_[book_i].GetBidLevel(book_indices[book_i]);
+                if(level.price != snapshot[snap_i].price) continue;
+                snapshot[snap_i].count += level.count;
+                snapshot[snap_i].size += level.size;
+                book_indices[book_i]++;
+            }
+            book_i = 0;
+            snap_i++;
+        }
+    }
+
+    void InstrumentState::GetAggOBAsksSnapshot(std::span<PriceLevel> snapshot) const {
+        size_t num_books = books_.size();
+        std::vector<size_t> book_indices(num_books, 0);
+        size_t snap_i = 0;
+        size_t book_i = 0;
+     
+        while(snap_i < snapshot.size()){
+            for(book_i; book_i < num_books; book_i++){
+                PriceLevel level = books_[book_i].GetAskLevel(book_indices[book_i]);
+                if(level.price != snapshot[snap_i].price) continue;
+                snapshot[snap_i].count += level.count;
+                snapshot[snap_i].size += level.size;
+                book_indices[book_i]++;
+            }
+            book_i = 0;
+            snap_i++;
+        }
+    }
+
     int64_t InstrumentState::GetQueueDepthByPx(OrderSide side, int64_t price) const {
         int64_t total_depth = 0;
         for (auto& book : books_) {
-            PriceLevel price_level = book.GetLevelByPx(side, price);
-            total_depth += price_level.size;
+            total_depth += book.GetLevelByPx(side, price).size;
         }
         return total_depth;
     }

@@ -17,6 +17,9 @@ class InstrumentState {
     const std::vector<BidAskPair> GetOBSnapshotByPub(uint16_t publisher_id, 
                                                std::size_t level_count = 1) const;
 
+    void GetAggOBBidsSnapshot(std::span<PriceLevel> levels) const;
+    void GetAggOBAsksSnapshot(std::span<PriceLevel> levels) const;
+
     int64_t GetQueueDepthByPx(OrderSide side, int64_t price) const; 
 
     const MarketSnapshot&  GetMarketSnapshot() const { return snapshot_; }

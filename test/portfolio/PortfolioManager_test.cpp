@@ -1,4 +1,5 @@
 #include "portfolio/PortfolioManager.h"
+#include "market_state/MarketStateManager.h"
 #include "core/Types.h"
 #include "core/Event.h"
 #include <gtest/gtest.h>
@@ -18,6 +19,7 @@ class PortfolioManagerTest : public ::testing::Test {
     // Config objects
     AppConfig config_fut_;
     AppConfig config_stk_;
+    MarketStateManager m_state_manager;
 
     BidAskPair kValidEsBidAskPair = {4000'000'000'000, 0 ,0, 4000'250'000'000, 0, 0};
 
@@ -56,6 +58,12 @@ class PortfolioManagerTest : public ::testing::Test {
             0,
             0  // Cash account 
         }};
+
+        m_state_manager.Initialize({kFutInstrumentId});
+        auto bid_event = MakeMboAdd(OrderSide::kBid, 4000'000'000'000, 1, 1, 1);
+        m_state_manager.OnMarketEvent(bid_event);
+        auto ask_event = MakeMboAdd(OrderSide::kAsk, 4000'250'000'000, 1, 2, 2);
+        m_state_manager.OnMarketEvent(ask_event);
     }
 
     StrategySignalEvent CreateSignal(uint64_t timestamp, 
@@ -71,6 +79,26 @@ class PortfolioManagerTest : public ::testing::Test {
             qty
         );
     }
+
+    MarketByOrderEvent MakeMboAdd(OrderSide side, int64_t price,
+        uint32_t size, uint64_t ts, uint64_t order_id) {
+
+        return MarketByOrderEvent(
+            ts, EventType::kMarketOrderAdd,
+            ts, 1, kFutInstrumentId, side, price, size,
+            order_id, 0x80, 0, 0, "ESZ5", "ES"
+        );
+    }
+
+    MarketByOrderEvent MakeMboCancel(OrderSide side, int64_t price,
+        uint32_t size, uint64_t ts, uint64_t order_id) {
+
+        return MarketByOrderEvent(
+            ts, EventType::kMarketOrderCancel,
+            ts, 1, kFutInstrumentId, side, price, size,
+            order_id, 0x80, 0, 0, "ESZ5", "ES"
+        );
+    }
 };
 
 // =============================================================================
@@ -78,7 +106,7 @@ class PortfolioManagerTest : public ::testing::Test {
 // =============================================================================
 
 TEST_F(PortfolioManagerTest, InitializationTest_Fut) {
-    PortfolioManager pm(config_fut_);
+    PortfolioManager pm(config_fut_, m_state_manager);
     const std::unordered_map<uint32_t, BidAskPair>& cur_Bbos = {};
 
     EXPECT_EQ(pm.GetCash(), kInitialCash);
@@ -87,10 +115,10 @@ TEST_F(PortfolioManagerTest, InitializationTest_Fut) {
     EXPECT_FALSE(pm.HasAnyOpenPosition());
     EXPECT_EQ(pm.GetPositionQty(kFutInstrumentId), 0);
     // Initial buying power should be Initial Cash (no margin used)
-    EXPECT_EQ(pm.GetBuyingPower(cur_Bbos, config_fut_.traded_instruments[0].instrument_type), kInitialCash);
+    EXPECT_EQ(pm.GetBuyingPower(config_fut_.traded_instruments[0].instrument_type), kInitialCash);
     EXPECT_EQ(pm.GetPositionByInstrId(1), kEmptyPosition);
-    EXPECT_EQ(pm.GetDelta(kFutInstrumentId, kEmptyBbo), 0);
-    EXPECT_EQ(pm.GetTotalPortfolioDelta(cur_Bbos), 0);
+    EXPECT_EQ(pm.GetInstrPosDelta(kFutInstrumentId, kEmptyBbo), 0);
+    EXPECT_EQ(pm.GetTotalPortfolioDelta(), 0);
 }   
 
 // =============================================================================
@@ -98,13 +126,11 @@ TEST_F(PortfolioManagerTest, InitializationTest_Fut) {
 // =============================================================================
 
 TEST_F(PortfolioManagerTest, RiskGate_ValidEntry) {
-    PortfolioManager pm(config_fut_);
+    PortfolioManager pm(config_fut_, m_state_manager);
     
     auto signal = CreateSignal(1000, 5, 1, SignalType::kBuySignal, 4000'250'000'000, 1);
 
-    std::unordered_map<uint32_t, BidAskPair> market_prices = {{kFutInstrumentId, kValidEsBidAskPair}};
-
-    auto event = pm.RequestOrder(&signal, market_prices);
+    auto event = pm.RequestOrder(&signal);
     ASSERT_TRUE(IsOrder(event));
     const auto* order = static_cast<const StrategyOrderEvent*>(event.get());
 
@@ -116,10 +142,10 @@ TEST_F(PortfolioManagerTest, RiskGate_ValidEntry) {
 TEST_F(PortfolioManagerTest, RiskGate_RejectsInvalidTick) {
     AppConfig weird_tick = config_fut_;
     weird_tick.traded_instruments[0].tick_size = 70'000'000; //.25 % .07 != 0
-    PortfolioManager pm_weird(weird_tick);
+    PortfolioManager pm_weird(weird_tick, m_state_manager);
     
     auto signal = CreateSignal(1000, 5, 1, SignalType::kBuySignal, 4000'250'000'000, 1);
-    auto event = pm_weird.RequestOrder(&signal, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event = pm_weird.RequestOrder(&signal);
     ASSERT_TRUE(IsRejection(event));
     const auto* order = static_cast<const StrategyOrderRejectionEvent*>(event.get());
 
@@ -127,12 +153,12 @@ TEST_F(PortfolioManagerTest, RiskGate_RejectsInvalidTick) {
 }
 
 TEST_F(PortfolioManagerTest, RiskGate_InsufficientBuyingPower) {
-    PortfolioManager pm(config_fut_);
+    PortfolioManager pm(config_fut_, m_state_manager);
     
     // Cash 100k. Margin 5k. Max contracts ~20.
     // Try to buy 50.
     auto signal = CreateSignal(1000, 5, 1, SignalType::kBuySignal, 4000'250'000'000, 50);
-    auto event = pm.RequestOrder(&signal, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event = pm.RequestOrder(&signal);
     ASSERT_TRUE(IsRejection(event));
     const auto* order = static_cast<const StrategyOrderRejectionEvent*>(event.get());
 
@@ -141,9 +167,10 @@ TEST_F(PortfolioManagerTest, RiskGate_InsufficientBuyingPower) {
 
 TEST_F(PortfolioManagerTest, RiskGate_PositionLimits) {
     config_fut_.initial_cash = 2000000'000000000;
-    PortfolioManager pm(config_fut_);
+    PortfolioManager pm(config_fut_, m_state_manager);
+
     auto signal1 = CreateSignal(100, 1, 1, SignalType::kBuySignal, 4000'000'000'000, 10);
-    auto event1 = pm.RequestOrder(&signal1, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event1 = pm.RequestOrder(&signal1);
 
     // Limit is 10.
     
@@ -162,21 +189,22 @@ TEST_F(PortfolioManagerTest, RiskGate_PositionLimits) {
     // 2. Try to buy 1 more.
     auto signal2 = CreateSignal(1000, 5, 1, SignalType::kBuySignal, 4000'000'000'000, 1);
 
-    auto event2 = pm.RequestOrder(&signal2, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event2 = pm.RequestOrder(&signal2);
     ASSERT_TRUE(IsRejection(event2));
     const auto* order = static_cast<const StrategyOrderRejectionEvent*>(event2.get());
 
     EXPECT_EQ(order->reason, RejectionReason::kPositionLimit) << "Should reject order exceeding max position limit";
 }
 
-// // ==========================================================================
-// // MARK: Execution & PnL Tests (Futures)
-// // ==========================================================================
+// ==========================================================================
+// MARK: Execution & PnL Tests (Futures)
+// ==========================================================================
 
 TEST_F(PortfolioManagerTest, Execution_OpenAndClose_Profit) {
-    PortfolioManager pm(config_fut_);
+    PortfolioManager pm(config_fut_, m_state_manager);
+
     auto signal1 = CreateSignal(100, 1, 1, SignalType::kBuySignal, 4000'000'000'000, 1);
-    auto event1 = pm.RequestOrder(&signal1, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event1 = pm.RequestOrder(&signal1);
 
     // 1. Open Long 1 @ 4000
     auto fill = std::make_unique<StrategyFillEvent>(
@@ -198,7 +226,7 @@ TEST_F(PortfolioManagerTest, Execution_OpenAndClose_Profit) {
     // Tick size 0.25 -> 40 ticks.
     // Tick val 12.50 -> 40 * 12.50 = $500 Profit.
     auto signal_close = CreateSignal(100, 1, 1, SignalType::kSellSignal, 4000'000'000'000, 1);
-    auto event_close = pm.RequestOrder(&signal1, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event_close = pm.RequestOrder(&signal1);
 
     auto fill_close = std::make_unique<StrategyFillEvent>(
         100,
@@ -217,11 +245,11 @@ TEST_F(PortfolioManagerTest, Execution_OpenAndClose_Profit) {
 }
 
 TEST_F(PortfolioManagerTest, Execution_OpenAndClose_Loss) {
-    PortfolioManager pm(config_fut_);
+    PortfolioManager pm(config_fut_, m_state_manager);
 
     // 1. Open Short 1 @ 4000
     auto signal_open = CreateSignal(100, 1, 1, SignalType::kSellSignal, 4000'000'000'000, 1);
-    auto event_open = pm.RequestOrder(&signal_open, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event_open = pm.RequestOrder(&signal_open);
     auto fill_open = std::make_unique<StrategyFillEvent>(
         100,
         1,
@@ -238,7 +266,7 @@ TEST_F(PortfolioManagerTest, Execution_OpenAndClose_Loss) {
     // 2. Close Short 1 @ 4005 
     // Loss: 5 points * (1/0.25) * 12.5 = 20 * 12.5 = $250 Loss.
     auto signal_close = CreateSignal(100, 1, 1, SignalType::kBuySignal, 4005'000'000'000, 1);
-    auto event_close = pm.RequestOrder(&signal_close, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event_close = pm.RequestOrder(&signal_close);
     auto fill_close = std::make_unique<StrategyFillEvent>(
         100,
         1,
@@ -256,11 +284,11 @@ TEST_F(PortfolioManagerTest, Execution_OpenAndClose_Loss) {
 }
 
 TEST_F(PortfolioManagerTest, Execution_PositionFlip) {
-    PortfolioManager pm(config_fut_);
+    PortfolioManager pm(config_fut_, m_state_manager);
 
     // 1. Open Long 1 @ 4000
     auto signal_open = CreateSignal(100, 1, 1, SignalType::kBuySignal, 4000'000'000'000, 1);
-    auto event_open = pm.RequestOrder(&signal_open, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event_open = pm.RequestOrder(&signal_open);
     auto fill_long = std::make_unique<StrategyFillEvent>(
         100,
         1,
@@ -276,7 +304,7 @@ TEST_F(PortfolioManagerTest, Execution_PositionFlip) {
     // PnL on first 1: $500 Profit.
     // New Short Position: -1 from 4010.
     auto signal_close = CreateSignal(100, 1, 1, SignalType::kSellSignal, 4010'000'000'000, 2);
-    auto event_close = pm.RequestOrder(&signal_close, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event_close = pm.RequestOrder(&signal_close);
     auto flip_short = std::make_unique<StrategyFillEvent>(
         100,
         1,
@@ -293,16 +321,16 @@ TEST_F(PortfolioManagerTest, Execution_PositionFlip) {
     EXPECT_EQ(pm.GetRealizedPnL(), 500'000'000'000);
 }
 
-// // ==========================================================================
-// // MARK: Metrics Tests
-// // ==========================================================================
+// ==========================================================================
+// MARK: Metrics Tests
+// ==========================================================================
 
 TEST_F(PortfolioManagerTest, Metrics_UnrealizedPnL_Futures) {
-    PortfolioManager pm(config_fut_);
+    PortfolioManager pm(config_fut_, m_state_manager);
 
     // Open Long 2 @ 4000
     auto signal_open = CreateSignal(100, 1, 1, SignalType::kBuySignal, 4000'000'000'000, 2);
-    auto event_open = pm.RequestOrder(&signal_open, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event_open = pm.RequestOrder(&signal_open);
     auto fill_long = std::make_unique<StrategyFillEvent>(
         100,
         1,
@@ -317,23 +345,37 @@ TEST_F(PortfolioManagerTest, Metrics_UnrealizedPnL_Futures) {
     // Market moves to 4002.
     // Diff 2.0 -> 8 ticks -> 8 * 12.5 = 100 per contract.
     // 2 contracts -> $200 Unrealized.
+
+    // Cancel 4000 and 4000.25 resting orders
+    auto bid_cancel = MakeMboCancel(OrderSide::kBid, 4000'000'000'000, 1, 1, 1);
+    m_state_manager.OnMarketEvent(bid_cancel);
+    auto ask_cancel = MakeMboCancel(OrderSide::kAsk, 4000'250'000'000, 1, 2, 2);
+    m_state_manager.OnMarketEvent(ask_cancel);
+
+    // Create new 4002, 4003 spread
+     auto bid_add = MakeMboAdd(OrderSide::kBid, 4002'000'000'000, 1, 1, 3);
+    m_state_manager.OnMarketEvent(bid_add);
+    auto ask_add = MakeMboAdd(OrderSide::kAsk, 4003'000'000'000, 1, 2, 4);
+    m_state_manager.OnMarketEvent(ask_add);
+
     Position pos = pm.GetPositionByInstrId(kFutInstrumentId);
-    BidAskPair ba_pair = {4002'000'000'000, 1, 1, 4003'000'000'000, 1, 1};
-    int64_t upnl = pm.GetUnrealizedPnL(pos, ba_pair);
+    auto bbo = m_state_manager.GetInstrumentBbo(kFutInstrumentId);
+    int64_t upnl = pm.GetUnrealizedPnL(pos, bbo);
+
     EXPECT_EQ(upnl, 200'000'000'000);
 
     // Total Equity Check
-    auto equity = pm.GetTotalEquity({{kFutInstrumentId, ba_pair}});
+    auto equity = pm.GetTotalEquity();
     EXPECT_EQ(equity, kInitialCash + 200'000'000'000);
 }
 
 TEST_F(PortfolioManagerTest, Metrics_Drawdown_PreventsTrading) {
     config_fut_.traded_instruments[0].init_margin_req = 5'000'000'000'000;
-    PortfolioManager pm(config_fut_);
+    PortfolioManager pm(config_fut_, m_state_manager);
     
     // 1. Open large position (10 contracts) @ 4000
     auto signal_open = CreateSignal(100, 1, 1, SignalType::kBuySignal, 4000'000'000'000, 10);
-    auto event_open = pm.RequestOrder(&signal_open, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event_open = pm.RequestOrder(&signal_open);
     auto fill_long = std::make_unique<StrategyFillEvent>(
         100,
         1,
@@ -350,16 +392,27 @@ TEST_F(PortfolioManagerTest, Metrics_Drawdown_PreventsTrading) {
     // Total Loss: 100,000.
     // Equity = 100k - 100k = 0.
     // Drawdown = 100%.
-    BidAskPair ba_pair = {3800'000'000'000, 1, 1, 3800'250'000'000, 1, 1};
+
+     // Cancel 4000 and 4000.25 resting orders
+    auto bid_cancel = MakeMboCancel(OrderSide::kBid, 4000'000'000'000, 1, 1, 1);
+    m_state_manager.OnMarketEvent(bid_cancel);
+    auto ask_cancel = MakeMboCancel(OrderSide::kAsk, 4000'250'000'000, 1, 2, 2);
+    m_state_manager.OnMarketEvent(ask_cancel);
+
+    // Create new 3800, 3800 spread
+    auto bid_add = MakeMboAdd(OrderSide::kBid, 3800'000'000'000, 1, 1, 3);
+    m_state_manager.OnMarketEvent(bid_add);
+    auto ask_add = MakeMboAdd(OrderSide::kAsk, 3800'250'000'000, 1, 2, 4);
+    m_state_manager.OnMarketEvent(ask_add);
     
-    int64_t equity = pm.GetTotalEquity({{kFutInstrumentId, ba_pair}});
+    int64_t equity = pm.GetTotalEquity();
     int64_t dd = pm.GetCurrentDrawdown(equity);
     
     EXPECT_EQ(dd, 1'000'000'000); // 100% drawdown
 
     // 3. Try to open new trade
     auto signal = CreateSignal(1000u, 5, 1u, SignalType::kBuySignal, 3800'000'000'000, 50u);
-    auto event = pm.RequestOrder(&signal, {{kFutInstrumentId, ba_pair}});
+    auto event = pm.RequestOrder(&signal);
 
     ASSERT_TRUE(IsRejection(event));
     const auto* order = static_cast<const StrategyOrderRejectionEvent*>(event.get());
@@ -368,14 +421,14 @@ TEST_F(PortfolioManagerTest, Metrics_Drawdown_PreventsTrading) {
 }
 
 TEST_F(PortfolioManagerTest, Metrics_BuyingPower_Dynamic) {
-    PortfolioManager pm(config_fut_);
-    BidAskPair ba_pair = {4000'000'000'000, 1, 1, 4001'000'000'000, 1, 1};
+    PortfolioManager pm(config_fut_, m_state_manager);
+
     // Initial BP = 100k
-    EXPECT_EQ(pm.GetBuyingPower({{kFutInstrumentId, ba_pair}}, InstrumentType::FUT), 100000'000'000'000);
+    EXPECT_EQ(pm.GetBuyingPower(InstrumentType::FUT), 100000'000'000'000);
 
     // Buy 1 @ 4000 (Maintenance margin 17017)
     auto signal_open = CreateSignal(100, 1, 1, SignalType::kBuySignal, 4000'000'000'000, 1);
-    auto event_open = pm.RequestOrder(&signal_open, {{kFutInstrumentId, kValidEsBidAskPair}});
+    auto event_open = pm.RequestOrder(&signal_open);
     auto fill_long = std::make_unique<StrategyFillEvent>(
         100,
         1,
@@ -388,14 +441,26 @@ TEST_F(PortfolioManagerTest, Metrics_BuyingPower_Dynamic) {
     pm.ProcessFill(*fill_long);
     
     // BP = 100k - 17017 = 95k
-    EXPECT_EQ(pm.GetBuyingPower({{kFutInstrumentId, ba_pair}}, InstrumentType::FUT), 82983'000'000'000);
+    EXPECT_EQ(pm.GetBuyingPower(InstrumentType::FUT), 82983'000'000'000);
     
     // Price drops, causing Unrealized Loss of $2000
     // Equity = 98k. Margin Used = 17017.
     // BP = 98k - 17017 = 93k.
     // 4000 - 40pts = 3960. (40 * 50 = 2000 loss)
-    BidAskPair ba_bad = {3960'000'000'000, 1, 1, 3961'000'000'000, 1, 1};
-    EXPECT_EQ(pm.GetBuyingPower({{kFutInstrumentId, ba_bad}}, InstrumentType::FUT), 80983'000'000'000);
+
+    // Cancel 4000 and 4000.25 resting orders
+    auto bid_cancel = MakeMboCancel(OrderSide::kBid, 4000'000'000'000, 1, 1, 1);
+    m_state_manager.OnMarketEvent(bid_cancel);
+    auto ask_cancel = MakeMboCancel(OrderSide::kAsk, 4000'250'000'000, 1, 2, 2);
+    m_state_manager.OnMarketEvent(ask_cancel);
+
+    // Create new 3960, 3961 spread
+    auto bid_add = MakeMboAdd(OrderSide::kBid, 3960'000'000'000, 1, 1, 3);
+    m_state_manager.OnMarketEvent(bid_add);
+    auto ask_add = MakeMboAdd(OrderSide::kAsk, 3961'000'000'000, 1, 2, 4);
+    m_state_manager.OnMarketEvent(ask_add);
+
+    EXPECT_EQ(pm.GetBuyingPower(InstrumentType::FUT), 80983'000'000'000);
 }
 
 } 

@@ -6,6 +6,7 @@
 #include <sstream>
 #include <algorithm>
 #include <array>
+#include <span>
 #include "OBTypes.h"
 
 namespace backtester {

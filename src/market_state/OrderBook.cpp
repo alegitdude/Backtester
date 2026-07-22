@@ -67,13 +67,13 @@ namespace backtester {
     for (size_t i = 0; i < level_count; ++i) {
       BidAskPair ba_pair;
       auto bid = GetBidLevel(i);
-      if (bid.price) {
+      if (bid.price != kUndefPrice) {
         ba_pair.bid.price = bid.price;
         ba_pair.bid.size = bid.size;
         ba_pair.bid.count = bid.count;
       }
       auto ask = GetAskLevel(i);
-      if (ask.price) {
+      if (ask.price != kUndefPrice) {
         ba_pair.ask.price = ask.price;
         ba_pair.ask.size = ask.size;
         ba_pair.ask.count = ask.count;

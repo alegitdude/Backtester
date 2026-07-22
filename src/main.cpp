@@ -72,11 +72,11 @@ int main(int argc, char* argv[]) {
     market_state_manager.Initialize(config.active_instruments);
 
     /// Initialize Portfolio Manager
-    backtester::PortfolioManager portfolio_manager(config);
+    backtester::PortfolioManager portfolio_manager(config, market_state_manager);
     /// Initialize Report Generator
     backtester::ReportGenerator report_generator(config);
     /// Initialize Execution Handler
-    backtester::ExecutionHandler execution_handler(event_queue, config);
+    backtester::ExecutionHandler execution_handler(event_queue, config, market_state_manager);
     /// Initialize Strategy Manager and Strategies
     backtester::StrategyManager strategy_manager(config);
     strategy_manager.InitializeStrategies(market_state_manager);

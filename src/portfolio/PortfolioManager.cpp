@@ -3,11 +3,12 @@
 
 namespace backtester {
 
-    PortfolioManager::PortfolioManager(const AppConfig& config)
-        : initial_capital_(config.initial_cash),
-        current_cash_(config.initial_cash),
-        config_(config) {
-        max_equity_seen_ = initial_capital_;
+    PortfolioManager::PortfolioManager(const AppConfig& config, const IMarketDataProvider& market_snapshots)
+        : config_(config),
+          market_snapshots_(market_snapshots),
+          initial_capital_(config.initial_cash),
+          current_cash_(config.initial_cash) {
+          max_equity_seen_ = initial_capital_;
     }
 
     // =============================================================================
@@ -15,16 +16,15 @@ namespace backtester {
     // =============================================================================
 
     std::unique_ptr<Event> PortfolioManager::RequestOrder(
-        const StrategySignalEvent* signal,
-        const std::unordered_map<uint32_t, BidAskPair>& current_prices) {
+        const StrategySignalEvent* signal) {
 
         switch (signal->signal_type) {
         case SignalType::kBuySignal:
         case SignalType::kSellSignal:
-            return HandleAddRequest(signal, current_prices);
+            return HandleAddRequest(signal);
 
         case SignalType::kModifySignal:
-            return HandleModifyRequest(signal, current_prices);
+            return HandleModifyRequest(signal);
 
         case SignalType::kCancelSignal:
             return HandleCancelRequest(signal);
@@ -47,8 +47,7 @@ namespace backtester {
 
     // MARK: HANDLE ADD
     std::unique_ptr<Event> PortfolioManager::HandleAddRequest(
-        const StrategySignalEvent* signal,
-        const std::unordered_map<uint32_t, BidAskPair>& latest_prices) {
+        const StrategySignalEvent* signal) {
 
         // 1. Is Valid Order
         const TradedInstrument* instr = GetTradedInstr(signal->instrument_id);
@@ -78,7 +77,7 @@ namespace backtester {
 
         // 2. Risk Check: Max Drawdown
         if (signal->signal_id != -1) { // not eod
-            int64_t current_equity = GetTotalEquity(latest_prices);
+            int64_t current_equity = GetTotalEquity();
             if (GetCurrentDrawdown(current_equity) > config_.risk_limits.max_drawdown_pct) {
                 spdlog::warn("Portfolio: Order rejected. Max drawdown {:.2f}% exceeded.",
                     static_cast<double>(config_.risk_limits.max_drawdown_pct) / 1e7);
@@ -107,7 +106,7 @@ namespace backtester {
 
         // 3. Risk Check: Buying Power (Margin)
         if (signal->signal_id != -1) { // not eod
-            money_t available_bp = GetBuyingPower(latest_prices, instr->instrument_type);
+            money_t available_bp = GetBuyingPower(instr->instrument_type);
             money_t margin_required = (signal->quantity * per_unit_commission) +
                 (signal->quantity * per_unit_init_marg);
             if (margin_required > available_bp) {
@@ -174,8 +173,7 @@ namespace backtester {
 
     // MARK: HANDLE MODIFY
     std::unique_ptr<Event> PortfolioManager::HandleModifyRequest(
-        const StrategySignalEvent* signal,
-        const std::unordered_map<uint32_t, BidAskPair>& latest_prices) {
+        const StrategySignalEvent* signal) {
 
         const TradedInstrument* instr = GetTradedInstr(signal->instrument_id);
         if (!instr) {
@@ -203,7 +201,7 @@ namespace backtester {
 
         // Only pending orders can be modified
         auto prev_order = std::find_if(pending_orders_.begin(), pending_orders_.end(),
-            [&](PendingOrder& order) {return order.order_id == signal->signal_id;});
+            [&](PortfolioPendingOrder& order) {return order.order_id == signal->signal_id;});
         if (prev_order == pending_orders_.end()) {
             spdlog::warn("Portfolio: Modify rejected. No pending order found for "
                 "order_id {}.", signal->signal_id);
@@ -236,7 +234,7 @@ namespace backtester {
         if (is_increasing && margin_delta > 0) {
             // Run risk checks only when exposure is increasing
             // Max Drawdown Check
-            int64_t current_equity = GetTotalEquity(latest_prices);
+            int64_t current_equity = GetTotalEquity();
             if (GetCurrentDrawdown(current_equity) > config_.risk_limits.max_drawdown_pct) {
                 spdlog::warn("Portfolio: Modify rejected. Max drawdown exceeded.");
                 return std::make_unique<StrategyOrderRejectionEvent>(
@@ -269,7 +267,7 @@ namespace backtester {
                 );
             }
             // Buying Power Check
-            int64_t available_bp = GetBuyingPower(latest_prices, instr->instrument_type);
+            int64_t available_bp = GetBuyingPower(instr->instrument_type);
             if (new_margin > available_bp) {
                 spdlog::warn("Portfolio: Modify rejected. Insufficient buying power. "
                     "Required: {}, Available: {}", margin_delta, available_bp);
@@ -308,7 +306,7 @@ namespace backtester {
 
         // Only pending orders can be cancelled
         auto prev_order = std::find_if(pending_orders_.begin(), pending_orders_.end(),
-            [&](PendingOrder& order) {return order.order_id == signal->signal_id;});
+            [&](PortfolioPendingOrder& order) {return order.order_id == signal->signal_id;});
         if (prev_order == pending_orders_.end()) {
             spdlog::warn("Portfolio: Cancel rejected. No pending order found for "
                 "order_id {}.", signal->signal_id);
@@ -359,7 +357,7 @@ namespace backtester {
 
         //Release initial Margin
         auto pend_order = std::find_if(pending_orders_.begin(), pending_orders_.end(),
-            [&](PendingOrder& order) {return order.order_id == fill.order_id; });
+            [&](PortfolioPendingOrder& order) {return order.order_id == fill.order_id; });
         if(pend_order == pending_orders_.end()) throw std::runtime_error(fmt::format(R"(
             Fill processed for unknown strategy order. Fill order id: {} )", 
             fill.order_id));
@@ -531,16 +529,12 @@ namespace backtester {
         return pnl;
     }
 
-    int64_t PortfolioManager::GetTotalEquity(
-        const std::unordered_map<uint32_t, BidAskPair>& cur_Bbos) const {
+    int64_t PortfolioManager::GetTotalEquity() const {
 
         int64_t unrealized = 0;
         for (const auto& pos : positions_) {
             if (pos.quantity == 0) continue;
-
-            auto it = cur_Bbos.find(pos.instrument_id);
-            BidAskPair bbo = (it != cur_Bbos.end()) ? it->second :
-                BidAskPair{ {pos.avg_entry_price, 0, 0}, {pos.avg_entry_price, 0, 0} };
+            auto bbo = market_snapshots_.GetSnapshotByInstr(pos.instrument_id)->bbo;
 
             unrealized += GetUnrealizedPnL(pos, bbo);
         }
@@ -549,17 +543,16 @@ namespace backtester {
     }
 
     // MARK: GET BUYING POWER
-    money_t PortfolioManager::GetBuyingPower(
-        const std::unordered_map<uint32_t, BidAskPair>& cur_prices,
-        InstrumentType instr_type) const {
+    // Unrealized profit/loss of stock trades not counted - opening stock trades
+    // is subtracted from cash (no margin)
+    money_t PortfolioManager::GetBuyingPower(InstrumentType instr_type) const {
 
         int64_t futures_unrealized = 0;
         for (const auto& pos : positions_) {
             const TradedInstrument* instr = GetTradedInstr(pos.instrument_id);
-            const auto& bbo_it = cur_prices.find(pos.instrument_id);
-            if (instr && instr->instrument_type == InstrumentType::FUT
-                && pos.quantity != 0 && bbo_it != cur_prices.end()) {
-                futures_unrealized += GetUnrealizedPnL(pos, bbo_it->second);
+            const auto& bbo = market_snapshots_.GetSnapshotByInstr(pos.instrument_id)->bbo;
+            if (instr && instr->instrument_type == InstrumentType::FUT) {
+                futures_unrealized += GetUnrealizedPnL(pos, bbo);
             }
         }
 
@@ -603,17 +596,12 @@ namespace backtester {
         return qty * mid_price;
     }
 
-    int64_t PortfolioManager::GetTotalPortfolioDelta(const std::unordered_map<uint32_t,
-        BidAskPair>& cur_prices) const {
+    int64_t PortfolioManager::GetTotalPortfolioDelta() const {
         int64_t total_delta = 0;
 
         for (const auto& pos : positions_) {
             if (pos.quantity == 0) continue;
-
-            BidAskPair bbo = { pos.avg_entry_price, 0, 0, pos.avg_entry_price, 0, 0 };
-            if (cur_prices.count(pos.instrument_id)) {
-                bbo = cur_prices.at(pos.instrument_id);
-            }
+            const auto& bbo = market_snapshots_.GetSnapshotByInstr(pos.instrument_id)->bbo;
 
             total_delta += GetInstrPosDelta(pos.instrument_id, bbo);
         }
