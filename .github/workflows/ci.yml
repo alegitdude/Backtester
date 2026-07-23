@@ -1,0 +1,34 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Release, Debug]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libzstd-dev
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          ${{ matrix.build_type == 'Debug' && '-DENABLE_SANITIZERS=ON -DWARNINGS_AS_ERRORS=ON' || '' }}
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Test
+        working-directory: build
+        env:
+          ASAN_OPTIONS: abort_on_error=1:halt_on_error=1:detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: ctest --output-on-failure
