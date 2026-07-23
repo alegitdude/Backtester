@@ -61,7 +61,7 @@ class CsvZstReaderTest : public ::testing::Test {
         );
     }
     
-    output.write(compressedBuffer.data(), compressedSize);
+    output.write(compressedBuffer.data(), static_cast<int32_t>(compressedSize));
     if (!output) {
         throw std::runtime_error(
             "Failed to write compressed data to: " + filename.string()

@@ -91,9 +91,6 @@ class ConfigParserTest : public ::testing::Test {
  
 // Helper: fixed-point conversion of a non-exactly-representable decimal can land
 // on either side by one ULP depending on round vs. truncate. Tolerate +/-1.
-static void ExpectFixedPointNear(uint64_t actual, double decimal) {
-  EXPECT_NEAR(static_cast<double>(actual), decimal * 1e9, 1.0);
-}
 static void ExpectFixedPointNear(int64_t actual, double decimal) {
   EXPECT_NEAR(static_cast<double>(actual), decimal * 1e9, 1.0);
 }

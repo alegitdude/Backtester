@@ -84,7 +84,7 @@ namespace backtester {
         size_t book_i = 0;
 
         while(snap_i < snapshot.size()){
-            for(book_i; book_i < num_books; book_i++){
+            for(; book_i < num_books; book_i++){
                 PriceLevel level = books_[book_i].GetBidLevel(book_indices[book_i]);
                 if(level.price != snapshot[snap_i].price) continue;
                 snapshot[snap_i].count += level.count;
@@ -103,7 +103,7 @@ namespace backtester {
         size_t book_i = 0;
      
         while(snap_i < snapshot.size()){
-            for(book_i; book_i < num_books; book_i++){
+            for(; book_i < num_books; book_i++){
                 PriceLevel level = books_[book_i].GetAskLevel(book_indices[book_i]);
                 if(level.price != snapshot[snap_i].price) continue;
                 snapshot[snap_i].count += level.count;

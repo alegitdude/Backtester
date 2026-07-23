@@ -105,8 +105,8 @@ bool CsvZstReader::FillBuffer() {
                 return false;
             }
 
-            file_.read(input_buffer_.data(), input_buffer_.size());
-            input_valid_size_ = file_.gcount();
+            file_.read(input_buffer_.data(), static_cast<int32_t>(input_buffer_.size()));
+            input_valid_size_ = static_cast<size_t>(file_.gcount());
             input_pos_ = 0; // Reset position to start of buffer
 
             if (input_valid_size_ == 0) {

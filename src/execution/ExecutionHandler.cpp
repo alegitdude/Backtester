@@ -266,7 +266,7 @@ namespace backtester {
 
         for (auto it = filled_idxs_.rbegin(); it != filled_idxs_.rend(); ++it) {
             size_t idx = *it;
-            pending_orders_.erase(pending_orders_.begin() + idx);
+            pending_orders_.erase(pending_orders_.begin() + static_cast<int64_t>(idx));
         }
     }
 
@@ -323,7 +323,7 @@ namespace backtester {
 
         for (auto it = filled_idxs_.rbegin(); it != filled_idxs_.rend(); ++it) {
             size_t idx = *it;
-            pending_orders_.erase(pending_orders_.begin() + idx);
+            pending_orders_.erase(pending_orders_.begin() + static_cast<int64_t>(idx));
         }
     }
 

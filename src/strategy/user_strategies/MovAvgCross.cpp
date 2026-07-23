@@ -127,7 +127,7 @@ namespace backtester {
             cur_pos_.last_update_ts = fill.timestamp;
             pending_order_ = false;
 
-            spdlog::debug("MovAvgCross[{}] fill: qty_delta={} price={} -> pos qty={} avg={}",
+            spdlog::info("MovAvgCross[{}] fill: qty_delta={} price={} -> pos qty={} avg={}",
                 strategy_id_, signed_qty, fill.fill_price,
                 cur_pos_.quantity, cur_pos_.avg_entry_price);
 
@@ -140,6 +140,7 @@ namespace backtester {
         }
 
         virtual void OnEndOfDay(uint64_t timestamp) override {
+            spdlog::info("EOD triggered at {}", timestamp);
             return;
         }
 

@@ -30,9 +30,9 @@ namespace backtester {
             return type == EventType::kMarketOrderAdd ||
                 type == EventType::kMarketOrderCancel ||
                 type == EventType::kMarketOrderModify ||
-                type == EventType::kMarketOrderClear  ||
-                type == EventType::kMarketTrade       ||
-                type == EventType::kMarketFill        ||
+                type == EventType::kMarketOrderClear ||
+                type == EventType::kMarketTrade ||
+                type == EventType::kMarketFill ||
                 type == EventType::kMarketHeartbeat;
         }
 
@@ -67,15 +67,20 @@ namespace backtester {
                 uint32_t instrument_id;
                 ParseField(fields[4], instrument_id);
 
-                auto& idx_vec_pair = expected_mbp10_map_[instrument_id];
-                idx_vec_pair.first = 0;
+                auto [it, inserted] = expected_mbp10_map_.try_emplace(instrument_id);
+                if (inserted) {
+                    it->second.second.reserve(500'000);
+                }
+                auto& idx_vec_pair = it->second;
+
                 idx_vec_pair.second.emplace_back();
                 auto& snapshot = idx_vec_pair.second.back();
+
 
                 ParseField(fields[1], snapshot.ts_event);
                 ParseField(fields[8], snapshot.price);
                 ParseField(fields[12], snapshot.sequence_id);
-                snapshot.levels.fill({ kUndefPrice, 0, 0, kUndefPrice, 0, 0 });
+
                 for (size_t i = 0; i < 10; ++i) {
                     size_t base = 13 + i * 6;
                     if (fields[base] != "") {
@@ -105,11 +110,18 @@ namespace backtester {
             PriceFormat::FIXPNTINT,
             TmStampFormat::UNIX };
 
+        if (!std::filesystem::exists(kTestDataFolder / "ES-glbx-20251105.mbo.csv.zst") ||
+            !std::filesystem::exists(kTestDataFolder / "ES-glbx-20251105.mbp-10.csv.zst")) {
+            GTEST_SKIP() << "Demo data not present (" << kTestDataFolder / "ES-glbx-20251105.mbo.csv.zst"
+               << "), Or (" << kTestDataFolder / "ES-glbx-20251105.mbp-10.csv.zst )"
+               << " — run scripts/fetch_demo_data.sh. Skipping full-day validation.";
+        }
+
         std::string sym_path = kTestDataFolder / "ES-20251105_symbology.csv";
         std::vector<Symbol> symbols = backtester::ParseDataSymbols(sym_path);
-        
+
         AppConfig config;
-        config.data_configs = std::vector<DataSourceConfig>{data_source};
+        config.data_configs = std::vector<DataSourceConfig>{ data_source };
 
         for (const auto& symbol : symbols) {
             config.active_instruments.push_back(symbol.instrument_id);
@@ -171,7 +183,7 @@ namespace backtester {
                 if (can_compare) {
                     auto& idx_vec_pair = expected_mbp10_map_[instr_id];
                     const auto& expected_levels = idx_vec_pair.second[idx_vec_pair.first].levels;
-                    const auto& actual_levels = market_state_manager.GetOBSnapshot(
+                    const auto& actual_levels = market_state_manager.GetOBSnapshotByPub(
                         market_event->instrument_id, market_event->publisher_id, 10);
 
                     for (size_t i = 0; i < 10; i++) {

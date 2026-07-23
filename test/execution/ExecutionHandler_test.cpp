@@ -37,6 +37,7 @@ namespace backtester {
                 16500'000000000,
                 16500'000000000
             } };
+            config_.commission_struct.fut_per_contract = 2'170'000'000;
             m_state_manager.Initialize({ kInstrId });
             auto bid_event = MakeMboAdd(OrderSide::kBid, 5000, 1, 1, 1);
             m_state_manager.OnMarketEvent(bid_event);

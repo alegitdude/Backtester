@@ -17,7 +17,7 @@ namespace backtester {
         }
 
         TimeParseResult ParseIsoToUnix(std::string_view s) {
-            struct tm t = { 0 };
+            struct tm t;
             const char* data = s.data();
 
             if (s.length() < 19) {
@@ -154,34 +154,34 @@ namespace backtester {
                 return 0;
             }
             else if (timezone == "EST" || timezone == "America/New_York") {
-                return -5 * 3600; // EST is UTC-5 (ignoring DST for simplicity)
+                return -5ul * kSecondsPerHour; // EST is UTC-5 (ignoring DST for simplicity)
             }
             else if (timezone == "PST" || timezone == "America/Los_Angeles") {
-                return -8 * 3600; // PST is UTC-8
+                return -8ul * kSecondsPerHour; // PST is UTC-8
             }
             else if (timezone == "CST" || timezone == "America/Chicago") {
-                return -6 * 3600; // CST is UTC-6
+                return -6ul * kSecondsPerHour; // CST is UTC-6
             }
             else if (timezone == "MST" || timezone == "America/Denver") {
-                return -7 * 3600; // MST is UTC-7
+                return -7ul * kSecondsPerHour; // MST is UTC-7
             }
             else if (timezone == "CET" || timezone == "Europe/Paris") {
-                return 1 * 3600; // CET is UTC+1
+                return 1ul * kSecondsPerHour; // CET is UTC+1
             }
             else if (timezone == "JST" || timezone == "Asia/Tokyo") {
-                return 9 * 3600; // JST is UTC+9
+                return 9ul * kSecondsPerHour; // JST is UTC+9
             }
             else if (timezone == "HKT" || timezone == "Asia/Hong_Kong") {
-                return 8 * 3600; // HKT is UTC+8
+                return 8ul * kSecondsPerHour; // HKT is UTC+8
             }
             else if (timezone == "EDT") {
-                return -4 * 3600;
+                return -4ul * kSecondsPerHour;
             }
             else if (timezone == "CDT") {
-                return -5 * 3600;
+                return -5ul * kSecondsPerHour;
             }
             else if (timezone == "PDT") {
-                return -7 * 3600;
+                return -7ul * kSecondsPerHour;
             }
             else {
                 spdlog::error("Warning: Unknown timezone '{}', using UTC", timezone );
