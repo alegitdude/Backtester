@@ -1,5 +1,7 @@
 # Event-Driven Backtester for High-Frequency Market Data
- 
+
+[![CI](https://github.com/alegitdude/Backtester/actions/workflows/ci.yml/badge.svg)](https://github.com/alegitdude/Backtester/actions/workflows/ci.yml)
+
 A single-threaded, event-driven backtesting framework in C++17 for futures and equities strategies, built around Databento MBO (Market-By-Order) feeds. Reconstructs the full limit order book from order-level data, replays strategies against historical events, and produces per-trade and equity-curve reports.
  
 **Throughput on the hot path: 15.9 M events/sec** on a single core processing 16.1M ES futures MBO messages (full venue book reconstruction). See [BENCHMARKS.md](./docs/BENCHMARKS.md) for the full optimization log.
