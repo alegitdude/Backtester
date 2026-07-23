@@ -318,4 +318,4 @@ A sample chart from the demo run is committed at
 
 ## License
  
-MIT — see `LICENSE`.
+MIT — see ['LICENSE'](LICENSE).
