@@ -12,10 +12,6 @@
 #include "spdlog/sinks/basic_file_sink.h"
 
 void SetupLogging(std::string log_path) {
-    // std::string time_string = std::ctime(&currentTime_t);
-
-    // auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path 
-    //     + "/" + time_string + ".log", true);
     auto now = std::chrono::system_clock::now();
     std::time_t t = std::chrono::system_clock::to_time_t(now);
     std::tm tm{};
@@ -70,21 +66,14 @@ int main(int argc, char* argv[]) {
     SetupLogging(config.log_file_path);
     spdlog::info("Logger Initialized");
 
-    ///  Create central EventQueue
     backtester::EventQueue event_queue;
-    /// Initialize DataReaderManager
     backtester::DataReaderManager data_reader_manager;
-    /// Initialize Market State Manager
     backtester::MarketStateManager market_state_manager;
     market_state_manager.Initialize(config.active_instruments);
 
-    /// Initialize Portfolio Manager
     backtester::PortfolioManager portfolio_manager(config, market_state_manager);
-    /// Initialize Report Generator
     backtester::ReportGenerator report_generator(config);
-    /// Initialize Execution Handler
     backtester::ExecutionHandler execution_handler(event_queue, config, market_state_manager);
-    /// Initialize Strategy Manager and Strategies
     backtester::StrategyManager strategy_manager(config);
     strategy_manager.InitializeStrategies(market_state_manager);
 
@@ -92,7 +81,6 @@ int main(int argc, char* argv[]) {
         throw std::runtime_error("Problem parsing data configuration, check logs");
     };
 
-    // Initialize Backtester class
     backtester::Backtester backtester(event_queue, data_reader_manager, market_state_manager,
         portfolio_manager, report_generator, execution_handler,
         strategy_manager);
