@@ -127,7 +127,7 @@ namespace backtester {
         const auto elapsed = std::chrono::steady_clock::now() - t0;
         const double secs = std::chrono::duration<double>(elapsed).count();
         spdlog::info("Loop: {} events  {:.3f}s  {:.2f} M evt/s",
-            event_tally, secs, event_tally / secs / 1e6);
+            event_tally, secs, static_cast<double>(event_tally) / secs / 1e6);
 
         spdlog::info("Event tally: {}", event_tally);
         spdlog::info("Backtest loop finished.");
