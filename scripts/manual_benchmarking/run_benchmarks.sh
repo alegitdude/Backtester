@@ -14,7 +14,6 @@ if [ ! -f "$DATA" ]; then
   exit 1
 fi
 
-# Build the harnesses in Release (idempotent — reuses build/).
 "$SCRIPT_DIR/build_bench.sh"
 
 run() {

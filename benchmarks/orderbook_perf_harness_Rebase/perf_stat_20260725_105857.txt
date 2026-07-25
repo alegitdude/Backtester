@@ -1,0 +1,24 @@
+perf stat summary  harness=orderbook_perf_harness  core=2  2026-07-25T11:00:05-05:00
+config=/home/r/Desktop/Backtester/config/demo.json
+
+       39040390107  cycles
+       90756433480  instructions
+       21220897890  branches
+         164056372  branch-misses
+       18108356810  L1-dcache-loads
+         324714166  L1-dcache-load-misses
+          46843627  LLC-loads
+          19071805  LLC-load-misses
+
+      21.872506032  seconds time elapsed
+       0.000021753  seconds task-clock (on-CPU)
+
+---- ratios ----
+IPC:          2.32
+branch-miss:  0.77%
+
+---- cache hierarchy ----
+L1-dcache miss:  1.79%   (324714166 / 18108356810 loads)
+LLC-load miss:   40.71%   (19071805 / 46843627 LLC refs)
+  LLC refs are 0.259% of L1 loads; ~0.105% of all loads reach DRAM.
+  (LLC ref count is tiny, so a high LLC-miss % is expected and healthy.)

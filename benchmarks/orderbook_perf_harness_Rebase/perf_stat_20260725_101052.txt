@@ -1,0 +1,5 @@
+perf stat summary  harness=orderbook_perf_harness  core=2  2026-07-25T10:12:00-05:00
+config=/home/r/Desktop/Backtester/config/demo.json
+IPC:          2.31  (90910873649 insn / 39415264706 cyc)
+branch-miss:  0.79%  (167922813 / 21225819742)
+cache-miss:   47.43%  (189938590 / 400442747)

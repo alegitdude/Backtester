@@ -7,7 +7,7 @@ cd "$PROJECT_ROOT"
 # Default to both harnesses; override by passing target names.
 TARGETS=("$@")
 if [ ${#TARGETS[@]} -eq 0 ]; then
-  TARGETS=(reader_perf_harness orderbook_perf_harness)
+  TARGETS=(reader_perf_harness orderbook_perf_harness Backtester)
 fi
 
 cmake -B build -DCMAKE_BUILD_TYPE=Release

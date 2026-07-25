@@ -276,15 +276,15 @@ git clone https://github.com/brendangregg/FlameGraph   # into the repo root
 
 # Record a profile, then render the flame graph. Both scripts take the harness
 # name and write to benchmarks// so the two profiles don't collide.
-./scripts/profile.sh        orderbook_perf_harness
-./scripts/generate_flame.sh orderbook_perf_harness   # -> benchmarks/orderbook_perf_harness/orderbook_perf_harness_flame.svg
+./scripts/harness_profile.sh   orderbook_perf_harness
+./scripts/generate_flame.sh    orderbook_perf_harness   # -> benchmarks/orderbook_perf_harness/orderbook_perf_harness_flame.svg
 
 # Same for the ingestion reader:
-./scripts/profile.sh        reader_perf_harness
-./scripts/generate_flame.sh reader_perf_harness
+./scripts/harness_profile.sh    reader_perf_harness
+./scripts/generate_flame.sh     reader_perf_harness
 ```
 
-`profile.sh` uses `sudo perf record`. If you'd rather not profile as root,
+`harness_profile.sh` uses `sudo perf record`. If you'd rather not profile as root,
 lower the paranoia level once with `sudo sysctl kernel.perf_event_paranoid=1`
 and drop the `sudo` from the script.
 

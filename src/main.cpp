@@ -12,12 +12,19 @@
 #include "spdlog/sinks/basic_file_sink.h"
 
 void SetupLogging(std::string log_path) {
-    auto now = std::chrono::system_clock::now();
-    std::time_t currentTime_t = std::chrono::system_clock::to_time_t(now);
-    std::string time_string = std::ctime(&currentTime_t);
+    // std::string time_string = std::ctime(&currentTime_t);
 
-    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path 
-        + "/" + time_string + ".log", true);
+    // auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path 
+    //     + "/" + time_string + ".log", true);
+    auto now = std::chrono::system_clock::now();
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm{};
+    localtime_r(&t, &tm);                       // thread-safe; use localtime_s on Windows
+    char stamp[32];
+    std::strftime(stamp, sizeof(stamp), "%Y%m%d_%H%M%S", &tm);   // 20260725_121256
+
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
+        log_path + "/backtest_" + stamp + ".log", true);
     auto logger = std::make_shared<spdlog::logger>("main_logger", file_sink);
     spdlog::set_default_logger(logger);
     spdlog::set_level(spdlog::level::debug);

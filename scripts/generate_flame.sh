@@ -1,10 +1,11 @@
 #!/bin/bash
 
+HARNESS="${1:?usage: generate_flame.sh <reader_perf_harness|orderbook_perf_harness>}"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-DATA_DIR="$PROJECT_ROOT/benchmarks/orderbook_perf_harness"
+DATA_DIR="$PROJECT_ROOT/benchmarks/$HARNESS"
 PERF_DATA_FILE="$DATA_DIR/perf.data"
 SVG_OUTPUT="$DATA_DIR/reader_ob_flame.svg"
 
@@ -16,9 +17,8 @@ fi
 
 echo "Generating Flame Graph from $PERF_DATA_FILE..."
 
-# 4. Generate the graph
-# Notice the -i flag tells perf script where to find the input file
-perf script -i "$PERF_DATA_FILE" | ./FlameGraph/stackcollapse-perf.pl | ./FlameGraph/flamegraph.pl > "$SVG_OUTPUT"
+# Generate the graph
+perf script -i "$PERF_DATA_FILE" --no-inline | ./FlameGraph/stackcollapse-perf.pl | ./FlameGraph/flamegraph.pl > "$SVG_OUTPUT"
 
 echo "------------------------------------------------"
 echo "Flame Graph generated successfully!"

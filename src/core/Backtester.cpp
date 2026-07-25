@@ -25,6 +25,8 @@ namespace backtester {
         bool backtest_complete = false;
         bool end_of_bt_pushed = false;
 
+        const auto t0 = std::chrono::steady_clock::now();
+
         while (!event_queue_.IsEmpty()) {
             auto current_event = event_queue_.PopTopEvent();
             current_time = current_event->timestamp;
@@ -65,7 +67,6 @@ namespace backtester {
                 const StrategySignalEvent* signal_event =
                     static_cast<const StrategySignalEvent*>(current_event.get());
 
-                auto current_prices = market_state_manager_.GetTradedInstrsBbo();
                 auto order_event = portfolio_manager_.RequestOrder(signal_event);
 
                 if (order_event) {
@@ -77,9 +78,9 @@ namespace backtester {
             if (isStrategyOrderEvent(eventType)) {
                 const StrategyOrderEvent* order_event =
                     static_cast<const StrategyOrderEvent*>(current_event.get());
-              
+
                 execution_handler_.OnStrategyOrder(*order_event);
-                
+
             }
 
             if (eventType == EventType::kStrategyOrderFill) {
@@ -97,8 +98,8 @@ namespace backtester {
             }
 
             if (isControlEvent(eventType)) {
-                if (eventType == EventType::kBacktestControlEndOfBacktest 
-                        && !backtest_complete) {
+                if (eventType == EventType::kBacktestControlEndOfBacktest
+                    && !backtest_complete) {
                     // Cancel all pending orders first
                     execution_handler_.CancelAllPendingOrders();
                     portfolio_manager_.CancelAllPendingOrders();
@@ -122,6 +123,11 @@ namespace backtester {
                 last_snapshot_ts_ = current_time;
             }
         }
+
+        const auto elapsed = std::chrono::steady_clock::now() - t0;
+        const double secs = std::chrono::duration<double>(elapsed).count();
+        spdlog::info("Loop: {} events  {:.3f}s  {:.2f} M evt/s",
+            event_tally, secs, event_tally / secs / 1e6);
 
         spdlog::info("Event tally: {}", event_tally);
         spdlog::info("Backtest loop finished.");

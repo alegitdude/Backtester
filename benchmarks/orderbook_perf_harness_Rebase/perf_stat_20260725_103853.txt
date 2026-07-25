@@ -1,0 +1,17 @@
+perf stat summary  harness=orderbook_perf_harness  core=2  2026-07-25T10:40:01-05:00
+config=/home/r/Desktop/Backtester/config/demo.json
+
+       38896116157  cycles
+       90750167076  instructions
+       21222595110  branches
+         166577426  branch-misses
+         410935633  cache-references
+         190618957  cache-misses
+
+      21.788503699  seconds time elapsed
+       0.000021675  seconds task-clock (on-CPU)
+
+---- ratios ----
+IPC:          2.33
+branch-miss:  0.78%
+cache-miss:   46.39%

@@ -1,0 +1,17 @@
+perf stat summary  harness=reader_perf_harness  core=2  2026-07-25T10:29:49-05:00
+config=/home/r/Desktop/Backtester/config/demo.json
+
+       28888762779  cycles
+       77940173988  instructions
+       18595926495  branches
+         125844425  branch-misses
+         106732049  cache-references
+          11857361  cache-misses
+
+      16.178810517  seconds time elapsed
+       0.000016101  seconds task-clock (on-CPU)
+
+---- ratios ----
+IPC:          2.70
+branch-miss:  0.68%
+cache-miss:   11.11%
