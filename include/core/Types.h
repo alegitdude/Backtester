@@ -11,8 +11,8 @@ namespace backtester {
     #define BT_LIKELY(x)       __builtin_expect(!!(x), 1)
     #define BT_UNLIKELY(x)     __builtin_expect(!!(x), 0)
 #else
-    #define LIKELY(x)       (x)
-    #define UNLIKELY(x)     (x)
+    #define BT_LIKELY(x)       [[likely]]
+    #define BT_UNLIKELY(x)     [[unlikely]]
 #endif
 
 static constexpr auto kUndefPrice = std::numeric_limits<std::int64_t>::max();

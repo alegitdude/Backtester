@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/alegitdude/Backtester/actions/workflows/ci.yml/badge.svg)](https://github.com/alegitdude/Backtester/actions/workflows/ci.yml)
 
-A single-threaded, event-driven backtesting framework in C++17 for futures and equities strategies, built around Databento MBO (Market-By-Order) feeds. Reconstructs the full limit order book from order-level data, replays strategies against historical events, and produces per-trade and equity-curve reports.
+A single-threaded, event-driven backtesting framework in C++20 for futures and equities strategies, built around Databento MBO (Market-By-Order) feeds. Reconstructs the full limit order book from order-level data, replays strategies against historical events, and produces per-trade and equity-curve reports.
  
 **Throughput on the hot path: 15.9 M events/sec** on a single core processing 16.1M ES futures MBO messages (full venue book reconstruction). See [BENCHMARKS.md](./docs/BENCHMARKS.md) for the full optimization log.
  
@@ -28,7 +28,7 @@ A single-threaded, event-driven backtesting framework in C++17 for futures and e
 ## Highlights
  
 - **Order book reconstruction from MBO.** Per-publisher books aggregated into a consolidated instrument-level BBO. Handles add / modify / cancel / clear / trade actions with F_LAST flag-driven BBO cache updates.
-- **Custom open-addressing hash table with backshift deletion** for order-ID lookup, replacing `std::unordered_map`. Drove the orderbook hot path from 11.3 → 15.9 M events/sec by collapsing cache-miss-heavy chained-bucket scans into linear probes over contiguous memory.
+- **Custom open-addressing hash table with backshift deletion** for order-ID lookup, replacing `std::unordered_map`. Drove the orderbook hot path from 11.3 → 15.9 M events/sec (ThinkPad T1) by collapsing cache-miss-heavy chained-bucket scans into linear probes over contiguous memory.
 - **Sorted-vector price levels stored worst→best**, searched from the back. New levels at or near the top of book are found and inserted in O(1) amortized; deep-book activity pays the linear search cost. Reduced level-search overhead vs. a `std::map`-based design and eliminated tree-rebalance cache misses.
 - **Shadow-book execution model** that tracks queue position from MBO depth at order submission and fills only when sufficient size has traded through ahead. Supports a configurable `TopOfBook` model as an optimistic-fill benchmark.
 - **Latency-aware execution.** Strategy orders are timestamped at submission but only become eligible to fill after a configurable latency offset (`execution_latency_ms`), modeling round-trip wire time to the venue.
@@ -75,27 +75,28 @@ The loop is currently single-threaded. Event ordering across data sources, strat
  
 ## Performance
  
-All numbers are single-core, `-O3 -fno-omit-frame-pointer`, 16.1M MBO messages from a full ES futures session (`ES-glbx-20251105.mbo.csv.zst`, 41 active instrument IDs across normalized outrights and spreads).
+All numbers are single-core, `-O3 -fno-omit-frame-pointer`, 16.1M MBO messages from a full ES futures session (`ES-glbx-20251105.mbo.csv.zst`, 41 active instrument IDs).
  
-### Data ingestion pipeline (MBO parse + dispatch)
+### Data ingestion pipeline (MBO parse + dispatch) (ThinkPad T1)
  
 | Stage                                                 | Throughput      | vs. baseline |
 |-------------------------------------------------------|-----------------|--------------|
-| Baseline (commit `3a8a473`)                           | 0.91 M msg/sec  | —            |
-| Stream readers in `std::vector`, removed map lookup   | 2.21 M msg/sec  | **+143%**    |
+| Baseline (commit `3a8a473`)                           | 0.91 M msg/sec  | —            | 
+| Stream readers in `std::vector`, removed map lookup   | 2.21 M msg/sec  | **+143%**    | 
  
-### Order book hot path (`MarketStateManager::OnMarketEvent`)
+### Order book hot path (`MarketStateManager::OnMarketEvent`) (ThinkPad T1)
  
 | Stage                                                                 | Throughput     | vs. baseline |
 |-----------------------------------------------------------------------|----------------|--------------|
-| Baseline orderbook (commit `6c6738e`)                                 | 5.27 M evt/sec | —            |
+| Baseline orderbook (commit `6c6738e`)                                 | 5.27 M evt/sec | —            | 
 | Sorted-vector levels worst→best, search from back                     | 11.19 M evt/sec| **+112%**    |
 | `LIKELY`/`UNLIKELY` branch hints, vector-backed books                 | 11.30 M evt/sec| +115%        |
 | Replaced `unordered_map` with custom probing table + backshift erase  | 15.90 M evt/sec| **+202%**    |
  
-Each step was driven by `perf` + flame graphs. The full log including raw `perf stat` output (cycles, IPC, cache-miss rates, branch-miss rates) is in [BENCHMARKS.md](./BENCHMARKS.md).
+Each step was driven by `perf` + flame graphs. The full log including raw `perf stat` output (cycles, IPC, cache-miss rates, branch-miss rates) is in [BENCHMARKS.md](./docs/BENCHMARKS.md).
  
-The next planned optimization (called out in the benchmark log) is making cross-publisher BBO recomputation conditional on whether the publisher's TOB actually changed — currently ~24% of `OnMarketEvent` time.
+The next planned optimization is to overhaul the Event type, strip out unnecessary properties so one
+Event can fit in one cache line, and is also trivial to copy/move.  
  
 ## Validation
  

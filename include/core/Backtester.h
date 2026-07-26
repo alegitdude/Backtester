@@ -1,3 +1,4 @@
+#pragma once
 #include "EventQueue.h"
 #include "../data_ingestion/DataReaderManager.h"
 #include "../market_state/MarketStateManager.h"
