@@ -62,35 +62,35 @@ namespace backtester {
 
         }
 
-        virtual std::unique_ptr<StrategySignalEvent> OnMarketEvent(
+        virtual std::optional<StrategySignalEvent> OnMarketEvent(
             const MarketByOrderEvent& event) override {
 
-            if (event.type != EventType::kMarketTrade ||
-                event.instrument_id != traded_instr_) return nullptr;
+            if (event.header.type != EventType::kMarketTrade ||
+                event.instrument_id != traded_instr_) return std::nullopt;
             current_price_ = event.price;
 
-            const bool sampled = SamplePrice(event.timestamp);
+            const bool sampled = SamplePrice(event.header.timestamp);
 
             if (!pending_order_ && !cur_pos_.IsFlat()) {
-                return CheckExit(event.timestamp);
+                return CheckExit(event.header.timestamp);
             }
 
             if (!sampled || pending_order_) {
-                return nullptr;
+                return std::nullopt;
             }
 
             if (static_cast<int64_t>(price_history_.size()) < slow_window_) {
-                return nullptr;  // not enough history yet
+                return std::nullopt;  // not enough history yet
             }
 
-            return CheckCrossoverEntry(event.timestamp);
+            return CheckCrossoverEntry(event.header.timestamp);
         }
 
         virtual void OnFill(const StrategyFillEvent& fill) override {
 
             const int64_t signed_qty = (fill.side == OrderSide::kBid)
-                ? static_cast<int64_t>(fill.fill_quantity)
-                : -static_cast<int64_t>(fill.fill_quantity);
+                ? static_cast<int64_t>(fill.quantity)
+                : -static_cast<int64_t>(fill.quantity);
 
             const int64_t prev_qty = cur_pos_.quantity;
             const int64_t new_qty = prev_qty + signed_qty;
@@ -98,13 +98,13 @@ namespace backtester {
             if (prev_qty == 0) {
                 // Opening new position.
                 cur_pos_.quantity = new_qty;
-                cur_pos_.avg_entry_price = fill.fill_price;
+                cur_pos_.avg_entry_price = fill.price;
             }
             else if ((prev_qty > 0) == (signed_qty > 0)) {
                 // Same direction — increase. Weight-average the entry price.
                 const int64_t total_notional =
                     prev_qty * cur_pos_.avg_entry_price +
-                    signed_qty * fill.fill_price;
+                    signed_qty * fill.price;
                 cur_pos_.quantity = new_qty;
                 cur_pos_.avg_entry_price = total_notional / new_qty;
             }
@@ -121,14 +121,14 @@ namespace backtester {
                 else {
                     // Flip: residual is on the opposite side at the fill price.
                     cur_pos_.quantity = new_qty;
-                    cur_pos_.avg_entry_price = fill.fill_price;
+                    cur_pos_.avg_entry_price = fill.price;
                 }
             }
-            cur_pos_.last_update_ts = fill.timestamp;
+            cur_pos_.last_update_ts = fill.header.timestamp;
             pending_order_ = false;
 
             spdlog::info("MovAvgCross[{}] fill: qty_delta={} price={} -> pos qty={} avg={}",
-                strategy_id_, signed_qty, fill.fill_price,
+                strategy_id_, signed_qty, fill.price,
                 cur_pos_.quantity, cur_pos_.avg_entry_price);
 
         }
@@ -169,7 +169,7 @@ namespace backtester {
             return true;
         }
 
-        std::unique_ptr<StrategySignalEvent> CheckCrossoverEntry(uint64_t ts) {
+        std::optional<StrategySignalEvent> CheckCrossoverEntry(uint64_t ts) {
             const int64_t fast_sma = ComputeSma(fast_window_);
             const int64_t slow_sma = ComputeSma(slow_window_);
 
@@ -193,7 +193,7 @@ namespace backtester {
                         current_price_, 1, ts);
                 }
                 // Already long — nothing to do.
-                return nullptr;
+                return std::nullopt;
             }
 
             // Bearish cross: fast below slow, and we weren't already below.
@@ -214,10 +214,10 @@ namespace backtester {
                     return MakeSignal(SignalType::kSellSignal, traded_instr_,
                         current_price_, 1, ts);
                 }
-                return nullptr;
+                return std::nullopt;
             }
 
-            return nullptr;
+            return std::nullopt;
         }
 
         int64_t ComputeSma(int64_t window) const {
@@ -229,7 +229,7 @@ namespace backtester {
             return static_cast<int64_t>(sum / static_cast<__uint128_t>(window));
         }
 
-        std::unique_ptr<StrategySignalEvent> CheckExit(uint64_t ts) {
+        std::optional<StrategySignalEvent> CheckExit(uint64_t ts) {
             const int64_t tp_dist = kTakeProfitPoints * kOnePoint;
             const int64_t sl_dist = kStopLossPoints * kOnePoint;
 
@@ -269,7 +269,7 @@ namespace backtester {
                         ts);
                 }
             }
-            return nullptr;
+            return std::nullopt;
         }
 
     };

@@ -13,14 +13,15 @@ class DataReaderManager {
     DataReaderManager() = default;
 
     bool RegisterAndInitStreams(const std::vector<DataSourceConfig>& file_paths);
-    std::unique_ptr<MarketByOrderEvent> LoadNextEventFromSource(const std::string& source_name);
+    bool LoadNextEventFromSource(uint16_t data_source_id, MarketByOrderEvent& out);
 
  private:
     std::vector<DataStream>readers_;
     
-    std::unique_ptr<MarketByOrderEvent> ParseMboLineToEvent(
+    bool ParseMboLineToEvent(
         const std::vector<backtester::DataStream>::iterator it, 
-        const std::string& line
+        const std::string& line,
+        MarketByOrderEvent& out
     );
 
     std::string_view GetNextToken(size_t& start_pos, std::string_view& current_view);

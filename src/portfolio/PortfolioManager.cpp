@@ -5,17 +5,17 @@ namespace backtester {
 
     PortfolioManager::PortfolioManager(const AppConfig& config, const IMarketDataProvider& market_snapshots)
         : config_(config),
-          market_snapshots_(market_snapshots),
-          initial_capital_(config.initial_cash),
-          current_cash_(config.initial_cash) {
-          max_equity_seen_ = initial_capital_;
+        market_snapshots_(market_snapshots),
+        initial_capital_(config.initial_cash),
+        current_cash_(config.initial_cash) {
+        max_equity_seen_ = initial_capital_;
     }
 
     // =============================================================================
     // MARK: Risk Gate & Order Request
     // =============================================================================
 
-    std::unique_ptr<Event> PortfolioManager::RequestOrder(
+    EventUnion PortfolioManager::RequestOrder(
         const StrategySignalEvent* signal) {
 
         switch (signal->signal_type) {
@@ -32,21 +32,22 @@ namespace backtester {
         default:
             spdlog::error("Portfolio: Unknown signal type received from Strategy {}",
                 signal->strategy_id);
-            return std::make_unique<StrategyOrderRejectionEvent>(
-                signal->timestamp,
-                signal->signal_id,
-                signal->strategy_id,
-                signal->instrument_id,
-                signal->signal_type,
-                signal->price,
-                signal->quantity,
-                RejectionReason::kUnknownSignalType
-            );
+            return EventUnion{ .strat_rej_ev = StrategyOrderRejectionEvent{
+                .header = {.timestamp = signal->header.timestamp,
+                    .type = EventType::kStrategyOrderRejection},
+                .strategy_id = signal->strategy_id,
+                .signal_id = signal->signal_id,
+                .instrument_id = signal->instrument_id,
+                .signal_type = signal->signal_type,
+                .price = signal->price,
+                .quantity = signal->quantity,
+                .reason = RejectionReason::kUnknownSignalType
+            } };
         }
     }
 
     // MARK: HANDLE ADD
-    std::unique_ptr<Event> PortfolioManager::HandleAddRequest(
+    EventUnion PortfolioManager::HandleAddRequest(
         const StrategySignalEvent* signal) {
 
         // 1. Is Valid Order
@@ -63,16 +64,17 @@ namespace backtester {
         if (!IsValidTick(*instr, signal->price)) {
             spdlog::warn("Portfolio: Rejected price {} - not a valid tick multiple.",
                 signal->price);
-            return std::make_unique<StrategyOrderRejectionEvent>(
-                signal->timestamp,
-                signal->signal_id,
-                signal->strategy_id,
-                signal->instrument_id,
-                signal->signal_type,
-                signal->price,
-                signal->quantity,
-                RejectionReason::kInvalidTick
-            );
+            return EventUnion{ .strat_rej_ev = StrategyOrderRejectionEvent{
+              .header = {.timestamp = signal->header.timestamp,
+                  .type = EventType::kStrategyOrderRejection},
+              .strategy_id = signal->strategy_id,
+              .signal_id = signal->signal_id,
+              .instrument_id = signal->instrument_id,
+              .signal_type = signal->signal_type,
+              .price = signal->price,
+              .quantity = signal->quantity,
+              .reason = RejectionReason::kInvalidTick
+            } };
         }
 
         // 2. Risk Check: Max Drawdown
@@ -81,16 +83,17 @@ namespace backtester {
             if (GetCurrentDrawdown(current_equity) > config_.risk_limits.max_drawdown_pct) {
                 spdlog::warn("Portfolio: Order rejected. Max drawdown {:.2f}% exceeded.",
                     static_cast<double>(config_.risk_limits.max_drawdown_pct) / 1e7);
-                return std::make_unique<StrategyOrderRejectionEvent>(
-                    signal->timestamp,
-                    signal->signal_id,
-                    signal->strategy_id,
-                    signal->instrument_id,
-                    signal->signal_type,
-                    signal->price,
-                    signal->quantity,
-                    RejectionReason::kDrawdownLimit
-                );
+                return EventUnion{ .strat_rej_ev = StrategyOrderRejectionEvent{
+               .header = {.timestamp = signal->header.timestamp,
+                   .type = EventType::kStrategyOrderRejection},
+               .strategy_id = signal->strategy_id,
+               .signal_id = signal->signal_id,
+               .instrument_id = signal->instrument_id,
+               .signal_type = signal->signal_type,
+               .price = signal->price,
+               .quantity = signal->quantity,
+               .reason = RejectionReason::kDrawdownLimit
+             } };
             }
         }
         // Set up Commission/Fees
@@ -112,16 +115,17 @@ namespace backtester {
             if (margin_required > available_bp) {
                 spdlog::warn("Portfolio: Insufficient Buying Power. Req: {}, Avail: {}",
                     margin_required, available_bp);
-                return std::make_unique<StrategyOrderRejectionEvent>(
-                    signal->timestamp,
-                    signal->signal_id,
-                    signal->strategy_id,
-                    signal->instrument_id,
-                    signal->signal_type,
-                    signal->price,
-                    signal->quantity,
-                    RejectionReason::kInsufficientBuyingPower
-                );
+                return EventUnion{ .strat_rej_ev = StrategyOrderRejectionEvent{
+               .header = {.timestamp = signal->header.timestamp,
+                   .type = EventType::kStrategyOrderRejection},
+               .strategy_id = signal->strategy_id,
+               .signal_id = signal->signal_id,
+               .instrument_id = signal->instrument_id,
+               .signal_type = signal->signal_type,
+               .price = signal->price,
+               .quantity = signal->quantity,
+               .reason = RejectionReason::kInsufficientBuyingPower
+             } };
             }
         }
 
@@ -135,16 +139,17 @@ namespace backtester {
                 std::abs(potential_qty) > config_.risk_limits.max_position_size) {
                 spdlog::warn("Portfolio: Position limit exceeded. Current: {}, New Potential: {}",
                     current_qty, potential_qty);
-                return std::make_unique<StrategyOrderRejectionEvent>(
-                    signal->timestamp,
-                    signal->signal_id,
-                    signal->strategy_id,
-                    signal->instrument_id,
-                    signal->signal_type,
-                    signal->price,
-                    signal->quantity,
-                    RejectionReason::kPositionLimit
-                );
+                return EventUnion{ .strat_rej_ev = StrategyOrderRejectionEvent{
+              .header = {.timestamp = signal->header.timestamp,
+                  .type = EventType::kStrategyOrderRejection},
+              .strategy_id = signal->strategy_id,
+              .signal_id = signal->signal_id,
+              .instrument_id = signal->instrument_id,
+              .signal_type = signal->signal_type,
+              .price = signal->price,
+              .quantity = signal->quantity,
+              .reason = RejectionReason::kPositionLimit
+            } };
             }
         }
 
@@ -159,20 +164,20 @@ namespace backtester {
         OrderSide side = (signal->signal_type == SignalType::kBuySignal) ?
             OrderSide::kBid : OrderSide::kAsk;
 
-        return std::make_unique<StrategyOrderEvent>(
-            signal->timestamp,
-            EventType::kStrategyOrderAdd,
-            signal->signal_id,  // signal_id becomes order id for tracking
-            signal->instrument_id,
-            side,
-            signal->price,
-            signal->quantity,
-            signal->strategy_id
-        );
+        return EventUnion{ .strat_order_ev = StrategyOrderEvent {
+              .header = {.timestamp = signal->header.timestamp,
+                  .type = EventType::kStrategyOrderAdd},
+              .strategy_id = signal->strategy_id,
+              .order_id = signal->signal_id,
+              .instrument_id = signal->instrument_id,
+              .side = side,
+              .price = signal->price,
+              .quantity = signal->quantity
+            } };
     }
 
     // MARK: HANDLE MODIFY
-    std::unique_ptr<Event> PortfolioManager::HandleModifyRequest(
+    EventUnion PortfolioManager::HandleModifyRequest(
         const StrategySignalEvent* signal) {
 
         const TradedInstrument* instr = GetTradedInstr(signal->instrument_id);
@@ -187,16 +192,17 @@ namespace backtester {
 
         if (!IsValidTick(*instr, signal->price)) {
             spdlog::warn("Portfolio: Modify rejected. Invalid tick price {}.", signal->price);
-            return std::make_unique<StrategyOrderRejectionEvent>(
-                signal->timestamp,
-                signal->signal_id,
-                signal->strategy_id,
-                signal->instrument_id,
-                signal->signal_type,
-                signal->price,
-                signal->quantity,
-                RejectionReason::kInvalidTick
-            );
+            return EventUnion{ .strat_rej_ev = StrategyOrderRejectionEvent{
+               .header = {.timestamp = signal->header.timestamp,
+                   .type = EventType::kStrategyOrderRejection},
+               .strategy_id = signal->strategy_id,
+               .signal_id = signal->signal_id,
+               .instrument_id = signal->instrument_id,
+               .signal_type = signal->signal_type,
+               .price = signal->price,
+               .quantity = signal->quantity,
+               .reason = RejectionReason::kInvalidTick
+             } };
         }
 
         // Only pending orders can be modified
@@ -205,25 +211,26 @@ namespace backtester {
         if (prev_order == pending_orders_.end()) {
             spdlog::warn("Portfolio: Modify rejected. No pending order found for "
                 "order_id {}.", signal->signal_id);
-            return std::make_unique<StrategyOrderRejectionEvent>(
-                signal->timestamp,
-                signal->signal_id,
-                signal->strategy_id,
-                signal->instrument_id,
-                signal->signal_type,
-                signal->price,
-                signal->quantity,
-                RejectionReason::kNoOrderExists
-            );
+            return EventUnion{ .strat_rej_ev = StrategyOrderRejectionEvent{
+              .header = {.timestamp = signal->header.timestamp,
+                  .type = EventType::kStrategyOrderRejection},
+              .strategy_id = signal->strategy_id,
+              .signal_id = signal->signal_id,
+              .instrument_id = signal->instrument_id,
+              .signal_type = signal->signal_type,
+              .price = signal->price,
+              .quantity = signal->quantity,
+              .reason = RejectionReason::kNoOrderExists
+            } };
         }
 
         OrderSide side = (signal->signal_type == SignalType::kBuySignal) ?
             OrderSide::kBid : OrderSide::kAsk;
-  
+
         bool is_increasing = (side == OrderSide::kBid &&
             prev_order->remaining_qty < signal->quantity) ||
             (side == OrderSide::kAsk &&
-            prev_order->remaining_qty > signal->quantity);
+                prev_order->remaining_qty > signal->quantity);
 
         int64_t new_margin = std::abs((signal->quantity * prev_order->per_qty_margin) +
             (signal->quantity * prev_order->per_qty_com));
@@ -237,50 +244,53 @@ namespace backtester {
             int64_t current_equity = GetTotalEquity();
             if (GetCurrentDrawdown(current_equity) > config_.risk_limits.max_drawdown_pct) {
                 spdlog::warn("Portfolio: Modify rejected. Max drawdown exceeded.");
-                return std::make_unique<StrategyOrderRejectionEvent>(
-                    signal->timestamp,
-                    signal->signal_id,
-                    signal->strategy_id,
-                    signal->instrument_id,
-                    signal->signal_type,
-                    signal->price,
-                    signal->quantity,
-                    RejectionReason::kDrawdownLimit
-                );
+                return EventUnion{ .strat_rej_ev = StrategyOrderRejectionEvent{
+                    .header = {.timestamp = signal->header.timestamp,
+                        .type = EventType::kStrategyOrderRejection},
+                    .strategy_id = signal->strategy_id,
+                    .signal_id = signal->signal_id,
+                    .instrument_id = signal->instrument_id,
+                    .signal_type = signal->signal_type,
+                    .price = signal->price,
+                    .quantity = signal->quantity,
+                    .reason = RejectionReason::kDrawdownLimit
+                } };
             }
             // Max Position Size Check
-            int64_t potential_qty = GetPositionQty(signal->instrument_id) + 
+            int64_t potential_qty = GetPositionQty(signal->instrument_id) +
                 (side == OrderSide::kBid ? signal->quantity : -signal->quantity);
 
             if (config_.risk_limits.max_position_size > 0 &&
                 std::abs(potential_qty) > config_.risk_limits.max_position_size) {
                 spdlog::warn("Portfolio: Modify rejected. Position limit exceeded.");
-                return std::make_unique<StrategyOrderRejectionEvent>(
-                    signal->timestamp,
-                    signal->signal_id,
-                    signal->strategy_id,
-                    signal->instrument_id,
-                    signal->signal_type,
-                    signal->price,
-                    signal->quantity,
-                    RejectionReason::kPositionLimit
-                );
+                return EventUnion{ .strat_rej_ev = StrategyOrderRejectionEvent{
+                    .header = {.timestamp = signal->header.timestamp,
+                        .type = EventType::kStrategyOrderRejection},
+                    .strategy_id = signal->strategy_id,
+                    .signal_id = signal->signal_id,
+                    .instrument_id = signal->instrument_id,
+                    .signal_type = signal->signal_type,
+                    .price = signal->price,
+                    .quantity = signal->quantity,
+                    .reason = RejectionReason::kPositionLimit
+                } };
             }
             // Buying Power Check
             int64_t available_bp = GetBuyingPower(instr->instrument_type);
             if (new_margin > available_bp) {
                 spdlog::warn("Portfolio: Modify rejected. Insufficient buying power. "
                     "Required: {}, Available: {}", margin_delta, available_bp);
-                return std::make_unique<StrategyOrderRejectionEvent>(
-                    signal->timestamp,
-                    signal->signal_id,
-                    signal->strategy_id,
-                    signal->instrument_id,
-                    signal->signal_type,
-                    signal->price,
-                    signal->quantity,
-                    RejectionReason::kInsufficientBuyingPower
-                );
+                return EventUnion{ .strat_rej_ev = StrategyOrderRejectionEvent{
+                    .header = {.timestamp = signal->header.timestamp,
+                        .type = EventType::kStrategyOrderRejection},
+                    .strategy_id = signal->strategy_id,
+                    .signal_id = signal->signal_id,
+                    .instrument_id = signal->instrument_id,
+                    .signal_type = signal->signal_type,
+                    .price = signal->price,
+                    .quantity = signal->quantity,
+                    .reason = RejectionReason::kInsufficientBuyingPower
+                } };
             }
         }
 
@@ -288,20 +298,20 @@ namespace backtester {
         prev_order->remaining_qty = signal->quantity;
         reserved_margin_used_ += margin_delta;
 
-        return std::make_unique<StrategyOrderEvent>(
-            signal->timestamp,
-            EventType::kStrategyOrderModify,
-            signal->signal_id,
-            signal->instrument_id,
-            side,
-            signal->price,
-            signal->quantity,
-            signal->strategy_id
-        );
+        return EventUnion{ .strat_order_ev = StrategyOrderEvent {
+              .header = {.timestamp = signal->header.timestamp,
+                  .type = EventType::kStrategyOrderModify},
+              .strategy_id = signal->strategy_id,
+              .order_id = signal->signal_id,
+              .instrument_id = signal->instrument_id,
+              .side = side,
+              .price = signal->price,
+              .quantity = signal->quantity
+            } };
     }
 
     // MARK: HandleCancel
-    std::unique_ptr<Event> PortfolioManager::HandleCancelRequest(
+    EventUnion PortfolioManager::HandleCancelRequest(
         const StrategySignalEvent* signal) {
 
         // Only pending orders can be cancelled
@@ -310,16 +320,17 @@ namespace backtester {
         if (prev_order == pending_orders_.end()) {
             spdlog::warn("Portfolio: Cancel rejected. No pending order found for "
                 "order_id {}.", signal->signal_id);
-            return std::make_unique<StrategyOrderRejectionEvent>(
-                signal->timestamp,
-                signal->signal_id,
-                signal->strategy_id,
-                signal->instrument_id,
-                signal->signal_type,
-                signal->price,
-                signal->quantity,
-                RejectionReason::kNonTradableInstr
-            );
+            return EventUnion{ .strat_rej_ev = StrategyOrderRejectionEvent{
+                    .header = {.timestamp = signal->header.timestamp,
+                        .type = EventType::kStrategyOrderRejection},
+                    .strategy_id = signal->strategy_id,
+                    .signal_id = signal->signal_id,
+                    .instrument_id = signal->instrument_id,
+                    .signal_type = signal->signal_type,
+                    .price = signal->price,
+                    .quantity = signal->quantity,
+                    .reason = RejectionReason::kNonTradableInstr
+                } };
         }
 
         OrderSide side = (signal->signal_type == SignalType::kBuySignal) ?
@@ -330,16 +341,16 @@ namespace backtester {
             (prev_order->remaining_qty * prev_order->per_qty_com));
         pending_orders_.erase(prev_order);
 
-        return std::make_unique<StrategyOrderEvent>(
-            signal->timestamp,
-            EventType::kStrategyOrderCancel,
-            signal->signal_id,
-            signal->instrument_id,
-            side,
-            signal->price,
-            signal->quantity,
-            signal->strategy_id
-        );
+        return EventUnion{ .strat_order_ev = StrategyOrderEvent {
+              .header = {.timestamp = signal->header.timestamp,
+                  .type = EventType::kStrategyOrderAdd},
+              .strategy_id = signal->strategy_id,
+              .order_id = signal->signal_id,
+              .instrument_id = signal->instrument_id,
+              .side = side,
+              .price = signal->price,
+              .quantity = signal->quantity
+            } };
     }
 
     void PortfolioManager::CancelAllPendingOrders() {
@@ -358,22 +369,23 @@ namespace backtester {
         //Release initial Margin
         auto pend_order = std::find_if(pending_orders_.begin(), pending_orders_.end(),
             [&](PortfolioPendingOrder& order) {return order.order_id == fill.order_id; });
-        if(pend_order == pending_orders_.end()) throw std::runtime_error(fmt::format(R"(
-            Fill processed for unknown strategy order. Fill order id: {} )", 
+        if (pend_order == pending_orders_.end()) throw std::runtime_error(fmt::format(R"(
+            Fill processed for unknown strategy order. Fill order id: {} )",
             fill.order_id));
 
-        int64_t init_margin_released = fill.fill_quantity * pend_order->per_qty_com;
-        if(instr->instrument_type == InstrumentType::FUT){
-            init_margin_released += fill.fill_quantity * pend_order->per_qty_margin;
-        } else { //STOCK price can be better than order limit
-            init_margin_released += fill.fill_quantity * fill.fill_price;
+        int64_t init_margin_released = fill.quantity * pend_order->per_qty_com;
+        if (instr->instrument_type == InstrumentType::FUT) {
+            init_margin_released += fill.quantity * pend_order->per_qty_margin;
+        }
+        else { //STOCK price can be better than order limit
+            init_margin_released += fill.quantity * fill.price;
         }
         reserved_margin_used_ -= init_margin_released;
 
-        pend_order->remaining_qty -= fill.side == OrderSide::kBid ? fill.fill_quantity :
-            -(fill.fill_quantity);
-        
-        if(pend_order->remaining_qty == 0) pending_orders_.erase(pend_order);
+        pend_order->remaining_qty -= fill.side == OrderSide::kBid ? fill.quantity :
+            -(fill.quantity);
+
+        if (pend_order->remaining_qty == 0) pending_orders_.erase(pend_order);
 
         // Create Position
         Position* prev_pos = FindPosition(fill.instrument_id, fill.strategy_id);
@@ -386,7 +398,7 @@ namespace backtester {
         }
 
         int64_t fill_qty_signed = (fill.side == OrderSide::kBid) ?
-            fill.fill_quantity : -static_cast<int64_t>(fill.fill_quantity);
+            fill.quantity : -static_cast<int64_t>(fill.quantity);
 
         current_cash_ -= fill.commission;
 
@@ -422,12 +434,12 @@ namespace backtester {
         }
 
         TradeRecord record = {
-            fill.timestamp,
+            fill.header.timestamp,
             fill.strategy_id,
             fill.instrument_id,
             fill.side,
-            fill.fill_price,
-            fill.fill_quantity,
+            fill.price,
+            fill.quantity,
             trade_pnl,
             fill.commission
         };
@@ -438,17 +450,17 @@ namespace backtester {
         const StrategyFillEvent& fill, int64_t fill_qty_signed) {
 
         if (instr->instrument_type == InstrumentType::STOCK) {
-            current_cash_ -= std::abs(fill_qty_signed) * fill.fill_price;
+            current_cash_ -= std::abs(fill_qty_signed) * fill.price;
         }
         if (instr->instrument_type == InstrumentType::FUT) {
             maintenance_margin_used_ += instr->maint_margin_req * std::abs(fill_qty_signed);
         }
 
         int64_t current_notional = std::abs(pos.quantity) * pos.avg_entry_price;
-        int64_t fill_notional = std::abs(fill_qty_signed) * fill.fill_price;
+        int64_t fill_notional = std::abs(fill_qty_signed) * fill.price;
         pos.quantity += fill_qty_signed;
         pos.avg_entry_price = (current_notional + fill_notional) / std::abs(pos.quantity);
-        pos.last_update_ts = fill.timestamp;
+        pos.last_update_ts = fill.header.timestamp;
     }
 
     int64_t PortfolioManager::CloseOrReduce(Position& pos, const TradedInstrument* instr,
@@ -459,26 +471,26 @@ namespace backtester {
 
         if (instr->instrument_type == InstrumentType::FUT) {
             int64_t price_diff = (pos.quantity > 0) ?
-                (fill.fill_price - pos.avg_entry_price) :
-                (pos.avg_entry_price - fill.fill_price);
+                (fill.price - pos.avg_entry_price) :
+                (pos.avg_entry_price - fill.price);
             int64_t ticks_captured = price_diff / static_cast<int64_t>(instr->tick_size);
             trade_pnl = ticks_captured * instr->tick_value * quantity_closed;
             current_cash_ += trade_pnl;
             maintenance_margin_used_ -= instr->maint_margin_req * quantity_closed;
         }
         else {
-            int64_t proceeds = quantity_closed * fill.fill_price;
+            int64_t proceeds = quantity_closed * fill.price;
             int64_t cost_basis = quantity_closed * pos.avg_entry_price;
             trade_pnl = proceeds - cost_basis;
             current_cash_ += proceeds;
         }
 
         pos.quantity += fill_qty_signed;
-        pos.last_update_ts = fill.timestamp;
+        pos.last_update_ts = fill.header.timestamp;
 
-        if (pos.quantity == 0 && fill.fill_quantity == std::abs(fill_qty_signed)) {
+        if (pos.quantity == 0 && fill.quantity == std::abs(fill_qty_signed)) {
             uint32_t closed_instr_id = pos.instrument_id;
-            std::string closed_strat_id = pos.strategy_id;
+            uint16_t closed_strat_id = pos.strategy_id;
             positions_.erase(
                 std::remove_if(positions_.begin(), positions_.end(),
                     [&](const Position& p) {
@@ -579,7 +591,7 @@ namespace backtester {
         const TradedInstrument* instr_ptr = GetTradedInstr(instrument_id);
         if (instr_ptr == nullptr) {
             spdlog::error(R"(Error trying to get position for unknown instrument: 
-                {})",instrument_id);
+                {})", instrument_id);
             return 0;
         }
 

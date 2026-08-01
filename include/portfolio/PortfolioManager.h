@@ -18,7 +18,7 @@ namespace backtester {
         // MARK: Core Signal & Order Handling
         // =========================================================================
 
-        std::unique_ptr<Event> RequestOrder(const StrategySignalEvent* signal);
+        EventUnion RequestOrder(const StrategySignalEvent* signal);
 
         void ProcessFill(const StrategyFillEvent& fill);
 
@@ -91,14 +91,14 @@ namespace backtester {
         // MARK: Internal Logic Handlers
         // =========================================================================
 
-        std::unique_ptr<Event> HandleAddRequest(const StrategySignalEvent* signal);
-        std::unique_ptr<Event> HandleModifyRequest(const StrategySignalEvent* signal);
-        std::unique_ptr<Event> HandleCancelRequest(const StrategySignalEvent* signal);
+        EventUnion HandleAddRequest(const StrategySignalEvent* signal);
+        EventUnion HandleModifyRequest(const StrategySignalEvent* signal);
+        EventUnion HandleCancelRequest(const StrategySignalEvent* signal);
 
         // =========================================================================
         // MARK: Helper Utilities
         // =========================================================================
-        inline Position* FindPosition(uint32_t instrument_id, const std::string& strategy_id) {
+        inline Position* FindPosition(uint32_t instrument_id, uint16_t strategy_id) {
             for (auto& pos : positions_) {
                 if (pos.instrument_id == instrument_id && pos.strategy_id == strategy_id) {
                     return &pos;
@@ -108,7 +108,7 @@ namespace backtester {
         }
 
         inline const Position* FindPosition(uint32_t instrument_id,
-            const std::string& strategy_id) const {
+            uint16_t strategy_id) const {
             for (const auto& pos : positions_) {
                 if (pos.instrument_id == instrument_id && pos.strategy_id == strategy_id) {
                     return &pos;

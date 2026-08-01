@@ -51,26 +51,25 @@ namespace backtester {
 
     // MARK: LoadNextEventForSymbol
 
-    std::unique_ptr<MarketByOrderEvent> DataReaderManager::LoadNextEventFromSource(const std::string& source_name) {
-        auto it = std::find_if(readers_.begin(), readers_.end(), [source_name](DataStream& stream) {
-            return stream.config.data_source_name == source_name;
+    bool DataReaderManager::LoadNextEventFromSource(uint16_t source_id, MarketByOrderEvent& out) {
+        auto it = std::find_if(readers_.begin(), readers_.end(), [source_id](DataStream& stream) {
+            return stream.config.data_source_id == source_id;
             });
         if (it == readers_.end()) {
-            return nullptr;
+            return false;
         }
 
         std::string raw_line;
 
         if (!it->reader->ReadLine(raw_line)) {
-            spdlog::info("End of data for symbol: " + source_name);
+            spdlog::info("End of data for symbol: " + it->config.data_source_name);
             // readers_.erase(symbol); TODO
             it->reader->Close();
-            return nullptr;
+            return false;
         }
 
-        std::unique_ptr<MarketByOrderEvent> event_ptr;
         if (it->config.schema == DataSchema::MBO) {
-            return ParseMboLineToEvent(it, raw_line);
+            if(ParseMboLineToEvent(it, raw_line, out)) return true;
             // } else if (readers_[symbol].schema == DataSchema::OHLCV){ // TODO
             //     event_ptr = ParseOhlcvLineToEvent(symbol, raw_line);
         }
@@ -78,14 +77,15 @@ namespace backtester {
             throw std::runtime_error("Invalid data schema ");
         }
 
-        return nullptr;
+        return false;
     };
 
     // MARK:  ParseMboLineToEvent
 
-    std::unique_ptr<MarketByOrderEvent> DataReaderManager::ParseMboLineToEvent(
+    bool DataReaderManager::ParseMboLineToEvent(
         const std::vector<backtester::DataStream>::iterator it,
-        const std::string& line) {
+        const std::string& line,
+        MarketByOrderEvent& out) {
 
         std::string_view current_view(line);
         size_t pos = 0;
@@ -98,7 +98,6 @@ namespace backtester {
         uint8_t flags;
         int32_t ts_in_delta;
         int64_t price;
-        std::string symbol;
 
         for (int i = 1; i <= 15; ++i) {
             std::string_view token = GetNextToken(pos, current_view);
@@ -172,7 +171,7 @@ namespace backtester {
                     double raw_price;
                     std::from_chars(token.data(), token.data() + token.size(), raw_price);
                     raw_price *= 1000000000;
-                    if(BT_UNLIKELY(raw_price < 0)){
+                    if (BT_UNLIKELY(raw_price < 0)) {
                         throw std::runtime_error("Price below zero in data");
                     }
                     price = static_cast<price_t>(raw_price);
@@ -212,8 +211,6 @@ namespace backtester {
                 break;
 
             case 15: // potentially symbol added
-                if (token.empty()) throw std::runtime_error("Field 15 empty.");
-                symbol = token;
                 break;
 
             default:
@@ -222,25 +219,23 @@ namespace backtester {
             }
         }
 
-        std::unique_ptr<MarketByOrderEvent> event_ptr =
-            std::make_unique<MarketByOrderEvent>(
-                ts_event,
-                action,
-                ts_recv,
-                publisher_id,
-                instrument_id,
-                side,
-                price,
-                size,
-                order_id,
-                flags,
-                ts_in_delta,
-                sequence,
-                symbol,
-                it->config.data_source_name
-            );
+        out = {
+            .header = {.timestamp = ts_event,
+            .type = action},
+            .data_source_id = it->config.data_source_id,
+            .ts_recv = ts_recv,
+            .order_id = order_id,
+            .price = price,
+            .size = size,
+            .sequence = sequence,
+            .instrument_id = instrument_id,
+            .ts_in_delta = ts_in_delta,
+            .publisher_id = publisher_id,
+            .side = side,
+            .flags = flags,
+        };
 
-        return event_ptr;
+        return true;
     };
 
     // MARK: Get Next Token

@@ -4,40 +4,38 @@
 
 namespace backtester {
 
-void EventQueue::PushEvent(std::unique_ptr<Event> event_ptr) {
-    if(event_ptr != nullptr){
-        pq_.push_back(std::move(event_ptr)); 
+    void EventQueue::PushEvent(const EventUnion& event) {
+        pq_.push_back(event);
         std::push_heap(pq_.begin(), pq_.end(), comparator_);
     }
-}
 
-bool EventQueue::IsEmpty() const {
-    return pq_.empty();
-}
-
-const Event& EventQueue::ReadTopEvent() const {
-    if(pq_.empty()) {
-        throw std::out_of_range("Attempted to grab top event of empty queue");     
-    }        
-    return *pq_.front();
-}
-
-std::unique_ptr<Event> EventQueue::PopTopEvent() {
-    if(pq_.empty()) {
-        return std::unique_ptr<Event>{}; 
+    bool EventQueue::IsEmpty() const {
+        return pq_.empty();
     }
-    std::pop_heap(pq_.begin(), pq_.end(), comparator_);
-    std::unique_ptr<Event> top_event_ptr = std::move(pq_.back()); 
-    pq_.pop_back(); 
-    return top_event_ptr;
-}
 
-size_t EventQueue::size() const {
-    return pq_.size();
-}
+    const EventUnion& EventQueue::ReadTopEvent() const {
+        if (pq_.empty()) {
+            throw std::out_of_range("Attempted to grab top event of empty queue");
+        }
+        return pq_.front();
+    }
 
-void EventQueue::clear() {
-    pq_ = std::vector<std::unique_ptr<Event>>();
-}
+    EventUnion EventQueue::PopTopEvent() {
+        if (pq_.empty()) {
+            return EventUnion{};
+        }
+        std::pop_heap(pq_.begin(), pq_.end(), comparator_);
+        EventUnion top_event = std::move(pq_.back());
+        pq_.pop_back();
+        return top_event;
+    }
+
+    size_t EventQueue::size() const {
+        return pq_.size();
+    }
+
+    void EventQueue::clear() {
+        pq_ = std::vector<EventUnion>();
+    }
 
 }

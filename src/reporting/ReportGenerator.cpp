@@ -54,7 +54,7 @@ namespace backtester {
     // MARK: Report Generation 
     // =============================================================================
 
-    void ReportGenerator::GenerateReport(const PortfolioManager& portfolio) {
+    void ReportGenerator::GenerateReport(const PortfolioManager& portfolio, std::vector<std::string>names) {
         spdlog::info("ReportGenerator: Computing performance metrics...");
 
         std::string output_dir = config_.report_output_dir;
@@ -73,7 +73,7 @@ namespace backtester {
         WriteEquityCurveCsv(output_dir + "/equity_curve.csv");
 
         // 4. Per-strategy breakdown
-        auto breakdowns = ComputePerStrategySummary(portfolio);
+        auto breakdowns = ComputePerStrategySummary(portfolio, names);
         if (breakdowns.size() > 1) {
             WritePerStrategyBreakdownCsv(output_dir + "/strategy_breakdown.csv",
                 breakdowns);
@@ -302,14 +302,14 @@ namespace backtester {
 
     std::unordered_map<std::string, PerformanceSummary>
         ReportGenerator::ComputePerStrategySummary(
-            const PortfolioManager& portfolio) const {
+            const PortfolioManager& portfolio, const std::vector<std::string>& names) const {
 
         const auto& all_trades = portfolio.GetTradeHistory();
 
         // Group trades by strategy_id
         std::unordered_map<std::string, std::vector<TradeRecord>> by_strategy;
         for (const auto& trade : all_trades) {
-            by_strategy[trade.strategy_id].push_back(trade);
+            by_strategy[names[trade.strategy_id]].push_back(trade);
         }
 
         std::unordered_map<std::string, PerformanceSummary> result;

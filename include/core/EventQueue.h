@@ -4,40 +4,37 @@
 
 namespace backtester {
 
-struct EventComparator {
-    bool operator()(const std::unique_ptr<Event>& a, 
-                    const std::unique_ptr<Event>& b) const {
-        // Primary sort: timestamp (ascending)
-        if(a->timestamp != b->timestamp) {
-            return a->timestamp > b->timestamp; 
-        }        
-        // Market -> Strategy -> Backtest
-        return a->type > b->type; 
-    }
-};
+    struct EventComparator {
+        bool operator()(const EventUnion& a, const EventUnion& b) const noexcept {
+            const EventHeader& ha = Hdr(a);
+            const EventHeader& hb = Hdr(b);
+            if (ha.timestamp != hb.timestamp) return ha.timestamp > hb.timestamp;
+            return ha.type > hb.type;   // tie-break
+        }
+    };
 
-class EventQueue {
- public:
-    EventQueue() {}
+    class EventQueue {
+    public:
+        EventQueue() {}
 
-    ~EventQueue() {}
+        ~EventQueue() {}
 
-    void PushEvent(std::unique_ptr<Event> event_ptr);
+        void PushEvent(const EventUnion& event);
 
-    bool IsEmpty() const ;
+        bool IsEmpty() const;
 
-    const Event& ReadTopEvent() const ;
+        const EventUnion& ReadTopEvent() const;
 
-    std::unique_ptr<Event> PopTopEvent() ;
+        EventUnion PopTopEvent();
 
-    size_t size() const ;
+        size_t size() const;
 
-    // Clear all events from the queue (for resetting)
-    void clear() ;
+        // Clear all events from the queue (for resetting)
+        void clear();
 
- private:
-    std::vector<std::unique_ptr<Event>> pq_;
-    EventComparator comparator_;
-};
+    private:
+        std::vector<EventUnion> pq_;
+        EventComparator comparator_;
+    };
 
 }

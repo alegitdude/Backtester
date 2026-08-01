@@ -5,13 +5,13 @@
 namespace backtester {
 
     int Backtester::RunLoop(const AppConfig& config) {
+        EventUnion mbo_event;
 
         spdlog::info("Populating initial events from data sources...");
         for (const DataSourceConfig& source : config.data_configs) {
-            auto event_ptr = data_reader_manager_.LoadNextEventFromSource(
-                source.data_source_name);
-            if (event_ptr) {
-                event_queue_.PushEvent(std::move(event_ptr));
+            if(data_reader_manager_.LoadNextEventFromSource(source.data_source_id, 
+                mbo_event.mbo)) {
+                event_queue_.PushEvent(mbo_event);
             }
             else {
                 spdlog::warn("Symbol " + source.data_source_name + " has no events.");
@@ -26,75 +26,68 @@ namespace backtester {
         bool end_of_bt_pushed = false;
 
         const auto t0 = std::chrono::steady_clock::now();
-
+        
         while (!event_queue_.IsEmpty()) {
             auto current_event = event_queue_.PopTopEvent();
-            current_time = current_event->timestamp;
-            EventType eventType = current_event->type;
+            current_time = Hdr(current_event).timestamp ;
+            EventType eventType = Hdr(current_event).type;
             event_tally++;
 
             if (isMarketEvent(eventType)) {
-                const MarketByOrderEvent* market_event =
-                    static_cast<const MarketByOrderEvent*>(current_event.get());
-
-                market_state_manager_.OnMarketEvent(*market_event);
+                const MarketByOrderEvent& mbo = current_event.mbo;
+                market_state_manager_.OnMarketEvent(mbo);
 
                 if (current_time >= config.start_time) {
-                    auto signals = strategy_manager_.OnMarketEvent(*market_event);
+                    auto signals = strategy_manager_.OnMarketEvent(mbo);
 
                     if (signals.size() > 0) {
                         for (size_t i = 0; i < signals.size(); i++) {
-                            event_queue_.PushEvent(std::move(signals[i]));
+                            event_queue_.PushEvent(signals[i]);
                         }
                     }
 
-                    execution_handler_.OnMarketEvent(*market_event);
+                    execution_handler_.OnMarketEvent(mbo);
                     if (portfolio_manager_.HasAnyOpenPosition()) {
                         portfolio_manager_.UpdateMaxEquity();
                     }
                 }
 
                 if (!backtest_complete) {
-                    auto event_ptr = data_reader_manager_.LoadNextEventFromSource(
-                        market_event->data_source);
-                    if (event_ptr) {
-                        event_queue_.PushEvent(std::move(event_ptr));
-                    }
+                    if(data_reader_manager_.LoadNextEventFromSource(
+                        mbo.data_source_id, mbo_event.mbo)) {
+                            event_queue_.PushEvent(mbo_event);
+                        }
                 }
             }
 
             if (isStrategySignalEvent(eventType)) {
-                const StrategySignalEvent* signal_event =
-                    static_cast<const StrategySignalEvent*>(current_event.get());
+                const StrategySignalEvent& signal_event = current_event.strat_signal_ev;
 
-                auto order_event = portfolio_manager_.RequestOrder(signal_event);
+                auto order_event = portfolio_manager_.RequestOrder(&signal_event);
 
-                if (order_event) {
+                if (isStrategyOrderEvent(Hdr(order_event).type)) {
                     event_queue_.PushEvent(std::move(order_event));
                     spdlog::debug("Queued order from signal at ts={}", current_time);
                 }
             }
 
             if (isStrategyOrderEvent(eventType)) {
-                const StrategyOrderEvent* order_event =
-                    static_cast<const StrategyOrderEvent*>(current_event.get());
+                const StrategyOrderEvent& order_event = current_event.strat_order_ev;
 
-                execution_handler_.OnStrategyOrder(*order_event);
+                execution_handler_.OnStrategyOrder(order_event);
 
             }
 
             if (eventType == EventType::kStrategyOrderFill) {
-                const StrategyFillEvent* fill_event =
-                    static_cast<const StrategyFillEvent*>(current_event.get());
+                const StrategyFillEvent& fill_event = current_event.strat_fill_ev;
 
-                portfolio_manager_.ProcessFill(*fill_event);
-                strategy_manager_.OnFillEvent(*fill_event);
+                portfolio_manager_.ProcessFill(fill_event);
+                strategy_manager_.OnFillEvent(fill_event);
             }
 
             if (eventType == EventType::kStrategyOrderRejection) {
-                const StrategyOrderRejectionEvent* rejection =
-                    static_cast<const StrategyOrderRejectionEvent*>(current_event.get());
-                strategy_manager_.OnRejectionEvent(*rejection);
+                const StrategyOrderRejectionEvent& rejection = current_event.strat_rej_ev;
+                strategy_manager_.OnRejectionEvent(rejection);
             }
 
             if (isControlEvent(eventType)) {
@@ -113,8 +106,9 @@ namespace backtester {
 
             if (((event_queue_.IsEmpty() || current_time > config.end_time) &&
                 !backtest_complete) && !end_of_bt_pushed) {
-                event_queue_.PushEvent(std::make_unique<Event>(current_time,
-                    EventType::kBacktestControlEndOfBacktest));
+                event_queue_.PushEvent(EventUnion{.control_ev = {.header = {
+                    .timestamp = current_time, 
+                    .type = EventType::kBacktestControlEndOfBacktest}}});
                 end_of_bt_pushed = true;
             }
             if (current_time >= config.start_time &&
@@ -132,7 +126,7 @@ namespace backtester {
         spdlog::info("Event tally: {}", event_tally);
         spdlog::info("Backtest loop finished.");
         spdlog::info("Starting report generator.");
-        report_generator_.GenerateReport(portfolio_manager_);
+        report_generator_.GenerateReport(portfolio_manager_, strategy_manager_.GetStrategyNames());
         spdlog::info("Report finished.");
 
         spdlog::info("Backtester shutting down.");
@@ -160,17 +154,27 @@ namespace backtester {
                 close_price = pos.avg_entry_price;
             }
 
-            auto signal = std::make_unique<StrategySignalEvent>(
-                close_ts,
-                -1,  // use negative IDs to distinguish from strategy signals
-                pos.strategy_id,
-                pos.instrument_id,
-                signal_type,
-                close_price,
-                static_cast<uint32_t>(std::abs(pos.quantity))
-            );
+            auto signal = StrategySignalEvent {
+                .header = {.timestamp = close_ts, 
+                    .type = EventType::kStrategySignal},
+                .strategy_id = pos.strategy_id,
+                .signal_id = -1,
+                .instrument_id = pos.instrument_id,
+                .signal_type = signal_type,
+                .price = close_price,
+                .quantity = std::abs(pos.quantity)
+            };
+            // auto signal = std::make_unique<StrategySignalEvent>(
+            //     close_ts,
+            //     -1,  // use negative IDs to distinguish from strategy signals
+            //     pos.strategy_id,
+            //     pos.instrument_id,
+            //     signal_type,
+            //     close_price,
+            //     static_cast<uint32_t>(std::abs(pos.quantity))
+            // );
 
-            event_queue_.PushEvent(std::move(signal));
+            event_queue_.PushEvent(EventUnion{.strat_signal_ev = signal});
             spdlog::info("EmitClosingOrders: strategy={} instrument={} qty={} price={}",
                 pos.strategy_id, pos.instrument_id, pos.quantity, close_price);
         }

@@ -36,8 +36,8 @@ namespace backtester {
     // Represents a strategy order living in the execution handler's shadow book.
 
     struct PendingOrder {
-        int32_t order_id;
-        std::string strategy_id;
+        int64_t order_id;
+        uint16_t strategy_id;
         uint32_t instrument_id;
         OrderSide side;
         int64_t price;
@@ -94,7 +94,7 @@ namespace backtester {
         // -------------------------------------------------------------------
         bool HasPendingOrders() const { return !pending_orders_.empty(); }
         size_t PendingOrderCount() const { return pending_orders_.size(); }
-        const PendingOrder* GetPendingOrder(int32_t order_id) const;
+        const PendingOrder* GetPendingOrder(int64_t order_id) const;
 
 
     private:

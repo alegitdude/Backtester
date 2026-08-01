@@ -68,6 +68,7 @@ struct Symbol {
 
 struct DataSourceConfig {
     std::string data_source_name; // can be anything but needed to differentiate sources
+    uint16_t data_source_id = 0;
     std::vector<Symbol> data_symbology;
     std::string data_filepath;
     DataSchema schema;
@@ -141,7 +142,7 @@ struct AppConfig {
 
 struct Position {
     uint32_t instrument_id = 0;
-    std::string strategy_id = "";
+    uint16_t strategy_id = 0;
     int32_t last_order_id = 0;
     int64_t quantity = 0;
     int64_t avg_entry_price = 0;
@@ -205,11 +206,11 @@ struct MarketSnapshot {
 
 struct TradeRecord {
     uint64_t timestamp;
-    std::string strategy_id;
+    uint16_t strategy_id;
     uint32_t instrument_id;
     OrderSide side;
     int64_t price;
-    uint32_t quantity;
+    int64_t quantity;
     int64_t realized_pnl;  
     money_t commission;
 };

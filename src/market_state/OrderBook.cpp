@@ -86,7 +86,7 @@ namespace backtester {
   // MARK: Apply
 
   void OrderBook::Apply(const MarketByOrderEvent& mbo) {
-    switch (mbo.type) {
+    switch (mbo.header.type) {
     case EventType::kMarketOrderClear: {
       Clear();
       break;
@@ -110,7 +110,7 @@ namespace backtester {
     }
     default: {
       throw std::invalid_argument{ std::string{"Unknown action for msg at "} +
-                                  std::to_string(mbo.timestamp) };
+                                  std::to_string(mbo.header.timestamp) };
     }
     }
 

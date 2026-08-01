@@ -99,7 +99,7 @@ class ReportGenerator {
     // Called once at the end of the backtest. Computes all metrics and
     // writes CSV files to config.report_output_dir.
     // -------------------------------------------------------------------
-    void GenerateReport(const PortfolioManager& portfolio);
+    void GenerateReport(const PortfolioManager& portfolio, std::vector<std::string>names);
 
  private:
     const AppConfig& config_;
@@ -116,7 +116,7 @@ class ReportGenerator {
     PerformanceSummary ComputeSummary(const PortfolioManager& portfolio) const;
 
     std::unordered_map<std::string, PerformanceSummary> ComputePerStrategySummary(
-        const PortfolioManager& portfolio) const;
+        const PortfolioManager& portfolio, const std::vector<std::string>& names) const;
 
     PerformanceSummary ComputeSummaryFromTrades(
         const std::vector<TradeRecord>& trades,

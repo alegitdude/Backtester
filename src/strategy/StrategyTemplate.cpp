@@ -10,13 +10,13 @@ public:
         return;
     }
 
-    virtual std::unique_ptr<StrategySignalEvent> OnMarketEvent(
+    virtual std::optional<StrategySignalEvent> OnMarketEvent(
         const MarketByOrderEvent& event) override {
         // ... Your custom trading logic ...
         // helper function MakeSignal returns unique_ptr<StrategySignalEvent> and takes
         // signal_type, instr, price, qty, timestamp - Example:
         // return MakeSignal(kBuySignal, 294973, data[294973].bbo.ask.price, 1, event.timestamp);
-        return nullptr;
+        return std::nullopt;
     }
 
     virtual void OnFill(const StrategyFillEvent& fill) override {

@@ -23,9 +23,9 @@ namespace backtester {
     // =============================================================================
 
     void ExecutionHandler::OnStrategyOrder(const StrategyOrderEvent& order) {
-        RunFillModel(order.timestamp, nullptr);
+        RunFillModel(order.header.timestamp, nullptr);
 
-        switch (order.type) {
+        switch (order.header.type) {
         case EventType::kStrategyOrderAdd:
             HandleAdd(order);
             break;
@@ -37,7 +37,7 @@ namespace backtester {
             break;
         default:
             spdlog::warn("Execution: Unhandled strategy order type {}",
-                static_cast<int>(order.type));
+                static_cast<int>(order.header.type));
             break;
         }
     }
@@ -53,7 +53,7 @@ namespace backtester {
             return;
         }
 
-        uint64_t submit_ts = order.timestamp;
+        uint64_t submit_ts = order.header.timestamp;
         uint64_t live_ts = submit_ts + latency_ns_;
 
         // Passive order: waits for submission timestamp + latency setting to be live.
@@ -122,7 +122,7 @@ namespace backtester {
 
         if (loses_priority) {
             PendingOrder tmp = std::move(*order_it);   // or copy of `pending`
-            tmp.live_ts = static_cast<uint64_t>(order.timestamp) + latency_ns_;
+            tmp.live_ts = static_cast<uint64_t>(order.header.timestamp) + latency_ns_;
             tmp.state = OrderState::PendingLive;
             pending_orders_.erase(order_it);
             pending_orders_.emplace_back(std::move(tmp));
@@ -153,16 +153,7 @@ namespace backtester {
     void ExecutionHandler::OnMarketEvent(const MarketByOrderEvent& mbo_event) {
 
         if (pending_orders_.empty()) return;
-        RunFillModel(mbo_event.timestamp, &mbo_event);
-
-        // switch (fill_model_) {
-        // case FillModel::QueuePosition:
-        //     CheckFillsQueuePosition(mbo_event.timestamp, mbo_event);
-        //     break;
-        // case FillModel::TopOfBook:
-        //     CheckFillsTopOfBook(mbo_event);
-        //     break;
-        // }
+        RunFillModel(mbo_event.header.timestamp, &mbo_event);
     }
 
     // =============================================================================
@@ -208,8 +199,8 @@ namespace backtester {
             // For a resting bid, any trade at a price BELOW ours means our
             // entire level was consumed. For a resting ask, any trade ABOVE.
             bool traded_through = false;
-            if (mbo_event->type == EventType::kMarketTrade ||
-                mbo_event->type == EventType::kMarketFill) {
+            if (mbo_event->header.type == EventType::kMarketTrade ||
+                mbo_event->header.type == EventType::kMarketFill) {
 
                 if (pending.side == OrderSide::kBid && mbo_event->price < pending.price) {
                     traded_through = true;
@@ -226,7 +217,7 @@ namespace backtester {
                     pending.order_id, mbo_event->price, pending.price);
 
                 EmitFill(pending, pending.price, pending.remaining_qty,
-                    mbo_event->timestamp);
+                    mbo_event->header.timestamp);
                 filled_idxs_.push_back(i);
                 continue;
             }
@@ -235,7 +226,7 @@ namespace backtester {
             if (mbo_event->price != pending.price) continue;
 
             // Cancel at our price level on our side: drains queue ahead
-            if (mbo_event->type == EventType::kMarketOrderCancel && same_side) {
+            if (mbo_event->header.type == EventType::kMarketOrderCancel && same_side) {
                 pending.qty_ahead -= static_cast<int64_t>(mbo_event->size);
                 // qty_ahead can go negative if cancels exceed our tracked depth;
                 // that's fine — it means we're at the front
@@ -243,7 +234,7 @@ namespace backtester {
             }
 
             // Trade at our price level: could fill us
-            if (mbo_event->type == EventType::kMarketFill && same_side) {
+            if (mbo_event->header.type == EventType::kMarketFill && same_side) {
                 int64_t fill_size = static_cast<int64_t>(mbo_event->size);
 
                 if (pending.qty_ahead > 0) {
@@ -255,7 +246,7 @@ namespace backtester {
                 if (pending.qty_ahead <= 0 && fill_size > 0) {
                     qty_t fill_qty = std::min(fill_size, pending.remaining_qty);
 
-                    EmitFill(pending, pending.price, fill_qty, mbo_event->timestamp);
+                    EmitFill(pending, pending.price, fill_qty, mbo_event->header.timestamp);
 
                     if (pending.remaining_qty == 0) {
                         filled_idxs_.push_back(i);
@@ -316,7 +307,7 @@ namespace backtester {
                 spdlog::info("Execution: Order {} filled (TOB model). price={}",
                     pending.order_id, pending.price);
                 EmitFill(pending, pending.price, pending.remaining_qty,
-                    mbo_event->timestamp);
+                    mbo_event->header.timestamp);
                 filled_idxs_.push_back(i);
             }
         }
@@ -365,8 +356,8 @@ namespace backtester {
         if (mbo_event && mbo_event->instrument_id == pending.instrument_id &&
             mbo_event->side == pending.side &&
             mbo_event->price == pending.price &&
-            (mbo_event->type == EventType::kMarketOrderAdd ||
-                mbo_event->type == EventType::kMarketOrderModify)) {
+            (mbo_event->header.type == EventType::kMarketOrderAdd ||
+                mbo_event->header.type == EventType::kMarketOrderModify)) {
             pending.qty_ahead -= static_cast<int64_t>(mbo_event->size);
         }
         return false;
@@ -400,17 +391,16 @@ namespace backtester {
                 "submitted at {} ", order.instrument_id, order.submit_ts);
             return;
         }
-
-        auto fill = std::make_unique<StrategyFillEvent>(
-            fill_ts,
-            order.order_id,
-            order.instrument_id,
-            order.side,
-            fill_price,
-            fill_qty,
-            order.strategy_id,
-            commission
-        );
+        StrategyFillEvent fill = {
+            .header = {.timestamp = fill_ts, .type = EventType::kStrategyOrderFill},
+            .strategy_id = order.strategy_id,
+            .order_id = order.order_id,
+            .instrument_id = order.instrument_id,
+            .side = order.side,
+            .price = fill_price,
+            .quantity = fill_qty,
+            .commission = commission
+        };
 
         spdlog::info("Execution: FillEvent emitted — order_id={} instr={} side={} "
             "price={} qty={} ts={}",
@@ -419,7 +409,7 @@ namespace backtester {
 
         order.remaining_qty -= fill_qty;
 
-        event_queue_.PushEvent(std::move(fill));
+        event_queue_.PushEvent(EventUnion{.strat_fill_ev = fill});
     }
 
     template bool ExecutionHandler::WalkTheBook<ConsumeBids>(PendingOrder&, const BidAskPair&);
@@ -457,7 +447,7 @@ namespace backtester {
         return false;
     }
 
-    const PendingOrder* ExecutionHandler::GetPendingOrder(int32_t order_id) const {
+    const PendingOrder* ExecutionHandler::GetPendingOrder(int64_t order_id) const {
         auto order_it = std::find_if(pending_orders_.begin(), pending_orders_.end(),
             [order_id](const PendingOrder& order) {
                 return order.order_id == order_id;

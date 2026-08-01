@@ -21,9 +21,10 @@ void StrategyManager::InitializeStrategies(const IMarketDataProvider& provider) 
                 strat_config.name
             ));
         }
-        
-        strategy->Initialize(strat_config);
 
+        uint16_t idx = static_cast<uint16_t>(active_strategies_.size());
+        strategy->Initialize(strat_config);
+        strategy->SetIndex(idx);  
         active_strategies_.push_back(std::move(strategy));
     }
 
@@ -32,25 +33,24 @@ void StrategyManager::InitializeStrategies(const IMarketDataProvider& provider) 
     }
 }
 
-std::vector<std::unique_ptr<StrategySignalEvent>> StrategyManager::OnMarketEvent(
-    const MarketByOrderEvent& mbo_event) {
+std::vector<EventUnion>& StrategyManager::OnMarketEvent(const MarketByOrderEvent& mbo_event) {
 
-    std::vector<std::unique_ptr<StrategySignalEvent>> collected_signals;
+    collected_signals_.clear();
 
     for (auto& strategy : active_strategies_) {
         auto signal = strategy->OnMarketEvent(mbo_event);
 
         if (signal) {
-            collected_signals.push_back(std::move(signal));
+            collected_signals_.push_back(EventUnion{.strat_signal_ev = *signal});
         }
     }
 
-    return collected_signals;
+    return collected_signals_;
 }
 
 void StrategyManager::OnFillEvent(const StrategyFillEvent& fill) {
     for (auto& strategy : active_strategies_) {
-        if (strategy->GetId() == fill.strategy_id) {
+        if (strategy->GetIndex() == fill.strategy_id) {
             strategy->OnFill(fill);
             return;
         }
@@ -60,7 +60,7 @@ void StrategyManager::OnFillEvent(const StrategyFillEvent& fill) {
 
 void StrategyManager::OnRejectionEvent(const StrategyOrderRejectionEvent& msg) {
     for (auto& strategy : active_strategies_) {
-        if (strategy->GetId() == msg.strategy_id) {
+        if (strategy->GetIndex() == msg.strategy_id) {
             strategy->OnRejection(msg);
             return;
         }
