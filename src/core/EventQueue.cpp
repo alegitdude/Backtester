@@ -22,10 +22,12 @@ namespace backtester {
 
     EventUnion EventQueue::PopTopEvent() {
         if (pq_.empty()) {
-            return EventUnion{};
+            if (BT_UNLIKELY (pq_.empty())) {
+                throw std::out_of_range("Attempted to pop from empty queue");
+            } 
         }
         std::pop_heap(pq_.begin(), pq_.end(), comparator_);
-        EventUnion top_event = std::move(pq_.back());
+        EventUnion top_event = pq_.back();
         pq_.pop_back();
         return top_event;
     }

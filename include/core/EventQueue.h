@@ -1,6 +1,8 @@
 #pragma once
 #include "Event.h"
+#include "Types.h"
 #include <queue>
+#include <optional>
 
 namespace backtester {
 

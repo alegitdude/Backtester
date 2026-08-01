@@ -222,7 +222,6 @@ namespace backtester {
         out = {
             .header = {.timestamp = ts_event,
             .type = action},
-            .data_source_id = it->config.data_source_id,
             .ts_recv = ts_recv,
             .order_id = order_id,
             .price = price,
@@ -230,6 +229,7 @@ namespace backtester {
             .sequence = sequence,
             .instrument_id = instrument_id,
             .ts_in_delta = ts_in_delta,
+            .data_source_id = it->config.data_source_id,
             .publisher_id = publisher_id,
             .side = side,
             .flags = flags,

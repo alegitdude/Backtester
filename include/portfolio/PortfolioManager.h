@@ -18,7 +18,7 @@ namespace backtester {
         // MARK: Core Signal & Order Handling
         // =========================================================================
 
-        EventUnion RequestOrder(const StrategySignalEvent* signal);
+        EventUnion RequestOrder(const StrategySignalEvent& signal);
 
         void ProcessFill(const StrategyFillEvent& fill);
 
@@ -91,9 +91,9 @@ namespace backtester {
         // MARK: Internal Logic Handlers
         // =========================================================================
 
-        EventUnion HandleAddRequest(const StrategySignalEvent* signal);
-        EventUnion HandleModifyRequest(const StrategySignalEvent* signal);
-        EventUnion HandleCancelRequest(const StrategySignalEvent* signal);
+        EventUnion HandleAddRequest(const StrategySignalEvent& signal);
+        EventUnion HandleModifyRequest(const StrategySignalEvent& signal);
+        EventUnion HandleCancelRequest(const StrategySignalEvent& signal);
 
         // =========================================================================
         // MARK: Helper Utilities

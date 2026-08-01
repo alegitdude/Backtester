@@ -63,9 +63,10 @@ namespace backtester {
             if (isStrategySignalEvent(eventType)) {
                 const StrategySignalEvent& signal_event = current_event.strat_signal_ev;
 
-                auto order_event = portfolio_manager_.RequestOrder(&signal_event);
+                auto order_event = portfolio_manager_.RequestOrder(signal_event);
+                const EventType t = Hdr(order_event).type;
 
-                if (isStrategyOrderEvent(Hdr(order_event).type)) {
+                if (isStrategyOrderEvent(t) || t == EventType::kStrategyOrderRejection) {
                     event_queue_.PushEvent(std::move(order_event));
                     spdlog::debug("Queued order from signal at ts={}", current_time);
                 }
@@ -164,15 +165,6 @@ namespace backtester {
                 .price = close_price,
                 .quantity = std::abs(pos.quantity)
             };
-            // auto signal = std::make_unique<StrategySignalEvent>(
-            //     close_ts,
-            //     -1,  // use negative IDs to distinguish from strategy signals
-            //     pos.strategy_id,
-            //     pos.instrument_id,
-            //     signal_type,
-            //     close_price,
-            //     static_cast<uint32_t>(std::abs(pos.quantity))
-            // );
 
             event_queue_.PushEvent(EventUnion{.strat_signal_ev = signal});
             spdlog::info("EmitClosingOrders: strategy={} instrument={} qty={} price={}",

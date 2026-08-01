@@ -1,6 +1,6 @@
 #pragma once
-#include <memory>
-#include <string>
+#include <cstdint>
+#include <type_traits>
 
 enum class EventType : uint8_t {
     kMarketOrderAdd, // 0
@@ -57,8 +57,7 @@ struct EventHeader { // 16
 //////////////////////////////////////////////////////////////
 
 struct MarketByOrderEvent {  // 62
-    EventHeader header;         // 16
-    uint16_t    data_source_id; //  2  
+    EventHeader header;         // 16 
     uint64_t    ts_recv;        //  8
     uint64_t    order_id;       //  8
     int64_t     price;          //  8
@@ -66,6 +65,7 @@ struct MarketByOrderEvent {  // 62
     uint32_t    sequence;       //  4
     uint32_t    instrument_id;  //  4
     int32_t     ts_in_delta;    //  4
+    uint16_t    data_source_id; //  2 
     uint16_t    publisher_id;   //  2
     OrderSide   side;           //  1
     uint8_t     flags;          //  1
@@ -134,3 +134,7 @@ union EventUnion {
 };
 
 inline const EventHeader& Hdr(const EventUnion& e) noexcept { return e.mbo.header; }
+
+static_assert(sizeof(EventUnion) == 64);
+static_assert(std::is_trivially_copyable_v<EventUnion>);
+static_assert(std::is_standard_layout_v<MarketByOrderEvent>);
