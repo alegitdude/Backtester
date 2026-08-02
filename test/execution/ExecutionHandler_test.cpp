@@ -20,6 +20,7 @@ namespace backtester {
         static constexpr int64_t kTickValue = 12'500000000;    // 12.50 in 1e9
         static constexpr uint64_t kLatencyMs = 20;
         static constexpr uint64_t kLatencyNs = kLatencyMs * 1'000'000ULL;
+        static constexpr uint16_t kDataSourceId = 1;
 
         EventQueue event_queue_;
         AppConfig config_;
@@ -51,27 +52,49 @@ namespace backtester {
         // -------------------------------------------------------------------
         StrategyOrderEvent MakeOrderAdd(int32_t order_id, OrderSide side,
             int64_t price, uint32_t qty, uint64_t ts) {
-
-            return StrategyOrderEvent(
-                ts, EventType::kStrategyOrderAdd,
-                order_id, kInstrId, side, price * 1'000'000'000, qty, "TestStrat"
-            );
+            return StrategyOrderEvent {
+                .header = {
+                    .timestamp = ts,
+                    .type = EventType::kStrategyOrderAdd
+                },
+                .strategy_id = 1,
+                .order_id = order_id,
+                .instrument_id = kInstrId,
+                .side = side,
+                .price = price * 1'000'000'000,
+                .quantity = qty
+            };
         }
 
         StrategyOrderEvent MakeOrderCancel(int32_t order_id, uint64_t ts) {
-            return StrategyOrderEvent(
-                ts, EventType::kStrategyOrderCancel,
-                order_id, kInstrId, OrderSide::kBid, 0, 0, "TestStrat"
-            );
+            return StrategyOrderEvent {
+                .header = {
+                    .timestamp = ts,
+                    .type = EventType::kStrategyOrderCancel
+                },
+                .strategy_id = 1,
+                .order_id = order_id,
+                .instrument_id = kInstrId,
+                .side = OrderSide::kBid,
+                .price = 0,
+                .quantity = 0
+            };
         }
 
         StrategyOrderEvent MakeOrderModify(int32_t order_id, OrderSide side,
             int64_t price, uint32_t qty, uint64_t ts) {
-
-            return StrategyOrderEvent(
-                ts, EventType::kStrategyOrderModify,
-                order_id, kInstrId, side, price * 1'000'000'000, qty, "TestStrat"
-            );
+            return StrategyOrderEvent {
+                .header = {
+                    .timestamp = ts,
+                    .type = EventType::kStrategyOrderModify
+                },
+                .strategy_id = 1,
+                .order_id = order_id,
+                .instrument_id = kInstrId,
+                .side = side,
+                .price = price * 1'000'000'000,
+                .quantity = qty
+            };
         }
 
         // -------------------------------------------------------------------
@@ -79,63 +102,129 @@ namespace backtester {
         // -------------------------------------------------------------------
         MarketByOrderEvent MakeMboTrade(int64_t price, uint32_t size,
             uint64_t ts, OrderSide side) {
-
-            return MarketByOrderEvent(
-                ts, EventType::kMarketTrade,
-                ts, 1, kInstrId, side, price * 1'000'000'000, size,
-                0, 0x80, 0, 0, "ESZ5", "ES"
-            );
+            return MarketByOrderEvent {
+                .header = {
+                    .timestamp = ts,
+                    .type = EventType::kMarketTrade
+                },
+                .ts_recv = ts,
+                .order_id = 1, 
+                .price = price * 1'000'000'000,
+                .size = size,
+                .sequence = 1,
+                .instrument_id = kInstrId,
+                .ts_in_delta = 0 ,
+                .data_source_id = kDataSourceId,
+                .publisher_id = 1,
+                .side = side,
+                .flags = 0x80
+            };
         }
 
         MarketByOrderEvent MakeMboCancel(OrderSide side, int64_t price,
             uint32_t size, uint64_t ts, uint64_t order_id = 99999) {
-
-            return MarketByOrderEvent(
-                ts, EventType::kMarketOrderCancel,
-                ts, 1, kInstrId, side, price * 1'000'000'000, size,
-                order_id, 0x80, 0, 0, "ESZ5", "ES"
-            );
+            return MarketByOrderEvent {
+                .header = {
+                    .timestamp = ts,
+                    .type = EventType::kMarketOrderCancel
+                },
+                .ts_recv = ts,
+                .order_id = order_id, 
+                .price = price * 1'000'000'000,
+                .size = size,
+                .sequence = 1,
+                .instrument_id = kInstrId,
+                .ts_in_delta = 0 ,
+                .data_source_id = kDataSourceId,
+                .publisher_id = 1,
+                .side = side,
+                .flags = 0x80
+            };
         }
 
         MarketByOrderEvent MakeMboAdd(OrderSide side, int64_t price,
             uint32_t size, uint64_t ts, uint64_t order_id = 88888) {
-
-            return MarketByOrderEvent(
-                ts, EventType::kMarketOrderAdd,
-                ts, 1, kInstrId, side, price * 1'000'000'000, size,
-                order_id, 0x80, 0, 0, "ESZ5", "ES"
-            );
+             return MarketByOrderEvent {
+                .header = {
+                    .timestamp = ts,
+                    .type = EventType::kMarketOrderAdd
+                },
+                .ts_recv = ts,
+                .order_id = order_id, 
+                .price = price * 1'000'000'000,
+                .size = size,
+                .sequence = 1,
+                .instrument_id = kInstrId,
+                .ts_in_delta = 0,
+                .data_source_id = kDataSourceId,
+                .publisher_id = 1,
+                .side = side,
+                .flags = 0x80
+            };
         }
 
         MarketByOrderEvent MakeMboAddPub(OrderSide side, int64_t price,
             uint32_t size, uint64_t ts, uint16_t pub_id, uint64_t order_id = 88888) {
-
-            return MarketByOrderEvent(
-                ts, EventType::kMarketOrderAdd,
-                ts, pub_id, kInstrId, side, price * 1'000'000'000, size,
-                order_id, 0x80, 0, 0, "ESZ5", "ES"
-            );
+            return MarketByOrderEvent {
+                .header = {
+                    .timestamp = ts,
+                    .type = EventType::kMarketOrderAdd
+                },
+                .ts_recv = ts,
+                .order_id = order_id, 
+                .price = price * 1'000'000'000,
+                .size = size,
+                .sequence = 1,
+                .instrument_id = kInstrId,
+                .ts_in_delta = 0,
+                .data_source_id = kDataSourceId,
+                .publisher_id = pub_id,
+                .side = side,
+                .flags = 0x80
+            };    
         }
 
         MarketByOrderEvent MakeMboFill(int64_t price, uint32_t size,
             uint64_t ts, OrderSide side) {
-
-            return MarketByOrderEvent(
-                ts, EventType::kMarketFill,
-                ts, 1, kInstrId, side, price * 1'000'000'000, size,
-                0, 0, 0, 0, "ESZ5", "ES"
-            );
+            return MarketByOrderEvent {
+                .header = {
+                    .timestamp = ts,
+                    .type = EventType::kMarketFill
+                },
+                .ts_recv = ts,
+                .order_id = 1, 
+                .price = price * 1'000'000'000,
+                .size = size,
+                .sequence = 1,
+                .instrument_id = kInstrId,
+                .ts_in_delta = 0,
+                .data_source_id = kDataSourceId,
+                .publisher_id = 1,
+                .side = side,
+                .flags = 0x80
+            };     
         }
 
         // Different instrument
         MarketByOrderEvent MakeMboFillOtherInstr(int64_t price, uint32_t size,
             uint64_t ts) {
-
-            return MarketByOrderEvent(
-                ts, EventType::kMarketTrade,
-                ts, 1, 999999, OrderSide::kNone, price * 1'000'000'000, size,
-                0, 0, 0, 0, "NQZ5", "NQ"
-            );
+            return MarketByOrderEvent {
+                .header = {
+                    .timestamp = ts,
+                    .type = EventType::kMarketTrade
+                },
+                .ts_recv = ts,
+                .order_id = 1, 
+                .price = price * 1'000'000'000,
+                .size = size,
+                .sequence = 1,
+                .instrument_id = 2,
+                .ts_in_delta = 0,
+                .data_source_id = kDataSourceId,
+                .publisher_id = 1,
+                .side = OrderSide::kNone,
+                .flags = 0x80
+            };     
         }
 
         // -------------------------------------------------------------------
@@ -152,16 +241,16 @@ namespace backtester {
         }
 
         // Pop all StrategyFillEvents from the queue and return them
-        std::vector<std::unique_ptr<Event>> DrainFills() {
-            std::vector<std::unique_ptr<Event>> fills;
+        std::vector<EventUnion> DrainFills() {
+            std::vector<EventUnion> fills;
             while (!event_queue_.IsEmpty()) {
                 fills.push_back(event_queue_.PopTopEvent());
             }
             return fills;
         }
 
-        const StrategyFillEvent* AsFill(const std::unique_ptr<Event>& e) {
-            return static_cast<const StrategyFillEvent*>(e.get());
+        const StrategyFillEvent* AsFill(const EventUnion& e) {
+            return &e.strat_fill_ev;
         }
     };
 
@@ -305,10 +394,10 @@ namespace backtester {
 
         const StrategyFillEvent* fill = AsFill(fills[0]);
         EXPECT_EQ(fill->order_id, 1);
-        EXPECT_EQ(fill->fill_price, 5025'000'000'000);  // Filled at the resting ask
-        EXPECT_EQ(fill->fill_quantity, 1);
+        EXPECT_EQ(fill->price, 5025'000'000'000);  // Filled at the resting ask
+        EXPECT_EQ(fill->quantity, 1);
         EXPECT_EQ(fill->side, OrderSide::kBid);
-        EXPECT_EQ(fill->timestamp, order.timestamp + kLatencyNs);  // Fill at live_ts
+        EXPECT_EQ(fill->header.timestamp, order.header.timestamp + kLatencyNs);  // Fill at live_ts
     }
 
     TEST_F(ExecutionHandlerTest, MarketableOrder_BidAboveAsk) {
@@ -326,7 +415,7 @@ namespace backtester {
         EXPECT_FALSE(eh.HasPendingOrders());
         auto fills = DrainFills();
         ASSERT_EQ(fills.size(), 1);
-        EXPECT_EQ(AsFill(fills[0])->fill_price, 5025'000'000'000);  // Still fills at resting ask
+        EXPECT_EQ(AsFill(fills[0])->price, 5025'000'000'000);  // Still fills at resting ask
     }
 
     TEST_F(ExecutionHandlerTest, MarketableOrder_AskAtBid_FillsImmediately) {
@@ -346,8 +435,8 @@ namespace backtester {
         ASSERT_EQ(fills.size(), 1);
 
         const StrategyFillEvent* fill = AsFill(fills[0]);
-        EXPECT_EQ(fill->fill_price, 5000'000'000'000);  // Filled at resting bid
-        EXPECT_EQ(fill->fill_quantity, 1);
+        EXPECT_EQ(fill->price, 5000'000'000'000);  // Filled at resting bid
+        EXPECT_EQ(fill->quantity, 1);
         EXPECT_EQ(fill->side, OrderSide::kAsk);
     }
 
@@ -365,7 +454,7 @@ namespace backtester {
         EXPECT_FALSE(eh.HasPendingOrders());
         auto fills = DrainFills();
         ASSERT_EQ(fills.size(), 1);
-        EXPECT_EQ(AsFill(fills[0])->fill_price, 5000'000'000'000);
+        EXPECT_EQ(AsFill(fills[0])->price, 5000'000'000'000);
     }
 
     TEST_F(ExecutionHandlerTest, MarketableOrder_ZeroBbo_NotMarketable) {
@@ -539,8 +628,8 @@ namespace backtester {
         EXPECT_FALSE(eh.HasPendingOrders());
         auto fills = DrainFills();
         ASSERT_EQ(fills.size(), 1);
-        EXPECT_EQ(AsFill(fills[0])->fill_quantity, 2);
-        EXPECT_EQ(AsFill(fills[0])->fill_price, 5000'000'000'000);
+        EXPECT_EQ(AsFill(fills[0])->quantity, 2);
+        EXPECT_EQ(AsFill(fills[0])->price, 5000'000'000'000);
     }
 
     TEST_F(ExecutionHandlerTest, TradeFill_ExactQueueDepthTrade_NoFill) {
@@ -594,7 +683,7 @@ namespace backtester {
 
         auto fills = DrainFills();
         ASSERT_EQ(fills.size(), 1);
-        EXPECT_EQ(AsFill(fills[0])->fill_quantity, 3);
+        EXPECT_EQ(AsFill(fills[0])->quantity, 3);
     }
 
     TEST_F(ExecutionHandlerTest, TradeFill_PartialThenComplete) {
@@ -634,8 +723,8 @@ namespace backtester {
         EXPECT_FALSE(eh.HasPendingOrders());
         auto fills = DrainFills();
         ASSERT_EQ(fills.size(), 2);
-        EXPECT_EQ(AsFill(fills[0])->fill_quantity, 3);
-        EXPECT_EQ(AsFill(fills[1])->fill_quantity, 7);
+        EXPECT_EQ(AsFill(fills[0])->quantity, 3);
+        EXPECT_EQ(AsFill(fills[1])->quantity, 7);
     }
 
     TEST_F(ExecutionHandlerTest, TradeFill_QueueZero_ImmediateFillOnTrade) {
@@ -655,7 +744,7 @@ namespace backtester {
         EXPECT_FALSE(eh.HasPendingOrders());
         auto fills = DrainFills();
         ASSERT_EQ(fills.size(), 1);
-        EXPECT_EQ(AsFill(fills[0])->fill_quantity, 3);
+        EXPECT_EQ(AsFill(fills[0])->quantity, 3);
     }
 
     TEST_F(ExecutionHandlerTest, TradeFill_AskSide) {
@@ -675,7 +764,7 @@ namespace backtester {
         EXPECT_FALSE(eh.HasPendingOrders());
         auto fills = DrainFills();
         ASSERT_EQ(fills.size(), 1);
-        EXPECT_EQ(AsFill(fills[0])->fill_quantity, 2);
+        EXPECT_EQ(AsFill(fills[0])->quantity, 2);
         EXPECT_EQ(AsFill(fills[0])->side, OrderSide::kAsk);
     }
 
@@ -705,7 +794,7 @@ namespace backtester {
         EXPECT_FALSE(eh.HasPendingOrders());
         auto fills = DrainFills();
         ASSERT_EQ(fills.size(), 1);
-        EXPECT_EQ(AsFill(fills[0])->fill_quantity, 1);
+        EXPECT_EQ(AsFill(fills[0])->quantity, 1);
     }
 
     TEST_F(ExecutionHandlerTest, TradeFill_MarketStrategyFillEventType_AlsoFills) {
@@ -754,8 +843,8 @@ namespace backtester {
         EXPECT_FALSE(eh.HasPendingOrders());
         auto fills = DrainFills();
         ASSERT_EQ(fills.size(), 1);
-        EXPECT_EQ(AsFill(fills[0])->fill_price, 5000'000'000'000);  // Fill at our price, not trade price
-        EXPECT_EQ(AsFill(fills[0])->fill_quantity, 5);   // Full fill regardless of queue
+        EXPECT_EQ(AsFill(fills[0])->price, 5000'000'000'000);  // Fill at our price, not trade price
+        EXPECT_EQ(AsFill(fills[0])->quantity, 5);   // Full fill regardless of queue
     }
 
     TEST_F(ExecutionHandlerTest, TradeThrough_AskFilledWhenTradeAbove) {
@@ -778,8 +867,8 @@ namespace backtester {
         EXPECT_FALSE(eh.HasPendingOrders());
         auto fills = DrainFills();
         ASSERT_EQ(fills.size(), 1);
-        EXPECT_EQ(AsFill(fills[0])->fill_price, 5025'000'000'000);
-        EXPECT_EQ(AsFill(fills[0])->fill_quantity, 3);
+        EXPECT_EQ(AsFill(fills[0])->price, 5025'000'000'000);
+        EXPECT_EQ(AsFill(fills[0])->quantity, 3);
     }
 
     TEST_F(ExecutionHandlerTest, TradeThrough_TradeAtExactPrice_NotTradeThrough) {
@@ -1238,14 +1327,14 @@ namespace backtester {
         ASSERT_EQ(fills.size(), 1);
 
         const StrategyFillEvent* fill = AsFill(fills[0]);
-        EXPECT_EQ(fill->type, EventType::kStrategyOrderFill);
-        EXPECT_EQ(fill->timestamp, fill_ts);
+        EXPECT_EQ(fill->header.type, EventType::kStrategyOrderFill);
+        EXPECT_EQ(fill->header.timestamp, fill_ts);
         EXPECT_EQ(fill->order_id, 42);
         EXPECT_EQ(fill->instrument_id, kInstrId);
         EXPECT_EQ(fill->side, OrderSide::kAsk);
-        EXPECT_EQ(fill->fill_price, 5025'000'000'000);
-        EXPECT_EQ(fill->fill_quantity, 7);
-        EXPECT_EQ(fill->strategy_id, "TestStrat");
+        EXPECT_EQ(fill->price, 5025'000'000'000);
+        EXPECT_EQ(fill->quantity, 7);
+        EXPECT_EQ(fill->strategy_id, 1);
     }
 
     TEST_F(ExecutionHandlerTest, StrategyFillEvent_MarketableFillTimestamp) {
@@ -1264,20 +1353,12 @@ namespace backtester {
         ASSERT_EQ(fills.size(), 1);
 
         // Marketable fill timestamp should be submit_ts + latency
-        EXPECT_EQ(AsFill(fills[0])->timestamp, 3 + kLatencyNs);
+        EXPECT_EQ(AsFill(fills[0])->header.timestamp, 3 + kLatencyNs);
     }
 
     // =============================================================================
     // MARK: Top-of-Book Fill Model
     // =============================================================================
-    // These tests require access to fill_model_ which is private. 
-    // Testing via the public interface: we construct a separate config or 
-    // add a setter. For now, we test the default (QueuePosition) extensively
-    // above and add TOB tests assuming a way to switch the model.
-    // If fill_model_ becomes configurable via AppConfig, these tests are ready.
-
-    // NOTE: If you add a SetFillModel() public method or make it configurable,
-    // uncomment and use these tests:
 
     // TEST_F(ExecutionHandlerTest, TOB_BidFillsWhenAskDropsToPrice) {
     //     ExecutionHandler eh(event_queue_, config_, m_state_manager);
@@ -1362,10 +1443,12 @@ namespace backtester {
         ExecutionHandler eh(event_queue_, config_, m_state_manager);
 
         // kStrategyOrderClear — not explicitly handled, falls to default
-        StrategyOrderEvent clear_order(
-            1000, EventType::kStrategyOrderClear,
-            1, kInstrId, OrderSide::kBid, 5000, 1, "TestStrat"
-        );
+        StrategyOrderEvent clear_order {
+            .header = {.timestamp = 1000, .type = EventType::kStrategyOrderClear
+            },
+            .strategy_id = 1, .order_id = 1, .instrument_id = kInstrId,
+            .side = OrderSide::kBid, .price = 5000, .quantity = 1
+        };
         eh.OnStrategyOrder(clear_order);
 
         EXPECT_FALSE(eh.HasPendingOrders());
@@ -1416,9 +1499,9 @@ namespace backtester {
         auto fills = DrainFills();
         EXPECT_EQ(fills.size(), 10);
 
-        uint32_t total_filled = 0;
+        int64_t total_filled = 0;
         for (auto& f : fills) {
-            total_filled += AsFill(f)->fill_quantity;
+            total_filled += AsFill(f)->quantity;
         }
         EXPECT_EQ(total_filled, 50);
     }
@@ -1449,7 +1532,7 @@ namespace backtester {
         // Should have one partial fill event only
         auto fills = DrainFills();
         ASSERT_EQ(fills.size(), 1);
-        EXPECT_EQ(AsFill(fills[0])->fill_quantity, 2);
+        EXPECT_EQ(AsFill(fills[0])->quantity, 2);
     }
 
     TEST_F(ExecutionHandlerTest, EdgeCase_ModifyAfterPartialFill) {
@@ -1519,12 +1602,12 @@ namespace backtester {
         EXPECT_FALSE(eh.HasPendingOrders());              // fully filled
         auto fills = DrainFills();
         ASSERT_EQ(fills.size(), 2);                        // one per consumed level
-        EXPECT_EQ(AsFill(fills[0])->fill_price, 5025'000'000'000);
-        EXPECT_EQ(AsFill(fills[0])->fill_quantity, 2);
-        EXPECT_EQ(AsFill(fills[1])->fill_price, 5050'000'000'000);
-        EXPECT_EQ(AsFill(fills[1])->fill_quantity, 3);
+        EXPECT_EQ(AsFill(fills[0])->price, 5025'000'000'000);
+        EXPECT_EQ(AsFill(fills[0])->quantity, 2);
+        EXPECT_EQ(AsFill(fills[1])->price, 5050'000'000'000);
+        EXPECT_EQ(AsFill(fills[1])->quantity, 3);
         // all fills timestamped at live_ts
-        EXPECT_EQ(AsFill(fills[0])->timestamp, 1000 + kLatencyNs);
+        EXPECT_EQ(AsFill(fills[0])->header.timestamp, 1000 + kLatencyNs);
     }
 
     TEST_F(ExecutionHandlerTest, Walk_SellCrossesMultipleBidLevels) {
@@ -1539,10 +1622,10 @@ namespace backtester {
 
         auto fills = DrainFills();
         ASSERT_EQ(fills.size(), 2);
-        EXPECT_EQ(AsFill(fills[0])->fill_price, 5000'000'000'000);
-        EXPECT_EQ(AsFill(fills[0])->fill_quantity, 4);
-        EXPECT_EQ(AsFill(fills[1])->fill_price, 4975'000'000'000);
-        EXPECT_EQ(AsFill(fills[1])->fill_quantity, 1);
+        EXPECT_EQ(AsFill(fills[0])->price, 5000'000'000'000);
+        EXPECT_EQ(AsFill(fills[0])->quantity, 4);
+        EXPECT_EQ(AsFill(fills[1])->price, 4975'000'000'000);
+        EXPECT_EQ(AsFill(fills[1])->quantity, 1);
         EXPECT_FALSE(eh.HasPendingOrders());
     }
 
@@ -1558,9 +1641,9 @@ namespace backtester {
 
         auto fills = DrainFills();
         // Depending on whether you emit per-publisher or per-price: assert TOTAL filled = 5 at 5025.
-        uint32_t total = 0; for (auto& f : fills) total += AsFill(f)->fill_quantity;
+        int64_t total = 0; for (auto& f : fills) total += AsFill(f)->quantity;
         EXPECT_EQ(total, 5);
-        for (auto& f : fills) EXPECT_EQ(AsFill(f)->fill_price, 5025'000'000'000);
+        for (auto& f : fills) EXPECT_EQ(AsFill(f)->price, 5025'000'000'000);
         EXPECT_FALSE(eh.HasPendingOrders());
     }
 
@@ -1577,7 +1660,7 @@ namespace backtester {
         EXPECT_EQ(eh.GetPendingOrder(1)->remaining_qty, 3);
         auto fills = DrainFills(); 
         ASSERT_EQ(fills.size(), 1); 
-        EXPECT_EQ(AsFill(fills[0])->fill_quantity, 2);
+        EXPECT_EQ(AsFill(fills[0])->quantity, 2);
 
         // Another unrelated event with unchanged book must NOT refill the resting 3.
         auto ev2 = MakeMboAdd(OrderSide::kAsk, 5200, 1, 1000 + kLatencyNs + 5, 8);

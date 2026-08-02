@@ -102,6 +102,7 @@ namespace backtester {
     TEST_F(OrderBookTest, ES20251105_FullDay_MatchesDB_MBP10_OnePub) {
         DataSourceConfig data_source = {
             "ES",
+            1,
             {},
             kTestDataFolder / "ES-glbx-20251105.mbo.csv.zst",
             DataSchema::MBO,
@@ -136,12 +137,13 @@ namespace backtester {
         market_state_manager.Initialize(config.active_instruments);
 
         ASSERT_TRUE(data_reader_manager.RegisterAndInitStreams(config.data_configs));
+        MarketByOrderEvent mbo;
         for (const DataSourceConfig& source : config.data_configs) {
-            auto event_ptr = data_reader_manager.LoadNextEventFromSource(
-                source.data_source_name);
-            if (event_ptr) {
-                event_queue.PushEvent(std::move(event_ptr));
-            }
+            if(data_reader_manager.LoadNextEventFromSource(
+                source.data_source_id, mbo))
+           
+                event_queue.PushEvent(EventUnion{.mbo = mbo});
+            
             else {
                 std::cout << "No events loaded";
             }
@@ -150,23 +152,21 @@ namespace backtester {
         size_t snapshots_compared = 0;
 
         std::cout << "mbp10:" << expected_mbp10_map_.size() << std::endl;
-
+        MarketByOrderEvent mbo_event;
         while (!event_queue.IsEmpty()) {
             auto current_event = event_queue.PopTopEvent();
-            uint64_t current_time = current_event->timestamp;
-            EventType eventType = current_event->type;
+            uint64_t current_time = Hdr(current_event).timestamp;
+            EventType eventType = Hdr(current_event).type;
 
             if (isMarketEvent(eventType)) {
-                const MarketByOrderEvent* market_event =
-                    static_cast<const MarketByOrderEvent*>(current_event.get());
+                const MarketByOrderEvent& market_event = current_event.mbo;
 
-                market_state_manager.OnMarketEvent(*market_event);
-                auto event_ptr = data_reader_manager.LoadNextEventFromSource(market_event->data_source);
-                if (event_ptr) {
-                    event_queue.PushEvent(std::move(event_ptr));
+                market_state_manager.OnMarketEvent(market_event);
+                if(data_reader_manager.LoadNextEventFromSource(market_event.data_source_id, mbo_event)){
+                    event_queue.PushEvent(EventUnion{.mbo = mbo_event});
                 }
-                bool has_last_flag = (market_event->flags & 0x80) != 0;  // F_LAST = 128
-                uint32_t instr_id = market_event->instrument_id;
+                bool has_last_flag = (market_event.flags & 0x80) != 0;  // F_LAST = 128
+                uint32_t instr_id = market_event.instrument_id;
 
                 bool can_compare;
                 if (!expected_mbp10_map_.count(instr_id)) {
@@ -176,15 +176,15 @@ namespace backtester {
                     auto& instr_queue = expected_mbp10_map_[instr_id];
                     can_compare = has_last_flag &&
                         current_time == instr_queue.second[instr_queue.first].ts_event &&
-                        market_event->sequence == instr_queue.second[instr_queue.first].sequence_id &&
-                        market_event->price == instr_queue.second[instr_queue.first].price;
+                        market_event.sequence == instr_queue.second[instr_queue.first].sequence_id &&
+                        market_event.price == instr_queue.second[instr_queue.first].price;
                 }
 
                 if (can_compare) {
                     auto& idx_vec_pair = expected_mbp10_map_[instr_id];
                     const auto& expected_levels = idx_vec_pair.second[idx_vec_pair.first].levels;
                     const auto& actual_levels = market_state_manager.GetOBSnapshotByPub(
-                        market_event->instrument_id, market_event->publisher_id, 10);
+                        market_event.instrument_id, market_event.publisher_id, 10);
 
                     for (size_t i = 0; i < 10; i++) {
                         EXPECT_EQ(actual_levels[i], expected_levels[i])
@@ -196,7 +196,7 @@ namespace backtester {
                     if (idx_vec_pair.first > idx_vec_pair.second.size() - 1) {
                         expected_mbp10_map_.erase(instr_id);
                     }
-                    BidAskPair state_bbo = market_state_manager.GetInstrumentBbo(market_event->instrument_id);
+                    BidAskPair state_bbo = market_state_manager.GetInstrumentBbo(market_event.instrument_id);
                     EXPECT_EQ(state_bbo, actual_levels[0]);
                     // << "Mismatch between state_bbo:" << state_bbo << "& actual_levels" << actual_levels[0]
                     // << "at" << market_event->timestamp;

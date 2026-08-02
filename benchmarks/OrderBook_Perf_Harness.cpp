@@ -24,9 +24,9 @@ int main(int argc, char** argv) {
     std::cout << "Preloading events into memory...\n";
     std::vector<MarketByOrderEvent> event_cache;
     event_cache.reserve(16500000); 
-
-    while (auto event_ptr = reader.LoadNextEventFromSource("ES")) {
-        event_cache.push_back(*event_ptr);
+    MarketByOrderEvent mbo;
+    while (reader.LoadNextEventFromSource(0, mbo)) {
+        event_cache.push_back(mbo);
     }
     std::cout << "Cached " << event_cache.size() << " events.\n";
 

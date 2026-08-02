@@ -15,12 +15,11 @@ int main(int argc, char** argv) {
 
     backtester::DataReaderManager data_reader_manager;
     data_reader_manager.RegisterAndInitStreams(config.data_configs);
-    std::string source = config.data_configs[0].data_source_name;
-
+    auto source = config.data_configs[0].data_source_id;
+    MarketByOrderEvent mbo;
     while (true) {
-        auto event_ptr = data_reader_manager.LoadNextEventFromSource(source);
-        if (event_ptr) {
-            total_volume += event_ptr->size;
+        if(data_reader_manager.LoadNextEventFromSource(source, mbo)){
+            total_volume += mbo.size;
             message_count++;
         } else{
             break;
