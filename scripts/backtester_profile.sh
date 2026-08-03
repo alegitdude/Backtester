@@ -122,19 +122,3 @@ echo "== Median over $RUNS runs =="
 printf "  RunLoop:     %s s   (min %s / max %s)\n" "$s_med" "$s_min" "$s_max"
 printf "  Throughput:  %s M evt/s\n" "$t_med"
 printf "  Peak RSS:    %s MB\n" "$rss_med_mb"
-
-# --- append to BENCHMARKS.md -----------------------------------------------
-mkdir -p "$(dirname "$BENCH_MD")"
-{
-  echo ""
-  echo "### $DATE — full backtest (commit \`$COMMIT\`)"
-  echo ""
-  echo "- Machine: ${CPU:-unknown}"
-  echo "- Config: \`$(basename "$CONFIG")\`  |  pinned core $CORE  |  turbo off, performance governor, warm cache"
-  echo "- RunLoop: **$s_med s** (min $s_min / max $s_max, median of $RUNS)"
-  echo "- Throughput: **$t_med M evt/s**"
-  echo "- Peak RSS: **$rss_med_mb MB**"
-} >> "$BENCH_MD"
-
-echo
-echo "Appended row to $BENCH_MD"

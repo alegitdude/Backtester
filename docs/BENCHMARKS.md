@@ -11,6 +11,91 @@
 * **Methodology:** Benchmarks run with all cores set to performance, pinned to a single physical core via taskset. Fixed clocks eliminate thermal-throttling drift on this laptop; absolute times are therefore lower than peak-boost runs, but run-to-run variance is lower. Page cache warmed.
 
 ---
+## Switch To POD event structure Full Backtest Throughput (Lenovo FLex 5)
+**Date:** August 2, 2026
+**Commit:** `0c50161`
+```text
+== Full backtest benchmark ==
+  binary=/home/r/Desktop/Backtester/build/Backtester
+  config=/home/r/Desktop/Backtester/config/demo.json
+  core=2  runs=10
+
+  run  1/10:  17.608s   0.89 M evt/s   RSS 347 MB
+  run  2/10:  17.703s   0.88 M evt/s   RSS 347 MB
+  run  3/10:  17.539s   0.89 M evt/s   RSS 346 MB
+  run  4/10:  17.544s   0.89 M evt/s   RSS 346 MB
+  run  5/10:  17.453s   0.89 M evt/s   RSS 347 MB
+  run  6/10:  17.550s   0.89 M evt/s   RSS 347 MB
+  run  7/10:  17.380s   0.90 M evt/s   RSS 346 MB
+  run  8/10:  17.519s   0.89 M evt/s   RSS 347 MB
+  run  9/10:  17.338s   0.90 M evt/s   RSS 347 MB
+  run 10/10:  17.700s   0.88 M evt/s   RSS 347 MB
+
+== Median over 10 runs ==
+  RunLoop:     17.541 s   (min 17.338 / max 17.703)
+  Throughput:  0.890 M evt/s
+  Peak RSS:    347 MB
+
+```
+
+## Restructure Events to be Pieces of Data, remove all strings from hot path (Lenovo FLex 5)
+**Date:** August 2, 2026
+**Commit:** `0c50161`
+
+### Results
+* **Throughput:** 1.23718 - 1.22205 Million messages / second
+* **Time to Process 16M messages:** 13.0611s - 13.2228s 
+* **Bottlenecks Identified:**  ReadLine has a lot of cpu cycles that aren't decompression, 
+perhaps getting rid of GetNextToken and reading a whole line in a loop decreases the function calls enough to make a difference.
+### Raw Perf Output
+```text
+== Environment ==
+  harness=reader_perf_harness  core=2  config=/Backtester/config/demo.json
+
+== perf record -> /Backtester/benchmarks/reader_perf_harness/perf.data ==
+Processed 16158945 messages.
+Time: 13.1097s (1.23259 M/s)
+total_volume: 28907885
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.165 MB /Backtester/benchmarks/reader_perf_harness/perf.data (1299 samples) ]
+
+== perf stat (group A: time, cycles, instructions) ==
+Processed 16158945 messages.
+Time: 13.0611s (1.23718 M/s)
+total_volume: 28907885
+
+== perf stat (group B: branches, cache hierarchy) ==
+Processed 16158945 messages.
+Time: 13.2228s (1.22205 M/s)
+total_volume: 28907885
+
+perf stat summary  harness=reader_perf_harness  core=2  2026-08-02T17:54:12-05:00
+config=/Backtester/config/demo.json
+
+       23452589587  cycles
+       67936424988  instructions
+       15673302321  branches
+         112734842  branch-misses
+       12202432003  L1-dcache-loads
+         161917116  L1-dcache-load-misses
+           7653566  LLC-loads
+           2153542  LLC-load-misses
+
+      13.065104763  seconds time elapsed
+       0.000013062  seconds task-clock (on-CPU)
+
+---- ratios ----
+IPC:          2.90
+branch-miss:  0.72%
+
+---- cache hierarchy ----
+L1-dcache miss:  1.33%   (161917116 / 12202432003 loads)
+LLC-load miss:   28.14%   (2153542 / 7653566 LLC refs)
+LLC refs are 0.063% of L1 loads; ~0.018% of all loads reach DRAM.
+(LLC ref count is tiny, so a high LLC-miss % is expected and healthy.)
+
+```
+
 ## [Baseline] Initial Full Backtest Throughput (Lenovo FLex 5)
 **Date:** July 25, 2026
 **Commit:** `f390e7c`
@@ -393,18 +478,4 @@ total_volume: 28907885
       18.762527000 seconds user
        0.065991000 seconds sys
 ```
-### 2026-07-25T14:39:32-05:00 — full backtest (commit `f390e7c`)
 
-- Machine: Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz
-- Config: `demo.json`  |  pinned core 2  |  turbo off, performance governor, warm cache
-- RunLoop: **15.753 s** (min 15.581 / max 17.171, median of 10)
-- Throughput: **0.990 M evt/s**
-- Peak RSS: **346 MB**
-
-### 2026-07-25T14:45:26-05:00 — full backtest (commit `f390e7c`)
-
-- Machine: Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz
-- Config: `demo.json`  |  pinned core 2  |  turbo off, performance governor, warm cache
-- RunLoop: **20.617 s** (min 20.158 / max 22.480, median of 10)
-- Throughput: **0.755 M evt/s**
-- Peak RSS: **346 MB**

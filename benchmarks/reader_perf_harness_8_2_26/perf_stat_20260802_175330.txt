@@ -1,0 +1,24 @@
+perf stat summary  harness=reader_perf_harness  core=2  2026-08-02T17:54:12-05:00
+config=/home/r/Desktop/Backtester/config/demo.json
+
+       23452589587  cycles
+       67936424988  instructions
+       15673302321  branches
+         112734842  branch-misses
+       12202432003  L1-dcache-loads
+         161917116  L1-dcache-load-misses
+           7653566  LLC-loads
+           2153542  LLC-load-misses
+
+      13.065104763  seconds time elapsed
+       0.000013062  seconds task-clock (on-CPU)
+
+---- ratios ----
+IPC:          2.90
+branch-miss:  0.72%
+
+---- cache hierarchy ----
+L1-dcache miss:  1.33%   (161917116 / 12202432003 loads)
+LLC-load miss:   28.14%   (2153542 / 7653566 LLC refs)
+  LLC refs are 0.063% of L1 loads; ~0.018% of all loads reach DRAM.
+  (LLC ref count is tiny, so a high LLC-miss % is expected and healthy.)
