@@ -1,217 +1,185 @@
 #pragma once
-#include "../data_ingestion/IDataReader.h"
-#include "Event.h"
+#include <cstdint>
+#include <limits>
 #include <memory>
 #include <vector>
-#include <limits>
-#include <cstdint>
+
+#include "../data_ingestion/IDataReader.h"
+#include "Event.h"
 
 namespace backtester {
 #if defined(__GNUC__) || defined(__clang__)
-    #define BT_LIKELY(x)       __builtin_expect(!!(x), 1)
-    #define BT_UNLIKELY(x)     __builtin_expect(!!(x), 0)
+#define BT_LIKELY(x) __builtin_expect(!!(x), 1)
+#define BT_UNLIKELY(x) __builtin_expect(!!(x), 0)
 #else
-    #define BT_LIKELY(x)       [[likely]]
-    #define BT_UNLIKELY(x)     [[unlikely]]
+#define BT_LIKELY(x) [[likely]]
+#define BT_UNLIKELY(x) [[unlikely]]
 #endif
 
 static constexpr auto kUndefPrice = std::numeric_limits<std::int64_t>::max();
 
-using price_t     = int64_t;   // fixed-point, 1e-9 units
+using price_t = int64_t;       // fixed-point, 1e-9 units
 using timestamp_t = uint64_t;  // unix nanos
-using qty_t       = int64_t;   
-using order_id_t  = int64_t;   // internal IDs (wire IDs stay uint64_t)
-using money_t     = int64_t;
+using qty_t = int64_t;
+using order_id_t = int64_t;  // internal IDs (wire IDs stay uint64_t)
+using money_t = int64_t;
 
-enum class DataSchema {
-    MBO,
-    OHLCV
-};
-
-enum class Encoding {
-    DBN,
-    CSV,
-    JSON
-};
-
-enum class Compression {
-    ZSTD,
-    NONE
-};
-
-enum class PriceFormat {
-    FIXPNTINT,
-    DECIMAL
-};
-
-enum class TmStampFormat {
-    UNIX,
-    ISO
-};
-
-enum class InstrumentType {
-    FUT,
-    STOCK,
-    OPTION
-};
+enum class DataSchema { MBO, OHLCV };
+enum class Encoding { DBN, CSV, JSON };
+enum class Compression { ZSTD, NONE };
+enum class PriceFormat { FIXPNTINT, DECIMAL };
+enum class TmStampFormat { UNIX, ISO };
+enum class InstrumentType { FUT, STOCK, OPTION };
 
 enum class RiskMode {
-    PosSizeInDollars,    // max_position_size in dollars
-    PercentOfAcct       // max pct of account per trade
+  PosSizeInDollars,  // max_position_size in dollars
+  PercentOfAcct      // max pct of account per trade
 };
 
 struct Symbol {
-    std::string symbol;
-    uint32_t instrument_id;
-    std::string date;
+  std::string symbol;
+  uint32_t instrument_id;
+  std::string date;
 };
 
 struct DataSourceConfig {
-    std::string data_source_name; // can be anything but needed to differentiate sources
-    uint16_t data_source_id = 0;
-    std::vector<Symbol> data_symbology;
-    std::string data_filepath;
-    DataSchema schema;
-    Encoding encoding;
-    Compression compression;
-    PriceFormat price_format;
-    TmStampFormat ts_format;
+  std::string data_source_name;  // can be anything but needed to differentiate sources
+  uint16_t data_source_id = 0;
+  std::vector<Symbol> data_symbology;
+  std::string data_filepath;
+  DataSchema schema;
+  Encoding encoding;
+  Compression compression;
+  PriceFormat price_format;
+  TmStampFormat ts_format;
 };
 
 struct DataStream {
-    std::unique_ptr<IDataReader> reader;
-    DataSourceConfig config;
+  std::unique_ptr<IDataReader> reader;
+  DataSourceConfig config;
 };
 
 struct Strategy {
-    std::string name;
-    std::vector<int> params;
-    uint32_t traded_instr_id;
-    uint32_t max_lob_lvl; // If strat only needs current price, lvl is 1, 
-                     // otherwise how many levels strat is doing calculations on
+  std::string name;
+  std::vector<int> params;
+  uint32_t traded_instr_id;
+  uint32_t max_lob_lvl;  // If strat only needs current price, lvl is 1,
+                         // otherwise how many levels strat is doing calculations on
 };
 
 struct TradedInstrument {
-    uint32_t instrument_id;
-    InstrumentType instrument_type;
-    int64_t tick_size;
-    int64_t tick_value;
-    money_t init_margin_req;
-    money_t maint_margin_req;
+  uint32_t instrument_id;
+  InstrumentType instrument_type;
+  int64_t tick_size;
+  int64_t tick_value;
+  money_t init_margin_req;
+  money_t maint_margin_req;
 };
 
 struct CommissionStruct {
-    money_t fut_per_contract;
-    money_t stock_order_min;
-    money_t stock_per_share;
-    money_t stock_clearing_fee;
+  money_t fut_per_contract;
+  money_t stock_order_min;
+  money_t stock_per_share;
+  money_t stock_clearing_fee;
 };
 
 struct RiskLimits {
-    RiskMode risk_mode;
-    
-    // Position-based limits (used if mode == PositionLimit)
-    int64_t max_position_size;       // Max contracts/shares per instrument, 0 = no limit
-    
-    // Risk-based limits (used if mode == RiskPercent)
-    int64_t max_risk_per_trade_pct;  // Max % of equity at risk per trade
-    
-    // Always enforced
-    int64_t max_portfolio_delta;     // Max total absolute delta, 0 = no limit
-    int64_t max_drawdown_pct;        // % circuit breaker
-    int64_t max_delta_per_trade;     // Max dollar delta added per trade
+  RiskMode risk_mode;
+  // Position-based limits (used if mode == PositionLimit)
+  int64_t max_position_size;  // Max contracts/shares per instrument, 0 = no limit
+  // Risk-based limits (used if mode == RiskPercent)
+  int64_t max_risk_per_trade_pct;  // Max % of equity at risk per trade
+  // Always enforced
+  int64_t max_portfolio_delta;  // Max total absolute delta, 0 = no limit
+  int64_t max_drawdown_pct;     // % circuit breaker
+  int64_t max_delta_per_trade;  // Max dollar delta added per trade
 };
 
 struct AppConfig {
-    timestamp_t start_time; //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
-    timestamp_t end_time;  //Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
-    timestamp_t execution_latency_ms;
-    timestamp_t snapshot_interval_ns;
-    money_t initial_cash;
-    CommissionStruct commission_struct;
-    double risk_free_rate;
-    std::string log_file_path;
-    std::string report_output_dir;
-    std::vector<Strategy> strategies;
-    uint32_t max_lob_lvl;
-    std::vector<TradedInstrument> traded_instruments;
-    RiskLimits risk_limits;
-    std::vector<DataSourceConfig> data_configs;
-    std::vector<uint32_t> active_instruments; 
+  timestamp_t start_time;  // Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
+  timestamp_t end_time;    // Expected: YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
+  timestamp_t execution_latency_ms;
+  timestamp_t snapshot_interval_ns;
+  money_t initial_cash;
+  CommissionStruct commission_struct;
+  double risk_free_rate;
+  std::string log_file_path;
+  std::string report_output_dir;
+  std::vector<Strategy> strategies;
+  uint32_t max_lob_lvl;
+  std::vector<TradedInstrument> traded_instruments;
+  RiskLimits risk_limits;
+  std::vector<DataSourceConfig> data_configs;
+  std::vector<uint32_t> active_instruments;
 };
 
 struct Position {
-    uint32_t instrument_id = 0;
-    uint16_t strategy_id = 0;
-    int32_t last_order_id = 0;
-    int64_t quantity = 0;
-    int64_t avg_entry_price = 0;
-    uint64_t last_update_ts = 0;
+  uint32_t instrument_id = 0;
+  uint16_t strategy_id = 0;
+  int32_t last_order_id = 0;
+  int64_t quantity = 0;
+  int64_t avg_entry_price = 0;
+  uint64_t last_update_ts = 0;
 
-    int64_t UnrealizedPnL(int64_t currentPrice){
-        return quantity * (currentPrice - avg_entry_price);
-    }
+  int64_t UnrealizedPnL(int64_t currentPrice) {
+    return quantity * (currentPrice - avg_entry_price);
+  }
 
-    bool operator==(const Position& pos2) const {
-        return  instrument_id == pos2.instrument_id &&
-                quantity == pos2.quantity &&
-                avg_entry_price == pos2.avg_entry_price &&
-                last_update_ts == pos2.last_update_ts;
-    }
+  bool operator==(const Position& pos2) const {
+    return instrument_id == pos2.instrument_id && quantity == pos2.quantity &&
+           avg_entry_price == pos2.avg_entry_price && last_update_ts == pos2.last_update_ts;
+  }
 };
 
 struct PriceLevel {
-    price_t price = kUndefPrice;
-    uint32_t size = 0;
-    uint32_t count = 0;
+  price_t price = kUndefPrice;
+  uint32_t size = 0;
+  uint32_t count = 0;
 };
 
 struct BidAskPair {
-    PriceLevel bid;
-    PriceLevel ask;
+  PriceLevel bid;
+  PriceLevel ask;
 
-    bool operator==(const BidAskPair& bap2) const {
-        return bid.price == bap2.bid.price &&
-                ask.price == bap2.ask.price &&
-                bid.size == bap2.bid.size &&
-                ask.size == bap2.ask.size &&
-                bid.count == bap2.bid.count &&
-                ask.count == bap2.ask.count;
-    }
+  bool operator==(const BidAskPair& bap2) const {
+    return bid.price == bap2.bid.price && ask.price == bap2.ask.price &&
+           bid.size == bap2.bid.size && ask.size == bap2.ask.size && bid.count == bap2.bid.count &&
+           ask.count == bap2.ask.count;
+  }
 };
 
 struct TimeParseResult {
-    uint64_t unix_nanos = 0;
-    std::string error_msg = "";
-    bool success = false;
+  uint64_t unix_nanos = 0;
+  std::string error_msg = "";
+  bool success = false;
 };
 
 struct LastTrade {
-    uint64_t timestamp;
-    int64_t price;
-    uint32_t size;
-    OrderSide aggressor_side;
+  uint64_t timestamp;
+  int64_t price;
+  uint32_t size;
+  OrderSide aggressor_side;
 };
 
 struct MarketSnapshot {
-    uint32_t instrument_id = 0;
-    BidAskPair bbo = {};
-    int64_t wmp = 0;
-    int64_t vwap = 0;
-    LastTrade last_trade = {};
-    int64_t session_high = 0;
-    int64_t session_low = kUndefPrice;
-    int64_t cumulative_volume = 0;
+  uint32_t instrument_id = 0;
+  BidAskPair bbo = {};
+  int64_t wmp = 0;
+  int64_t vwap = 0;
+  LastTrade last_trade = {};
+  int64_t session_high = 0;
+  int64_t session_low = kUndefPrice;
+  int64_t cumulative_volume = 0;
 };
 
 struct TradeRecord {
-    uint64_t timestamp;
-    uint16_t strategy_id;
-    uint32_t instrument_id;
-    OrderSide side;
-    int64_t price;
-    int64_t quantity;
-    int64_t realized_pnl;  
-    money_t commission;
+  uint64_t timestamp;
+  uint16_t strategy_id;
+  uint32_t instrument_id;
+  OrderSide side;
+  int64_t price;
+  int64_t quantity;
+  int64_t realized_pnl;
+  money_t commission;
 };
-}
+}  // namespace backtester

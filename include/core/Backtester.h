@@ -1,62 +1,56 @@
 #pragma once
-#include "EventQueue.h"
 #include "../data_ingestion/DataReaderManager.h"
+#include "../execution/ExecutionHandler.h"
 #include "../market_state/MarketStateManager.h"
 #include "../portfolio/PortfolioManager.h"
 #include "../reporting/ReportGenerator.h"
-#include "../execution/ExecutionHandler.h"
 #include "../strategy/StrategyManager.h"
+#include "EventQueue.h"
 #include "Types.h"
 
 namespace backtester {
 
 class Backtester {
  public:
-	Backtester( EventQueue& eq, DataReaderManager& drm, MarketStateManager& msm,
-				PortfolioManager& pm, ReportGenerator& rg, ExecutionHandler& eh,
-				StrategyManager& sm) : 
-				event_queue_(eq), data_reader_manager_(drm), 
-				market_state_manager_(msm),portfolio_manager_(pm),
-				report_generator_(rg), execution_handler_(eh), 
-				strategy_manager_(sm) {}
+  Backtester(EventQueue& eq, DataReaderManager& drm, MarketStateManager& msm, PortfolioManager& pm,
+             ReportGenerator& rg, ExecutionHandler& eh, StrategyManager& sm)
+      : event_queue_(eq),
+        data_reader_manager_(drm),
+        market_state_manager_(msm),
+        portfolio_manager_(pm),
+        report_generator_(rg),
+        execution_handler_(eh),
+        strategy_manager_(sm) {}
 
-  	int RunLoop(const AppConfig& config);
-	void EmitClosingOrders(timestamp_t close_ts);
-	void RecordSnapshot(timestamp_t current_time);
+  int RunLoop(const AppConfig& config);
+  void EmitClosingOrders(timestamp_t close_ts);
+  void RecordSnapshot(timestamp_t current_time);
 
  private:
-    EventQueue& event_queue_;
-	DataReaderManager& data_reader_manager_;
-	MarketStateManager& market_state_manager_; 
-	PortfolioManager& portfolio_manager_;
-	ReportGenerator& report_generator_;
-	ExecutionHandler& execution_handler_;
-	StrategyManager& strategy_manager_;
-	};
+  EventQueue& event_queue_;
+  DataReaderManager& data_reader_manager_;
+  MarketStateManager& market_state_manager_;
+  PortfolioManager& portfolio_manager_;
+  ReportGenerator& report_generator_;
+  ExecutionHandler& execution_handler_;
+  StrategyManager& strategy_manager_;
+};
 
-	inline bool isMarketEvent(EventType type) {
-    	return type == EventType::kMarketOrderAdd   || 
-			type == EventType::kMarketOrderCancel   || 
-			type == EventType::kMarketOrderModify   || 
-			type == EventType::kMarketOrderClear    || 
-			type == EventType::kMarketTrade 		||
-			type == EventType::kMarketFill          ||
-			type == EventType::kMarketHeartbeat;
-	}
-	inline bool isStrategySignalEvent(EventType type) {
-		return type == EventType::kStrategySignal;
-	}
-	inline bool isStrategyOrderEvent(EventType type){
-		return type == EventType::kStrategyOrderAdd  ||
-			type == EventType::kStrategyOrderModify  ||
-			type == EventType::kStrategyOrderCancel  ||
-			type == EventType::kStrategyOrderClear;
-	}
-	inline bool isControlEvent(EventType type) {
-		return type == EventType::kBacktestControlStart      || 
-			type == EventType::kBacktestControlEndOfBacktest ||
-			type == EventType::kBacktestControlSnapshot      ||
-			type == EventType::kBacktestControlEndOfDay;
-	}
-
+inline bool isMarketEvent(EventType type) {
+  return type == EventType::kMarketOrderAdd    || type == EventType::kMarketOrderCancel ||
+         type == EventType::kMarketOrderModify || type == EventType::kMarketOrderClear ||
+         type == EventType::kMarketTrade       || type == EventType::kMarketFill ||
+         type == EventType::kMarketHeartbeat;
 }
+inline bool isStrategySignalEvent(EventType type) { return type == EventType::kStrategySignal; }
+inline bool isStrategyOrderEvent(EventType type) {
+  return type == EventType::kStrategyOrderAdd    || type == EventType::kStrategyOrderModify ||
+         type == EventType::kStrategyOrderCancel || type == EventType::kStrategyOrderClear;
+}
+inline bool isControlEvent(EventType type) {
+  return type == EventType::kBacktestControlStart ||
+         type == EventType::kBacktestControlEndOfBacktest ||
+         type == EventType::kBacktestControlSnapshot || type == EventType::kBacktestControlEndOfDay;
+}
+
+}  // namespace backtester

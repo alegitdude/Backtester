@@ -1,46 +1,50 @@
 #pragma once
-#include "IDataReader.h"
 #include <iostream>
+
+#include "IDataReader.h"
 // Include file stream for reading binary files
 #include <fstream>
 // Include string stream for parsing CSV lines
+#include <zstd.h>
+
 #include <sstream>
 #include <vector>
-#include <zstd.h>
 
 namespace backtester {
 
-class CsvZstReader : public IDataReader{ 
+class CsvZstReader : public IDataReader {
  public:
-    CsvZstReader() : dstream_(nullptr), output_pos_(0), output_size_(0), 
-                     input_pos_(0), input_valid_size_(0), eof_reached_(false) {
-        					input_buffer_.resize(input_buf_size);
-        					output_buffer_.resize(output_buf_size);
-    }
-    
-    ~CsvZstReader();
+  CsvZstReader()
+      : dstream_(nullptr),
+        output_pos_(0),
+        output_size_(0),
+        input_pos_(0),
+        input_valid_size_(0),
+        eof_reached_(false) {
+    input_buffer_.resize(input_buf_size);
+    output_buffer_.resize(output_buf_size);
+  }
 
-    bool Open(const std::string& filename) override;
-    
-    void Close() override ;
-    
-    bool ReadLine(std::string& line) override ; 
+  ~CsvZstReader();
+  bool Open(const std::string& filename) override;
+  void Close() override;
+  bool ReadLine(std::string& line) override;
 
  private:
-    std::ifstream file_;
-    ZSTD_DStream* dstream_;
-    std::vector<char> input_buffer_;
-    std::vector<char> output_buffer_;  
-    size_t output_pos_;
-    size_t output_size_;
-    size_t input_pos_;
-    size_t input_valid_size_;
-    bool eof_reached_;
-    
-    size_t input_buf_size = ZSTD_DStreamInSize();
-    size_t output_buf_size = ZSTD_DStreamOutSize();
+  std::ifstream file_;
+  ZSTD_DStream* dstream_;
+  std::vector<char> input_buffer_;
+  std::vector<char> output_buffer_;
+  size_t output_pos_;
+  size_t output_size_;
+  size_t input_pos_;
+  size_t input_valid_size_;
+  bool eof_reached_;
 
-    bool FillBuffer(); 
+  size_t input_buf_size = ZSTD_DStreamInSize();
+  size_t output_buf_size = ZSTD_DStreamOutSize();
+
+  bool FillBuffer();
 };
 
-}
+}  // namespace backtester
