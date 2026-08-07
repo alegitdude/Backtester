@@ -101,9 +101,10 @@ target_link_libraries(Backtester PRIVATE
 ########################
 # Tests
 ########################
-add_executable(tests
+add_executable(tests 
   test/core/ConfigParser_test.cpp
   test/core/EventQueue_test.cpp
+  test/core/SPSCRing_test.cpp
   test/data_ingestion/CsvZstReader_test.cpp
   test/portfolio/PortfolioManager_test.cpp
   test/utils/TimeUtils_test.cpp
