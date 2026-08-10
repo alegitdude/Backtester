@@ -31,6 +31,36 @@ class SPSCRing {
     return true;
   };
 
+  //----Producer side---
+  T* PrepareWrite() {
+    const size_t w = write_idx_.load(std::memory_order_relaxed);
+    if (w - cached_read_ >= Capacity) {  // cache says full?
+      cached_read_ = read_idx_.load(std::memory_order_acquire);
+      if (w - cached_read_ >= Capacity) return nullptr;  // full
+    }
+    return &slots_[w & kMask];  // slot to fill, not yet published
+  }
+
+  void CommitWrite() {
+    const size_t w = write_idx_.load(std::memory_order_relaxed);
+    write_idx_.store(w + 1, std::memory_order_release);  // publish: slot write happens-before this
+  }
+
+  // ---- Consumer side ----
+  const T* PeekRead() {
+    const size_t r = read_idx_.load(std::memory_order_relaxed);
+    if (r == cached_write_) {  // cache says empty?
+      cached_write_ = write_idx_.load(std::memory_order_acquire);
+      if (r == cached_write_) return nullptr;  // empty
+    }
+    return &slots_[r & kMask];  // slot to read
+  }
+
+  void CommitRead() {
+    const size_t r = read_idx_.load(std::memory_order_relaxed);
+    read_idx_.store(r + 1, std::memory_order_release);  // free the slot for the producer
+  }
+
  private:
   static_assert((Capacity & (Capacity - 1)) == 0, "Capacity must be power of 2");
   static constexpr size_t kMask = Capacity - 1;
