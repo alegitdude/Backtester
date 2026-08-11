@@ -83,9 +83,9 @@ int main(int argc, char* argv[]) {
 
   backtester::Backtester backtester(event_queue, data_reader_manager, market_state_manager,
                                     portfolio_manager, report_generator, execution_handler,
-                                    strategy_manager);
+                                    strategy_manager, config);
 
-  backtester.RunLoop(config);
+  backtester.RunLoopSingleThreaded();
 
   return 0;
 }
