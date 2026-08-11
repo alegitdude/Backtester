@@ -65,7 +65,7 @@ void ReportGenerator::GenerateReport(const PortfolioManager& portfolio,
   WriteSummaryCsv(output_dir + "/summary.csv", summary);
 
   // 2. Trade log
-  WriteTradeLogCsv(output_dir + "/trade_log.csv", portfolio.GetTradeHistory());
+  WriteTradeLogCsv(output_dir + "/trade_log.csv", portfolio.GetTradeHistory(), names);
 
   // 3. Equity curve
   WriteEquityCurveCsv(output_dir + "/equity_curve.csv");
@@ -439,7 +439,8 @@ void ReportGenerator::WriteSummaryCsv(const std::string& filepath,
 }
 
 void ReportGenerator::WriteTradeLogCsv(const std::string& filepath,
-                                       const std::vector<TradeRecord>& trades) const {
+                                       const std::vector<TradeRecord>& trades,
+                                       std::vector<std::string> names) const {
   std::ofstream file(filepath);
   if (!file.is_open()) {
     spdlog::error("ReportGenerator: Failed to open {}", filepath);
@@ -450,7 +451,7 @@ void ReportGenerator::WriteTradeLogCsv(const std::string& filepath,
        << "realized_pnl,commission\n";
 
   for (const auto& t : trades) {
-    file << t.timestamp << "," << t.strategy_id << "," << t.instrument_id << ","
+    file << t.timestamp << "," << names[t.strategy_id] << "," << t.instrument_id << ","
          << SideToString(t.side) << "," << FormatScaledPrice(t.price) << "," << t.quantity << ","
          << FormatScaledPrice(t.realized_pnl) << "," << FormatScaledPrice(t.commission) << "\n";
   }

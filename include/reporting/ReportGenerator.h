@@ -132,7 +132,7 @@ class ReportGenerator {
   // -------------------------------------------------------------------
   void WriteSummaryCsv(const std::string& filepath, const PerformanceSummary& summary) const;
 
-  void WriteTradeLogCsv(const std::string& filepath, const std::vector<TradeRecord>& trades) const;
+  void WriteTradeLogCsv(const std::string& filepath, const std::vector<TradeRecord>& trades, std::vector<std::string> names) const;
 
   void WriteEquityCurveCsv(const std::string& filepath) const;
 
