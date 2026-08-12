@@ -1,6 +1,7 @@
 build/
 build-san/
 build-debug/
+build-tsan/
 .vscode/
 .env
 Backtester

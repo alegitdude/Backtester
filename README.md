@@ -166,6 +166,12 @@ cmake --build build-debug -j
 cmake -B build-san -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON
 cmake --build build-san -j
 ctest --test-dir build-san --output-on-failure
+
+# Debug build with TSAN
+sudo sysctl vm.mmap_rnd_bits=28   # TSan/ASLR workaround, resets on reboot
+cmake -S . -B build-tsan -DENABLE_TSAN=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build-tsan --target Backtester
+./build-tsan/Backtester config/demo.json threaded
 ```
 
 You only need to re-run `cmake -B <dir>` when you change `CMakeLists.txt` or

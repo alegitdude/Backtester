@@ -58,6 +58,18 @@ if(ENABLE_SANITIZERS)
     -fsanitize=address,undefined)
 endif()
 
+option(ENABLE_TSAN "Build with ThreadSanitizer (mutually exclusive with ASan)" OFF)
+if(ENABLE_TSAN)
+  target_compile_options(project_sanitizers INTERFACE
+    -fsanitize=thread -fno-sanitize-recover=all)
+  target_link_options(project_sanitizers INTERFACE
+    -fsanitize=thread)
+endif()
+
+if(ENABLE_SANITIZERS AND ENABLE_TSAN)
+  message(FATAL_ERROR "ENABLE_SANITIZERS (ASan) and ENABLE_TSAN are mutually exclusive")
+endif()
+
 ########################
 # Core Library 
 ########################
@@ -121,7 +133,7 @@ target_link_libraries(tests PRIVATE
  
 enable_testing()
 include(GoogleTest)
-gtest_discover_tests(tests)
+gtest_discover_tests(tests DISCOVERY_MODE PRE_TEST)
 
 ########################
 # Benchmark Harnesses
