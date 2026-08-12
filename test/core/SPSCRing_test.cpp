@@ -37,6 +37,8 @@ TEST_F(SPSCRingTest, NewRing_PopFails) {
   EXPECT_EQ(out, 12345u);  // out must be untouched on failure
 }
 
+TEST_F(SPSCRingTest, NewRing_PeekReturnsNull) { EXPECT_EQ(ring.PeekRead(), nullptr); }
+
 //////////////////////////////////////////////////////////
 // MARK: Single element round-trip
 //////////////////////////////////////////////////////////
@@ -185,6 +187,83 @@ TEST(SPSCRingConcurrent, TwoThreads_AllItemsInOrder_TryApi) {
     for (uint64_t i = 0; i < N;) {
       Payload p{i, i * 2 + 1};
       if (ring.TryPush(p)) ++i;
+    }
+  });
+  producer.join();
+  consumer.join();
+  EXPECT_TRUE(order_ok.load());
+}
+
+//////////////////////////////////////////////////////////
+// MARK: Zero-copy API parity with copy API
+//////////////////////////////////////////////////////////
+
+TEST_F(SPSCRingTest, PrepareCommit_MatchesTryPush) {
+  uint64_t* s = ring.PrepareWrite();
+  ASSERT_NE(s, nullptr);
+  *s = 99;
+  ring.CommitWrite();
+  uint64_t out;
+  ASSERT_TRUE(ring.TryPop(out));
+  EXPECT_EQ(out, 99u);
+}
+
+TEST_F(SPSCRingTest, PrepareWrite_ReturnsNullWhenFull) {
+  for (uint64_t i = 0; i < 4; ++i) {
+    uint64_t* s = ring.PrepareWrite();
+    ASSERT_NE(s, nullptr);
+    *s = i;
+    ring.CommitWrite();
+  }
+  EXPECT_EQ(ring.PrepareWrite(), nullptr);
+}
+
+TEST_F(SPSCRingTest, PrepareWrite_WithoutCommit_DoesNotPublish) {
+  uint64_t* s = ring.PrepareWrite();
+  ASSERT_NE(s, nullptr);
+  *s = 77;                              // wrote slot but did not commit
+  EXPECT_EQ(ring.PeekRead(), nullptr);  // consumer must NOT see it
+}
+
+TEST_F(SPSCRingTest, PeekRead_IsNonDestructive) {
+  ASSERT_TRUE(ring.TryPush(55));
+  const uint64_t* a = ring.PeekRead();
+  const uint64_t* b = ring.PeekRead();
+  ASSERT_NE(a, nullptr);
+  ASSERT_NE(b, nullptr);
+  EXPECT_EQ(*a, 55u);
+  EXPECT_EQ(*b, 55u);  // repeatable until CommitRead
+  ring.CommitRead();
+  EXPECT_EQ(ring.PeekRead(), nullptr);
+}
+
+
+TEST(SPSCRingConcurrent, TwoThreads_ZeroCopyApi) {
+  SPSCRing<Payload, 1024> ring;
+  constexpr uint64_t N = 2'000'000;
+  std::atomic<bool> order_ok{true};
+
+  std::thread consumer([&] {
+    uint64_t expect = 0;
+    for (uint64_t got = 0; got < N;) {
+      const Payload* p = ring.PeekRead();
+      if (p) {
+        if (p->seq != expect) order_ok.store(false);
+        ++expect;
+        ++got;
+        ring.CommitRead();
+      }
+    }
+  });
+  std::thread producer([&] {
+    for (uint64_t i = 0; i < N;) {
+      Payload* s = ring.PrepareWrite();
+      if (s) {
+        s->seq = i;
+        s->tag = i * 2 + 1;
+        ring.CommitWrite();
+        ++i;
+      }
     }
   });
   producer.join();
