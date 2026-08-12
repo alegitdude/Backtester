@@ -27,6 +27,7 @@ FetchContent_Declare(
   GIT_TAG        release-1.12.1
 )
 FetchContent_MakeAvailable(googletest spdlog json)
+find_package(Threads REQUIRED)
 
 #   Release -> -O3 -DNDEBUG    Debug -> -O0 -g
 add_compile_options(-g -fno-omit-frame-pointer)
@@ -85,7 +86,7 @@ add_library(CoreLogic STATIC
 target_include_directories(CoreLogic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(CoreLogic PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(CoreLogic 
-  PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog project_sanitizers
+  PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog project_sanitizers Threads::Threads
   PRIVATE zstd project_warnings 
 )
 ########################

@@ -5,7 +5,106 @@
 
 namespace backtester {
 
-// MARK: Run Loop
+// MARK: Run Loop Multi Threaded
+int Backtester::RunLoopThreaded() {
+  PrimeSources();
+
+  const auto t0 = std::chrono::steady_clock::now();
+
+  std::thread producer(&Backtester::ProducerLoop, this);
+  const uint64_t event_tally = ConsumerLoop();  // consumer runs on the main thread
+  producer.join();
+
+  const auto elapsed = std::chrono::steady_clock::now() - t0;
+  const double secs = std::chrono::duration<double>(elapsed).count();
+  spdlog::info("Loop: {} events  {:.3f}s  {:.2f} M evt/s", event_tally, secs,
+               static_cast<double>(event_tally) / secs / 1e6);
+
+  report_generator_.GenerateReport(portfolio_manager_, strategy_manager_.GetStrategyNames());
+  return 0;
+}
+
+// MARK: Producer Loop
+void Backtester::ProducerLoop() {
+  while (!source_heap_.empty()) {
+    if (backtest_complete_.load(std::memory_order_acquire)) break;
+    FillRing();
+  }
+  producer_done_.store(true, std::memory_order_release);
+}
+
+// MARK: Consumer Loop
+uint64_t Backtester::ConsumerLoop() {
+  uint64_t current_time = 0;
+  uint64_t last_snapshot_ts_ = 0;
+  uint64_t event_tally = 0;
+  bool end_of_bt_pushed = false;
+
+  while (true) {
+    const EventUnion* mkt_ev = ring_.PeekRead();
+    const bool synth = !event_queue_.IsEmpty();
+
+    // --- termination / starvation handling -------------------------------
+    if (!mkt_ev && !synth) {
+      // Nothing available right now. Two reasons possible:
+      //   (a) producer finished and everything is processed -> DONE
+      //   (b) producer just hasn't caught up yet            -> SPIN
+      if (producer_done_.load(std::memory_order_acquire) &&
+          ring_.PeekRead() == nullptr) {  // re-check: closes push-then-flag race
+        break;
+      }
+      continue;  // ring transiently empty; try again
+    }
+
+    // --- two-way merge: earliest wins; market wins ties ------------------
+    bool take_market;
+    if (mkt_ev && synth) {
+      take_market = Hdr(*mkt_ev).timestamp <= Hdr(event_queue_.ReadTopEvent()).timestamp;
+    } else {
+      take_market = (mkt_ev != nullptr);
+    }
+
+    if (take_market) {
+      if (backtest_complete_.load(std::memory_order_acquire)) {
+        ring_.CommitRead();  // discard: past the window, don't process
+        continue;
+      }
+      const MarketByOrderEvent mbo = mkt_ev->mbo;  // copy out BEFORE CommitRead
+      current_time = mbo.header.timestamp;
+      ring_.CommitRead();  // frees slot for producer
+      ApplyMarket(mbo);
+      // NOTE: no FillRing() here anymore — the producer thread owns that.
+    } else {
+      EventUnion ev = event_queue_.PopTopEvent();
+      current_time = Hdr(ev).timestamp;
+      ApplySynthetic(ev, current_time);
+    }
+    ++event_tally;
+
+    // End-of-backtest trigger 
+    const bool streams_dry = (ring_.PeekRead() == nullptr) && event_queue_.IsEmpty() &&
+                             producer_done_.load(std::memory_order_acquire);
+
+    if (((streams_dry || current_time > config_.end_time) && !backtest_complete_) &&
+        !end_of_bt_pushed) {
+      event_queue_.PushEvent(
+          EventUnion{.control_ev = {.header = {.timestamp = current_time,
+                                               .type = EventType::kBacktestControlEndOfBacktest}}});
+      end_of_bt_pushed = true;
+    }
+
+    if (current_time >= config_.start_time &&
+        current_time - last_snapshot_ts_ >= config_.snapshot_interval_ns) {
+      RecordSnapshot(current_time);
+      last_snapshot_ts_ = current_time;
+    }
+  }
+
+  spdlog::info("Consumer processed {} events", event_tally);
+  return event_tally;
+}
+
+// MARK: Run Loop Single Threaded
 int Backtester::RunLoopSingleThreaded() {
   // Prime the ring with the first market events.
   PrimeSources();
@@ -52,7 +151,8 @@ int Backtester::RunLoopSingleThreaded() {
         !end_of_bt_pushed) {
       event_queue_.PushEvent(
           EventUnion{.control_ev = {.header = {.timestamp = current_time,
-                                               .type = EventType::kBacktestControlEndOfBacktest}}});
+                                               .type =
+                                               EventType::kBacktestControlEndOfBacktest}}});
       end_of_bt_pushed = true;
     }
 
@@ -138,7 +238,7 @@ void Backtester::ApplySynthetic(const EventUnion& ev, uint64_t current_time) {
       execution_handler_.CancelAllPendingOrders();
       portfolio_manager_.CancelAllPendingOrders();
       EmitClosingOrders(current_time);
-      backtest_complete_ = true;
+      backtest_complete_.store(true);
     }
   }
 }

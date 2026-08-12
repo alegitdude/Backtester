@@ -23,17 +23,17 @@ void SetupLogging(std::string log_path) {
       log_path + "/backtest_" + stamp + ".log", true);
   auto logger = std::make_shared<spdlog::logger>("main_logger", file_sink);
   spdlog::set_default_logger(logger);
-  spdlog::set_level(spdlog::level::debug);
+  spdlog::set_level(spdlog::level::trace);
   spdlog::flush_on(spdlog::level::info);
 }
 
 int main(int argc, char* argv[]) {
   spdlog::info("Backtester Program Started");
 
-  if (argc != 2) {
-    spdlog::error(R"(Usage: {} <path to config.json> 
+  if (argc != 2 && argc != 3) {
+    spdlog::error(R"(Usage: {} <path to config.json> <threaded | single>
             Try running the included demo from the build folder: 
-            {} ../config/demo.json)",
+            {} ../config/demo.json --threaded)",
                   argv[0], argv[0]);
     return 1;
   }
@@ -41,8 +41,8 @@ int main(int argc, char* argv[]) {
   std::filesystem::path config_path;
   std::string arg = argv[1];
   if (arg == "-h" || arg == "--help") {
-    spdlog::info(R"(Usage: ./Backtester <path to config.json>
-            Runs a backtest with the specified configuration.)",
+    spdlog::info(R"(Usage: ./Backtester <path to config.json> <threaded | single>
+            Runs a backtest with the specified configuration and either single threaded or multi.)",
                  arg[0]);
     return 0;
   }
@@ -84,8 +84,16 @@ int main(int argc, char* argv[]) {
   backtester::Backtester backtester(event_queue, data_reader_manager, market_state_manager,
                                     portfolio_manager, report_generator, execution_handler,
                                     strategy_manager, config);
-
-  backtester.RunLoopSingleThreaded();
+  
+  std::string mode = (argc == 3) ? argv[2] : "threaded";  // default threaded
+  if (mode == "single") {
+    backtester.RunLoopSingleThreaded();
+  } else if (mode == "threaded") {
+    backtester.RunLoopThreaded();
+  } else {
+    spdlog::error("Unknown mode '{}': use 'single' or 'threaded'", mode);
+    return 1;
+  }
 
   return 0;
 }

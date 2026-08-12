@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# scripts/bench.sh [config] [runs]
-#
+# ./backtester_profile.sh <config> <runs> <single|threaded>
 # End-to-end benchmark of the full Backtester binary.
 #
 # Measures:
 #   - RunLoop wall-clock + throughput  (from the binary's own log line in ./logs)
 #   - peak resident memory             (/usr/bin/time -v Maximum resident set size)
-# over N runs, reports the MEDIAN with min/max
+# over N runs, reports the median with min/max
 #
 # Run scripts/bench_env.sh first (fixed clocks, warm cache). Non-persistent.
 set -euo pipefail
@@ -16,12 +15,23 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 CONFIG="${1:-$PROJECT_ROOT/config/demo.json}"
 RUNS="${2:-10}"
+
+MODE="${3:-threaded}"
+MODE="${MODE#--}"        # strip leading -- if present
+case "$MODE" in
+  single|threaded) ;;
+  *) echo "mode must be 'single' or 'threaded', got '$MODE'" >&2; exit 1 ;;
+esac
+
 BINARY="$PROJECT_ROOT/build/Backtester"
 BENCH_MD="$PROJECT_ROOT/docs/BENCHMARKS.md"
 LOG_DIR="$PROJECT_ROOT/logs"
 
-# Keep identical to profile.sh across every capture.
-CORE="${BENCH_CORE:-2}"
+if [ "$MODE" = "single" ]; then
+  CORES="${BENCH_CORES:-2}"
+else
+  CORES="${BENCH_CORES:-2,4}"
+fi
 
 if [ ! -x "$BINARY" ]; then
   echo "Binary not found: $BINARY  (build Release first)" >&2
@@ -34,28 +44,22 @@ if [ -r /sys/devices/system/cpu/intel_pstate/no_turbo ] &&
    [ "$(cat /sys/devices/system/cpu/intel_pstate/no_turbo)" != "1" ]; then
   echo "  [warn] Turbo enabled; clocks will drift. Run bench_env.sh." >&2
 fi
-GOV_FILE="/sys/devices/system/cpu/cpu${CORE}/cpufreq/scaling_governor"
+
+FIRST_CORE="${CORES%%,*}"
+GOV_FILE="/sys/devices/system/cpu/cpu${FIRST_CORE}/cpufreq/scaling_governor"
 if [ -r "$GOV_FILE" ] && [ "$(cat "$GOV_FILE")" != "performance" ]; then
-  echo "  [warn] cpu${CORE} governor is not 'performance'." >&2
+  echo "  [warn] cpu${FIRST_CORE} governor is not 'performance'." >&2
 fi
 
 echo "== Full backtest benchmark =="
 echo "  binary=$BINARY"
 echo "  config=$CONFIG"
-echo "  core=$CORE  runs=$RUNS"
+echo "  core=$CORES  runs=$RUNS"
 echo
 
 # ---------------------------------------------------------------------------
 # Each run: run the binary, then read its throughput line from the newest file
 # in ./logs, and peak RSS from /usr/bin/time (stderr).
-#
-# ASSUMPTION 1 (invocation): binary takes the config as a positional arg.
-#   If main.cpp uses a flag, change the invocation to: "$BINARY" --config "$CONFIG"
-#
-# ASSUMPTION 2 (timing source): RunLoop logs a line containing "M evt/s", e.g.
-#     "Loop: 16123456 events  4.512s  3.57 M evt/s"
-#   written into ./logs/<something>.log. The greps extract seconds + throughput.
-#   Adjust the regexes if the log format differs.
 # ---------------------------------------------------------------------------
 
 secs=()
@@ -68,8 +72,8 @@ trap 'rm -f "$TIME_OUT" "$RUN_OUT"' EXIT
 
 for ((r = 1; r <= RUNS; r++)); do
   # Run; /usr/bin/time -v -> stderr (RSS). Binary's own logs go to ./logs/*.log
-  taskset -c "$CORE" /usr/bin/time -v \
-    "$BINARY" "$CONFIG" > "$RUN_OUT" 2> "$TIME_OUT" || {
+  taskset -c "$CORES" /usr/bin/time -v \
+    "$BINARY" "$CONFIG" "$MODE" > "$RUN_OUT" 2> "$TIME_OUT" || {
       echo "run $r failed; see output:" >&2; cat "$TIME_OUT" >&2; exit 1; }
 
   # Peak RSS (KB). `|| true` so a missed match never aborts under set -e.

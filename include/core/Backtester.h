@@ -1,4 +1,7 @@
 #pragma once
+#include <atomic>
+#include <thread>
+
 #include "../data_ingestion/DataReaderManager.h"
 #include "../execution/ExecutionHandler.h"
 #include "../market_state/MarketStateManager.h"
@@ -26,6 +29,7 @@ class Backtester {
         config_(config) {}
 
   int RunLoopSingleThreaded();
+  int RunLoopThreaded();
 
  private:
   struct SourceHead {
@@ -46,6 +50,8 @@ class Backtester {
 
   static constexpr size_t kCapacity = 1 << 16;
 
+  void ProducerLoop();
+  uint64_t ConsumerLoop();
   bool FillRing();
   void ApplyMarket(const MarketByOrderEvent& mbo);
   void ApplySynthetic(const EventUnion& ev, uint64_t current_time);
@@ -66,8 +72,8 @@ class Backtester {
   std::vector<uint16_t> source_heap_;
 
   SPSCRing<EventUnion, kCapacity> ring_;
-
-  bool backtest_complete_ = false;
+  std::atomic<bool> producer_done_{false};
+  std::atomic<bool> backtest_complete_{false};
 };
 
 inline bool isMarketEvent(EventType type) {
