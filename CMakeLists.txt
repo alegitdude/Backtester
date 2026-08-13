@@ -27,6 +27,7 @@ FetchContent_Declare(
   GIT_TAG        release-1.12.1
 )
 FetchContent_MakeAvailable(googletest spdlog json)
+find_package(Threads REQUIRED)
 
 #   Release -> -O3 -DNDEBUG    Debug -> -O0 -g
 add_compile_options(-g -fno-omit-frame-pointer)
@@ -57,6 +58,18 @@ if(ENABLE_SANITIZERS)
     -fsanitize=address,undefined)
 endif()
 
+option(ENABLE_TSAN "Build with ThreadSanitizer (mutually exclusive with ASan)" OFF)
+if(ENABLE_TSAN)
+  target_compile_options(project_sanitizers INTERFACE
+    -fsanitize=thread -fno-sanitize-recover=all)
+  target_link_options(project_sanitizers INTERFACE
+    -fsanitize=thread)
+endif()
+
+if(ENABLE_SANITIZERS AND ENABLE_TSAN)
+  message(FATAL_ERROR "ENABLE_SANITIZERS (ASan) and ENABLE_TSAN are mutually exclusive")
+endif()
+
 ########################
 # Core Library 
 ########################
@@ -85,7 +98,7 @@ add_library(CoreLogic STATIC
 target_include_directories(CoreLogic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(CoreLogic PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(CoreLogic 
-  PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog project_sanitizers
+  PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog project_sanitizers Threads::Threads
   PRIVATE zstd project_warnings 
 )
 ########################
@@ -101,9 +114,10 @@ target_link_libraries(Backtester PRIVATE
 ########################
 # Tests
 ########################
-add_executable(tests
+add_executable(tests 
   test/core/ConfigParser_test.cpp
   test/core/EventQueue_test.cpp
+  test/core/SPSCRing_test.cpp
   test/data_ingestion/CsvZstReader_test.cpp
   test/portfolio/PortfolioManager_test.cpp
   test/utils/TimeUtils_test.cpp
@@ -119,7 +133,7 @@ target_link_libraries(tests PRIVATE
  
 enable_testing()
 include(GoogleTest)
-gtest_discover_tests(tests)
+gtest_discover_tests(tests DISCOVERY_MODE PRE_TEST)
 
 ########################
 # Benchmark Harnesses

@@ -1,35 +1,26 @@
+#include <spdlog/spdlog.h>
+
 #include "strategy/IStrategy.h"
 #include "strategy/StrategyRegistry.h"
-#include <spdlog/spdlog.h>
 
 namespace backtester {
 
 class Template : public IStrategy {
-public:
-    virtual void Initialize(const Strategy& config) override {
-        return;
-    }
+ public:
+  virtual void Initialize(const Strategy& config) override { return; }
 
-    virtual std::optional<StrategySignalEvent> OnMarketEvent(
-        const MarketByOrderEvent& event) override {
-        // ... Your custom trading logic ...
-        // helper function MakeSignal returns unique_ptr<StrategySignalEvent> and takes
-        // signal_type, instr, price, qty, timestamp - Example:
-        // return MakeSignal(kBuySignal, 294973, data[294973].bbo.ask.price, 1, event.timestamp);
-        return std::nullopt;
-    }
+  virtual std::optional<StrategySignalEvent> OnMarketEvent(
+      const MarketByOrderEvent& event) override {
+    // ... Your custom trading logic ...
+    // helper function MakeSignal returns unique_ptr<StrategySignalEvent> and takes
+    // signal_type, instr, price, qty, timestamp - Example:
+    // return MakeSignal(kBuySignal, 294973, data[294973].bbo.ask.price, 1, event.timestamp);
+    return std::nullopt;
+  }
 
-    virtual void OnFill(const StrategyFillEvent& fill) override {
-        return;
-    }
-
-    virtual void OnRejection(const StrategyOrderRejectionEvent& msg) override {
-        return;
-    }
-
-    virtual void OnEndOfDay(uint64_t timestamp) override {
-        return; 
-    }
+  virtual void OnFill(const StrategyFillEvent& fill) override { return; }
+  virtual void OnRejection(const StrategyOrderRejectionEvent& msg) override { return; }
+  virtual void OnEndOfDay(uint64_t timestamp) override { return; }
 };
 
 // ==========================================================
@@ -37,4 +28,4 @@ public:
 // ==========================================================
 REGISTER_STRATEGY(Template, "Blank_Template");
 
-}
+}  // namespace backtester
