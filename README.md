@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/alegitdude/Backtester/actions/workflows/ci.yml/badge.svg)](https://github.com/alegitdude/Backtester/actions/workflows/ci.yml)
 
-A single-threaded, event-driven backtesting framework in C++20 for futures and equities strategies, built around Databento MBO (Market-By-Order) feeds. Reconstructs the full limit order book from order-level data, replays strategies against historical events, and produces per-trade and equity-curve reports.
+A multithreaded, event-driven backtesting framework in C++20 for futures and equities strategies, built around Databento MBO (Market-By-Order) feeds. Market data is parsed on a producer thread and handed to a consumer over a lock-free SPSC ring, while replay stays bit-for-bit deterministic — the threaded output is verified byte-identical to a single-threaded reference. Reconstructs the full limit order book from order-level data, replays strategies against historical events, and produces per-trade and equity-curve reports.
  
-**Throughput on the hot path: 15.9 M events/sec** on a single core processing 16.1M ES futures MBO messages (full venue book reconstruction). See [BENCHMARKS.md](./docs/BENCHMARKS.md) for the full optimization log.
+Multithreaded pipeline: 1.10 M events/sec end-to-end (full backtest, producer/consumer over a lock-free SPSC ring) — a 1.22× speedup over the single-threaded reference (0.90 M/s), on a 4-core Lenovo Flex 5. The order-book hot path alone reconstructs the full venue book at 15.9 M events/sec (single core, ThinkPad T1). See BENCHMARKS.md for the full optimization log.
  
 **Correctness validated against Databento MBP-10:** every reconstructed top-10 snapshot is asserted equal to the published aggregated book at the same sequence number. See [Validation](#validation).
  
@@ -27,7 +27,8 @@ A single-threaded, event-driven backtesting framework in C++20 for futures and e
  
 ## Highlights
  
-- **Order book reconstruction from MBO.** Per-publisher books aggregated into a consolidated instrument-level BBO. Handles add / modify / cancel / clear / trade actions with F_LAST flag-driven BBO cache updates.
+- **Order book reconstruction from MBO data.** Per-publisher books aggregated into a consolidated instrument-level BBO. Handles add / modify / cancel / clear / trade actions with F_LAST flag-driven BBO cache updates.
+- **Lock-free SPSC ring on the market-data path.** A cache-line-padded, power-of-two, acquire/release single-producer/single-consumer ring hands fixed-size events from the parser thread to the book-building thread with a zero-copy peek/commit API. The producer k-way merges N sources into one timestamp-ordered stream; the consumer two-way merges that against consumer-local synthetic events. Verified race-free under ThreadSanitizer over full-day replays and byte-identical to the single-threaded loop.
 - **Custom open-addressing hash table with backshift deletion** for order-ID lookup, replacing `std::unordered_map`. Drove the orderbook hot path from 11.3 → 15.9 M events/sec (ThinkPad T1) by collapsing cache-miss-heavy chained-bucket scans into linear probes over contiguous memory.
 - **Sorted-vector price levels stored worst→best**, searched from the back. New levels at or near the top of book are found and inserted in O(1) amortized; deep-book activity pays the linear search cost. Reduced level-search overhead vs. a `std::map`-based design and eliminated tree-rebalance cache misses.
 - **Shadow-book execution model** that tracks queue position from MBO depth at order submission and fills only when sufficient size has traded through ahead. Supports a configurable `TopOfBook` model as an optimistic-fill benchmark.
@@ -38,19 +39,32 @@ A single-threaded, event-driven backtesting framework in C++20 for futures and e
 ## Architecture
  
 ```
-                       ┌──────────────────────────┐
+                        ┌──────────────────────────┐
    MBO.csv.zst ───────►│  DataReaderManager       │  streaming zstd + CSV parse
-                       │  (per-source readers)    │
+   (N sources)         │  (per-source readers)    │
                        └──────────┬───────────────┘
                                   │  MarketByOrderEvent
                                   ▼
-                       ┌──────────────────────────┐
-                       │  EventQueue              │  min-heap by (ts, type)
-                       │  (priority queue)        │
-                       └──────────┬───────────────┘
-                                  │
-              ┌───────────────────┼───────────────────────────┐
-              ▼                   ▼                           ▼
+        ┌─────────────────────────────────────────────┐
+        │  PRODUCER THREAD                             │
+        │  k-way merge across sources (min-heap on ts) │  globally ts-ordered
+        └──────────────────────┬──────────────────────┘
+                               │  writes in place, no copy
+                               ▼
+                 ╔═════════════════════════════╗
+                 ║  Lock-free SPSC ring        ║   single-producer /
+                 ║  (cache-line-padded cursors)║   single-consumer handoff
+                 ╚══════════════╤══════════════╝
+                                │  acquire/release, zero-copy peek
+                                ▼
+        ┌─────────────────────────────────────────────┐
+        │  CONSUMER THREAD                            │
+        │  two-way merge: ring (market) vs.           │
+        │  EventQueue (synthetic), earliest ts wins   │
+        └──────────────────────┬──────────────────────┘
+                               │
+              ┌────────────────┼───────────────────────────┐
+              ▼                ▼                            ▼
      ┌────────────────┐  ┌────────────────────┐   ┌────────────────────┐
      │ MarketState    │  │ StrategyManager    │   │ ExecutionHandler   │
      │ - OrderBook    │  │ - IStrategy        │   │ - Shadow book      │
@@ -58,25 +72,34 @@ A single-threaded, event-driven backtesting framework in C++20 for futures and e
      │ - Snapshots    │  │ - StrategyRegistry │   │   fill model       │
      └────────┬───────┘  └─────────┬──────────┘   └──────────┬─────────┘
               │                    │                         │
-              └────────────────────┼─────────────────────────┘
-                                   ▼
-                       ┌──────────────────────────┐
-                       │  PortfolioManager        │  positions, margin,
-                       │                          │  realized/unrealized PnL
-                       └──────────┬───────────────┘
-                                  ▼
-                       ┌──────────────────────────┐
-                       │  ReportGenerator         │  CSV summary, equity curve,
-                       │                          │  trade log
-                       └──────────────────────────┘
+              │       synthetic events (signals, orders,     │
+              │       fills, control) ─► EventQueue ─────────┘
+              │       (min-heap by (ts,type), consumer-local)
+              ▼
+     ┌──────────────────────────┐
+     │  PortfolioManager        │  positions, margin,
+     │                          │  realized/unrealized PnL
+     └──────────┬───────────────┘
+                ▼
+     ┌──────────────────────────┐
+     │  ReportGenerator         │  CSV summary, equity curve,
+     │                          │  trade log
+     └──────────────────────────┘
 ```
- 
-The loop is currently single-threaded. Event ordering across data sources, strategies, and synthetic control events (snapshots, end-of-backtest) is total and deterministic, which makes replay reproducible bit-for-bit. A multi-threaded variant (producer-consumer with an SPSC ring between reader and event queue) is a roadmap item.
+Market data flows producer → consumer across a lock-free single-producer / single-consumer (SPSC) ring. The producer thread parses every source and k-way merges them into one globally timestamp-ordered stream; the consumer thread two-way merges that stream against the EventQueue of synthetic events (strategy signals, orders, fills, end-of-backtest), which are generated consumer-side and never cross the thread boundary.
+
+That split is what keeps replay bit-for-bit deterministic despite being concurrent: market events arrive in FIFO order over the ring, synthetic events are produced in a fixed order by the single consumer, and the merge is a pure function of timestamps. The threaded run's trade log, equity curve, and summary are verified byte-identical to the single-threaded reference loop, and the pipeline is verified race-free under ThreadSanitizer over full-day replays. A single-threaded loop is retained as both the determinism oracle and the performance baseline (select with the single / threaded run argument).
  
 ## Performance
- 
-All numbers are single-core, `-O3 -fno-omit-frame-pointer`, 16.1M MBO messages from a full ES futures session (`ES-glbx-20251105.mbo.csv.zst`, 41 active instrument IDs).
- 
+### End-to-end pipeline (full backtest, Lenovo Flex 5, 4 cores) ###
+
+| Mode	                             | Wall clock |	Throughput	   | Speedup  |
+|------------------------------------|------------|----------------|----------|
+| Single-threaded reference (1 core) | 17.42 s	  | 0.90 M evt/sec |	—       |
+| Threaded producer/consumer (2 core)| 14.26 s	  | 1.10 M evt/sec |	1.22×   |
+
+Median of 10 runs each, pinned to distinct physical cores. The speedup is producer-bound by design: parsing dominates the per-event budget (~1.06 µs vs. ~0.14 µs for book apply), so the consumer spends much of its time waiting on the ring. See BENCHMARKS.md for the full analysis.
+
 ### Data ingestion pipeline (MBO parse + dispatch) (ThinkPad T1)
  
 | Stage                                                 | Throughput      | vs. baseline |
@@ -114,7 +137,10 @@ This is replayed against ~16M events across 41 instruments, with no fault tolera
 
 An independent oracle (scripts/oracle_barrier_test.py) cross-checks each simulated MovAvgCross entry against the raw trade tape, confirming the take-profit / stop-loss outcomes recorded by the simulator are supported by real prints.
 
-Additional test coverage:
+#### Deterministic concurrency #### 
+The threaded pipeline's trade log, equity curve, and summary are verified byte-identical to the single-threaded reference loop on the full ES session, and the two-thread run is verified race-free under ThreadSanitizer across full-day replays. Determinism holds because market events cross the SPSC ring in FIFO order while synthetic events stay consumer-local, so the merge is a pure function of timestamps regardless of thread scheduling.
+
+#### Additional test coverage:####
 - `PortfolioManager_test.cpp` — open/close/flip, drawdown circuit breaker, margin-aware buying power, position-limit risk gate, invalid-tick rejection.
 - `TimeUtils_test.cpp` — ISO-8601 parsing with nano-precision, fast 2/4-digit integer parsers, timezone offsets.
 - `CsvZstReader_test.cpp` — streaming decompression edge cases (empty file, no trailing newline, lines larger than the decompressor's output buffer, re-open semantics).
@@ -225,7 +251,7 @@ Explicit list of things the simulator does and doesn't model, so results are int
  
 This is a research backtester, not a live trading system. Specifically:
  
-- **Single-threaded by design** — event ordering is total and the loop is deterministic. Throughput numbers are single-core.
+- **Multithreaded, deterministically.** Market-data parsing and book/strategy processing run on separate threads across a lock-free SPSC ring; a single-threaded reference loop is retained as the determinism oracle and baseline. Event ordering is total and replay is bit-for-bit reproducible in both modes. The end-to-end speedup is producer-bound (see Performance).
 - **MBO ingest only.** OHLCV ingest is scaffolded but not yet implemented; only CSV+zstd is supported (no DBN binary yet).
 - **Single venue per instrument** at backtest time (the framework supports multiple publishers per instrument, but consolidated-book modeling assumes a single matching engine for fill simulation).
 - **No transaction-cost analysis suite** beyond per-trade commission accounting.

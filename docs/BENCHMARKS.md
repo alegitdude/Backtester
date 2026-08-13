@@ -8,9 +8,70 @@
 * **Compiler:** GCC (g++) with -O3 -fno-omit-frame-pointer
 * **Data Source:** Databento MBO (16.158945 million messages, zstd compressed)
 
-* **Methodology:** Benchmarks run with all cores set to performance, pinned to a single physical core via taskset. Fixed clocks eliminate thermal-throttling drift on this laptop; absolute times are therefore lower than peak-boost runs, but run-to-run variance is lower. Page cache warmed.
+* **Methodology:** Benchmarks run with all cores set to performance, pinned to a/2 physical core(s) via taskset. Fixed clocks eliminate thermal-throttling drift on this laptop; absolute times are therefore lower than peak-boost runs, but run-to-run variance is lower. Page cache warmed.
+
+## Multithreaded Producer/Consumer over Lock-Free SPSC Ring (Lenovo Flex 5)
+**Date: August 13, 2026** 
+**Commit:** `9f4f92a`
+
+### Results
+* **Threaded throughput:** 1.095 M evt/s median (14.258s), 10 runs
+* **Single-threaded baseline:** 0.895 M evt/s median (17.415s), 10 runs
+* **Speedup:** 1.22× end-to-end
+* **Peak RSS:** 350 MB (unchanged from single-threaded)
+* **Bottlenecks Identified:** The 1.22× speedup is limited by parsing. Parsing an event takes far longer than processing it (~0.8 µs vs ~0.14 µs from the harness numbers), so once the two run on separate threads, the consumer finishes fast and spends most of its time waiting on the ring. The pipeline runs at roughly the speed of the slower parser. 
+
+Market-data parsing runs on a producer thread and hands fixed-size events to the consumer over a lock-free SPSC ring (zero-copy peek/commit, cache-line-padded cursors, acquire/release). The producer k-way merges all sources into one timestamp-ordered stream; the consumer two-way merges that against the consumer-local synthetic-event queue.
+
+Correctness: threaded trade_log / equity_curve / summary verified byte-identical to the single-threaded reference on the full ES session; two-thread run verified race-free under ThreadSanitizer over full-day replays.
+Potential next optimization: parallel parse across sources or per-source reader threads feeding the merge.
+### Raw Benchmark Output
+```text
+== Full backtest benchmark ==  [THREADED]
+  binary=/Backtester/build/Backtester
+  config=./config/demo.json
+  core=2,4  runs=10
+
+  run  1/10:  14.626s   1.07 M evt/s   RSS 350 MB
+  run  2/10:  14.423s   1.08 M evt/s   RSS 350 MB
+  run  3/10:  14.278s   1.09 M evt/s   RSS 350 MB
+  run  4/10:  14.294s   1.09 M evt/s   RSS 351 MB
+  run  5/10:  14.083s   1.11 M evt/s   RSS 350 MB
+  run  6/10:  14.215s   1.10 M evt/s   RSS 350 MB
+  run  7/10:  14.077s   1.11 M evt/s   RSS 350 MB
+  run  8/10:  14.118s   1.10 M evt/s   RSS 350 MB
+  run  9/10:  14.238s   1.10 M evt/s   RSS 350 MB
+  run 10/10:  16.086s   0.97 M evt/s   RSS 350 MB
+
+== Median over 10 runs ==
+  RunLoop:     14.258 s   (min 14.077 / max 16.086)
+  Throughput:  1.095 M evt/s
+  Peak RSS:    350 MB
+
+== Full backtest benchmark ==  [SINGLE-THREADED baseline]
+  binary=/Backtester/build/Backtester
+  config=./config/demo.json
+  core=2  runs=10
+
+  run  1/10:  17.567s   0.89 M evt/s   RSS 350 MB
+  run  2/10:  17.391s   0.90 M evt/s   RSS 350 MB
+  run  3/10:  17.447s   0.89 M evt/s   RSS 350 MB
+  run  4/10:  17.301s   0.90 M evt/s   RSS 351 MB
+  run  5/10:  17.434s   0.89 M evt/s   RSS 350 MB
+  run  6/10:  17.356s   0.90 M evt/s   RSS 350 MB
+  run  7/10:  17.470s   0.89 M evt/s   RSS 350 MB
+  run  8/10:  17.281s   0.90 M evt/s   RSS 350 MB
+  run  9/10:  17.395s   0.90 M evt/s   RSS 350 MB
+  run 10/10:  17.726s   0.88 M evt/s   RSS 350 MB
+
+== Median over 10 runs ==
+  RunLoop:     17.415 s   (min 17.281 / max 17.726)
+  Throughput:  0.895 M evt/s
+  Peak RSS:    350 MB
 
 ---
+```
+
 ## Switch To POD event structure Full Backtest Throughput (Lenovo FLex 5)
 **Date:** August 2, 2026
 **Commit:** `0c50161`
