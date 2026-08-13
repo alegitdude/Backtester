@@ -63,6 +63,7 @@ class SPSCRing {
 
  private:
   static_assert((Capacity & (Capacity - 1)) == 0, "Capacity must be power of 2");
+  static_assert(std::is_trivially_copyable_v<T>);
   static constexpr size_t kMask = Capacity - 1;
   static constexpr size_t kCacheLine = 64;
   alignas(kCacheLine) std::array<T, Capacity> slots_{};
