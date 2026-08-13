@@ -4,7 +4,7 @@
 
 A multithreaded, event-driven backtesting framework in C++20 for futures and equities strategies, built around Databento MBO (Market-By-Order) feeds. Market data is parsed on a producer thread and handed to a consumer over a lock-free SPSC ring, while replay stays bit-for-bit deterministic — the threaded output is verified byte-identical to a single-threaded reference. Reconstructs the full limit order book from order-level data, replays strategies against historical events, and produces per-trade and equity-curve reports.
  
-Multithreaded pipeline: 1.10 M events/sec end-to-end (full backtest, producer/consumer over a lock-free SPSC ring) — a 1.22× speedup over the single-threaded reference (0.90 M/s), on a 4-core Lenovo Flex 5. The order-book hot path alone reconstructs the full venue book at 15.9 M events/sec (single core, ThinkPad T1). See BENCHMARKS.md for the full optimization log.
+Reconstructs the full venue limit order book from MBO data at 15.9 M events/sec single-core, driven by a custom probing hash table and cache-friendly level structure (a +202% gain over the baseline, each step measured with perf + flame graphs). The multithreaded pipeline runs producer/consumer over a lock-free SPSC ring and stays bit-for-bit deterministic. Output verified byte-identical to the single-threaded reference and race-free under ThreadSanitizer.
  
 **Correctness validated against Databento MBP-10:** every reconstructed top-10 snapshot is asserted equal to the published aggregated book at the same sequence number. See [Validation](#validation).
  
@@ -26,10 +26,10 @@ Multithreaded pipeline: 1.10 M events/sec end-to-end (full backtest, producer/co
 ---
  
 ## Highlights
- 
-- **Order book reconstruction from MBO data.** Per-publisher books aggregated into a consolidated instrument-level BBO. Handles add / modify / cancel / clear / trade actions with F_LAST flag-driven BBO cache updates.
-- **Lock-free SPSC ring on the market-data path.** A cache-line-padded, power-of-two, acquire/release single-producer/single-consumer ring hands fixed-size events from the parser thread to the book-building thread with a zero-copy peek/commit API. The producer k-way merges N sources into one timestamp-ordered stream; the consumer two-way merges that against consumer-local synthetic events. Verified race-free under ThreadSanitizer over full-day replays and byte-identical to the single-threaded loop.
+
 - **Custom open-addressing hash table with backshift deletion** for order-ID lookup, replacing `std::unordered_map`. Drove the orderbook hot path from 11.3 → 15.9 M events/sec (ThinkPad T1) by collapsing cache-miss-heavy chained-bucket scans into linear probes over contiguous memory.
+- **Lock-free SPSC ring on the market-data path.** A cache-line-padded, power-of-two, acquire/release single-producer/single-consumer ring hands fixed-size events from the parser thread to the book-building thread with a zero-copy peek/commit API. The producer k-way merges N sources into one timestamp-ordered stream; the consumer two-way merges that against consumer-local synthetic events. Verified race-free under ThreadSanitizer over full-day replays and byte-identical to the single-threaded loop.
+- **Order book reconstruction from MBO data.** Per-publisher books aggregated into a consolidated instrument-level BBO. Handles add / modify / cancel / clear / trade actions with F_LAST flag-driven BBO cache updates.
 - **Sorted-vector price levels stored worst→best**, searched from the back. New levels at or near the top of book are found and inserted in O(1) amortized; deep-book activity pays the linear search cost. Reduced level-search overhead vs. a `std::map`-based design and eliminated tree-rebalance cache misses.
 - **Shadow-book execution model** that tracks queue position from MBO depth at order submission and fills only when sufficient size has traded through ahead. Supports a configurable `TopOfBook` model as an optimistic-fill benchmark.
 - **Latency-aware execution.** Strategy orders are timestamped at submission but only become eligible to fill after a configurable latency offset (`execution_latency_ms`), modeling round-trip wire time to the venue.
@@ -118,8 +118,7 @@ Median of 10 runs each, pinned to distinct physical cores. The speedup is produc
  
 Each step was driven by `perf` + flame graphs. The full log including raw `perf stat` output (cycles, IPC, cache-miss rates, branch-miss rates) is in [BENCHMARKS.md](./docs/BENCHMARKS.md).
  
-The next planned optimization is to overhaul the Event type, strip out unnecessary properties so one
-Event can fit in one cache line, and is also trivial to copy/move.  
+Roadmap: per-event latency histograms (p50/p99/p99.9) to characterize tail latency alongside throughput; explicit thread pinning of the producer/consumer to isolated cores.
  
 ## Validation
  
@@ -135,12 +134,14 @@ EXPECT_EQ(actual_levels, expected_levels)
  
 This is replayed against ~16M events across 41 instruments, with no fault tolerance.
 
+**Note:** if you do not download the full-day ES data, the test will run using a thin sample of 500k messages from ./test/test_data against the sample mbp-10 file.   
+
 An independent oracle (scripts/oracle_barrier_test.py) cross-checks each simulated MovAvgCross entry against the raw trade tape, confirming the take-profit / stop-loss outcomes recorded by the simulator are supported by real prints.
 
 #### Deterministic concurrency #### 
 The threaded pipeline's trade log, equity curve, and summary are verified byte-identical to the single-threaded reference loop on the full ES session, and the two-thread run is verified race-free under ThreadSanitizer across full-day replays. Determinism holds because market events cross the SPSC ring in FIFO order while synthetic events stay consumer-local, so the merge is a pure function of timestamps regardless of thread scheduling.
 
-#### Additional test coverage:####
+#### Additional test coverage: ####
 - `PortfolioManager_test.cpp` — open/close/flip, drawdown circuit breaker, margin-aware buying power, position-limit risk gate, invalid-tick rejection.
 - `TimeUtils_test.cpp` — ISO-8601 parsing with nano-precision, fast 2/4-digit integer parsers, timezone offsets.
 - `CsvZstReader_test.cpp` — streaming decompression edge cases (empty file, no trailing newline, lines larger than the decompressor's output buffer, re-open semantics).
@@ -161,10 +162,15 @@ git clone https://github.com/alegitdude/Backtester backtester && cd backtester
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 
-# Fetch the demo dataset (342 MB ES futures MBO, hosted on GitHub Releases)
-./scripts/fetch_demo_data.sh
+# Run the demo, two options:
+# (a) No download: runs on the committed 500k-message sample (overnight
+#     globex ES). Proves the pipeline end-to-end — trade log, equity curve,
+#     full metrics — but it's a sample test, not a meaningful strategy result.
+./build/Backtester config/demo_sample.json
 
-# Run the demo backtest
+# (b) Full session: fetch the 342 MB dataset first, then run demo.json.
+#     This is the config behind the headline performance and validation numbers.
+./scripts/fetch_demo_data.sh
 ./build/Backtester config/demo.json
 
 # Run the tests
@@ -210,6 +216,10 @@ The benchmark and demo configurations use a full session of
 ES futures MBO data from Databento (16.1M messages, 342 MB compressed,
 November 5, 2025). The file is hosted on the GitHub Releases page
 and fetched by ./scripts/fetch_demo_data.sh to keep the repo lightweight.
+
+A 500k message sample dataset is also included in test/test_data for verification
+the backtester will actually run, but is not enough data to meaninfully test a strategy
+or confirm much of the backtester behavior. 
 
 ## Configuration
 
@@ -259,7 +269,7 @@ This is a research backtester, not a live trading system. Specifically:
  
 ```
 include/                  Public headers
-  core/                   AppConfig, Event, EventQueue, ConfigParser, Backtester
+  core/                   AppConfig, Event, EventQueue, SPSC Ring, ConfigParser, Backtester
   data_ingestion/         CsvZstReader, DataReaderManager
   market_state/           OrderBook, InstrumentState, MarketStateManager
   execution/              ExecutionHandler, FillModel
