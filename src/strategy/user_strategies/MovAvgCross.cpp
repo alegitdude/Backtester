@@ -54,29 +54,28 @@ class MovAvgCross : public IStrategy {
     }
     spdlog::info("MovAvgCross[{}] initialized: fast={} slow={} instr={}", strategy_id_,
                  fast_window_, slow_window_, traded_instr_);
+    signals_.reserve(1);
   }
 
-  virtual std::optional<StrategySignalEvent> OnMarketEvent(
-      const MarketByOrderEvent& event) override {
+  virtual std::vector<StrategySignalEvent> OnMarketEvent(const MarketByOrderEvent& event) override {
+    signals_.clear();
     if (event.header.type != EventType::kMarketTrade || event.instrument_id != traded_instr_)
-      return std::nullopt;
-    current_price_ = event.price;
+      return {};
 
+    current_price_ = event.price;
     const bool sampled = SamplePrice(event.header.timestamp);
 
     if (!pending_order_ && !cur_pos_.IsFlat()) {
-      return CheckExit(event.header.timestamp);
+      CheckExit(event.header.timestamp);
+      return signals_;
     }
 
-    if (!sampled || pending_order_) {
-      return std::nullopt;
+    if (!sampled || pending_order_ || static_cast<int64_t>(price_history_.size()) < slow_window_) {
+      return {};
     }
 
-    if (static_cast<int64_t>(price_history_.size()) < slow_window_) {
-      return std::nullopt;  // not enough history yet
-    }
-
-    return CheckCrossoverEntry(event.header.timestamp);
+    CheckCrossoverEntry(event.header.timestamp);
+    return signals_;
   }
 
   virtual void OnFill(const StrategyFillEvent& fill) override {
@@ -129,6 +128,7 @@ class MovAvgCross : public IStrategy {
   }
 
  private:
+  std::vector<StrategySignalEvent> signals_;
   CurrentPosition cur_pos_;
   bool pending_order_ = false;
   uint64_t last_sample_ts_ = 0;
@@ -152,7 +152,7 @@ class MovAvgCross : public IStrategy {
     return true;
   }
 
-  std::optional<StrategySignalEvent> CheckCrossoverEntry(uint64_t ts) {
+  void CheckCrossoverEntry(uint64_t ts) {
     const int64_t fast_sma = ComputeSma(fast_window_);
     const int64_t slow_sma = ComputeSma(slow_window_);
 
@@ -164,16 +164,18 @@ class MovAvgCross : public IStrategy {
       if (cur_pos_.IsShort()) {
         spdlog::info("buy signal at price: {}", current_price_);
         pending_order_ = true;
-        return MakeSignal(SignalType::kBuySignal, traded_instr_, current_price_,
-                          static_cast<uint32_t>(std::abs(cur_pos_.quantity)), ts);
+        signals_.push_back(MakeSignal(SignalType::kBuySignal, traded_instr_, current_price_,
+                                      static_cast<uint32_t>(std::abs(cur_pos_.quantity)), ts));
+        return;
       }
       if (cur_pos_.IsFlat()) {
         spdlog::info("buy signal at price: {}", current_price_);
         pending_order_ = true;
-        return MakeSignal(SignalType::kBuySignal, traded_instr_, current_price_, 1, ts);
+        signals_.push_back(
+            MakeSignal(SignalType::kBuySignal, traded_instr_, current_price_, 1, ts));
+        return;
       }
       // Already long — nothing to do.
-      return std::nullopt;
     }
 
     // Bearish cross: fast below slow, and we weren't already below.
@@ -183,18 +185,18 @@ class MovAvgCross : public IStrategy {
       if (cur_pos_.IsLong()) {
         spdlog::info("sell signal at price: {}", current_price_);
         pending_order_ = true;
-        return MakeSignal(SignalType::kSellSignal, traded_instr_, current_price_,
-                          static_cast<uint32_t>(std::abs(cur_pos_.quantity)), ts);
+        signals_.push_back(MakeSignal(SignalType::kSellSignal, traded_instr_, current_price_,
+                                      static_cast<uint32_t>(std::abs(cur_pos_.quantity)), ts));
+        return;
       }
       if (cur_pos_.IsFlat()) {
         spdlog::info("sell signal at price: {}", current_price_);
         pending_order_ = true;
-        return MakeSignal(SignalType::kSellSignal, traded_instr_, current_price_, 1, ts);
+        signals_.push_back(
+            MakeSignal(SignalType::kSellSignal, traded_instr_, current_price_, 1, ts));
+        return;
       }
-      return std::nullopt;
     }
-
-    return std::nullopt;
   }
 
   int64_t ComputeSma(int64_t window) const {
@@ -206,7 +208,7 @@ class MovAvgCross : public IStrategy {
     return static_cast<int64_t>(sum / static_cast<__uint128_t>(window));
   }
 
-  std::optional<StrategySignalEvent> CheckExit(uint64_t ts) {
+  void CheckExit(uint64_t ts) {
     const int64_t tp_dist = kTakeProfitPoints * kOnePoint;
     const int64_t sl_dist = kStopLossPoints * kOnePoint;
 
@@ -218,8 +220,9 @@ class MovAvgCross : public IStrategy {
         pending_order_ = true;
         spdlog::debug("MovAvgCross[{}] long exit ({}) at {}", strategy_id_,
                       hit_target ? "target" : "stop", current_price_);
-        return MakeSignal(SignalType::kSellSignal, traded_instr_, current_price_,
-                          static_cast<uint32_t>(cur_pos_.quantity), ts);
+        signals_.push_back(MakeSignal(SignalType::kSellSignal, traded_instr_, current_price_,
+                                      static_cast<uint32_t>(cur_pos_.quantity), ts));
+        return;
       }
     } else if (cur_pos_.IsShort()) {
       const bool hit_target = current_price_ <= cur_pos_.avg_entry_price - tp_dist;
@@ -229,11 +232,11 @@ class MovAvgCross : public IStrategy {
         pending_order_ = true;
         spdlog::debug("MovAvgCross[{}] short exit ({}) at {}", strategy_id_,
                       hit_target ? "target" : "stop", current_price_);
-        return MakeSignal(SignalType::kBuySignal, traded_instr_, current_price_,
-                          static_cast<uint32_t>(std::abs(cur_pos_.quantity)), ts);
+        signals_.push_back(MakeSignal(SignalType::kBuySignal, traded_instr_, current_price_,
+                                      static_cast<uint32_t>(std::abs(cur_pos_.quantity)), ts));
+        return;
       }
     }
-    return std::nullopt;
   }
 };
 

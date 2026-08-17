@@ -163,6 +163,8 @@ AppConfig ParseConfigFromJson(const nlohmann::json& data, std::filesystem::path 
     for (auto& instr : config.traded_instruments) {
       if (strat.traded_instr_id == instr.instrument_id) {
         instr_exists = true;
+        strat.instr_tick_size = instr.tick_size;
+        strat.instr_tick_value = instr.tick_value;
         break;
       }
     }
@@ -226,6 +228,7 @@ AppConfig ParseConfigFromJson(const nlohmann::json& data, std::filesystem::path 
   return config;
 }
 
+// MARK: PARSE STRATEGIES
 std::vector<Strategy> ParseStrategies(const nlohmann::json& strategies) {
   std::vector<Strategy> res;
   std::string context = "Strategy";

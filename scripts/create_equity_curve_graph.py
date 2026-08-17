@@ -2,82 +2,112 @@
 import csv
 from datetime import datetime
 import matplotlib
-matplotlib.use('Agg') 
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.ticker as mtick
 
-CSV_FILE_NAME = './reports/equity_curve.csv'
-OUTPUT_IMAGE_NAME = './reports/equity_curve_plot.png'
+EQUITY_CSV = './reports/equity_curve.csv'
+TRADE_CSV = './reports/trade_log.csv'   # optional
+OUTPUT = './reports/equity_curve_plot.png'
 
-x_data = []
-y_data = []
-open_x, open_y = [], []
-close_x, close_y = [], []
-print(f"-> Opening '{CSV_FILE_NAME}'...")
+def load_equity(path):
+    rows = []
+    with open(path, newline='') as f:
+        reader = csv.DictReader(f)
+        for r in reader:
+            ts = int(r['timestamp'])
+            rows.append({
+                'ts': ts,
+                'dt': datetime.fromtimestamp(ts / 1e9),
+                'equity': float(r['equity']),
+                'qty': float(r['open_position_qty']),
+            })
+    rows.sort(key=lambda r: r['ts'])
+    return rows
 
-try:
-    with open(CSV_FILE_NAME, mode='r') as file:
-        reader = csv.reader(file)
-        next(reader)
-        prev_qty = 0.0
-        for row in reader:
-            if not row:
-                continue
-                
-            epoch_ns = float(row[0])
-            epoch_seconds = epoch_ns / 1_000_000_000
-            dt_object = datetime.fromtimestamp(epoch_seconds)
-            
-            y_value = float(row[1])
-            
-            current_qty = float(row[6])
-            if prev_qty == 0.0 and current_qty > 0.0:
-                # Opened a position: Log the point for a green marker
-                open_x.append(dt_object)
-                open_y.append(y_value)
-                
-            elif prev_qty > 0.0 and current_qty == 0.0:
-                # Closed a position: Log the point for a red marker
-                close_x.append(dt_object)
-                close_y.append(y_value)
-                
-            prev_qty = current_qty
-            x_data.append(dt_object)
-            y_data.append(y_value)
+def load_trades(path):
+    trades = []
+    try:
+        with open(path, newline='') as f:
+            reader = csv.DictReader(f)
+            for r in reader:
+                ts = int(r['timestamp'])
+                trades.append({
+                    'dt': datetime.fromtimestamp(ts / 1e9),
+                    'side': r['side'].upper(),
+                    'price': float(r['price']),
+                })
+        trades.sort(key=lambda t: t['dt'])
+    except FileNotFoundError:
+        pass
+    return trades
 
-    print(f"-> Successfully loaded {len(x_data)} data rows.")
-    print("-> Configuring plot parameters...")
+equity = load_equity(EQUITY_CSV)
+trades = load_trades(TRADE_CSV)
 
-    plt.figure(figsize=(14, 7))
+# Zoom: first time equity moves or qty != 0, through end
+start_eq = equity[0]['equity']
+i0 = 0
+for i, r in enumerate(equity):
+    if r['equity'] != start_eq or r['qty'] != 0:
+        i0 = max(0, i - 2)
+        break
+equity = equity[i0:]
 
-    plt.plot(x_data, y_data, linewidth=0.2, linestyle='-', color='blue', alpha=0.7, label='Price Track')
+xs = [r['dt'] for r in equity]
+ys = [r['equity'] for r in equity]
+qtys = [r['qty'] for r in equity]
 
-    if open_x:
-        plt.scatter(open_x, open_y, color='green', marker='o', s=40, zorder=5, label='Open Position')
+# Signed inventory transitions
+open_long_x, open_long_y = [], []
+open_short_x, open_short_y = [], []
+flat_x, flat_y = [], []
+prev = 0.0
+for r in equity:
+    q = r['qty']
+    if prev == 0 and q > 0:
+        open_long_x.append(r['dt']); open_long_y.append(r['equity'])
+    elif prev == 0 and q < 0:
+        open_short_x.append(r['dt']); open_short_y.append(r['equity'])
+    elif prev != 0 and q == 0:
+        flat_x.append(r['dt']); flat_y.append(r['equity'])
+    prev = q
 
-    if close_x:
-        plt.scatter(close_x, close_y, color='red', marker='o', s=40, zorder=5, label='Close Position')
+fig, ax = plt.subplots(figsize=(14, 7))
+ax.plot(xs, ys, linewidth=0.8, color='steelblue', alpha=0.9, label='Equity')
 
-    plt.gca().yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.2f}'))
+if open_long_x:
+    ax.scatter(open_long_x, open_long_y, c='green', s=2, zorder=5, label='Open long')
+if open_short_x:
+    ax.scatter(open_short_x, open_short_y, c='orange', s=2, zorder=5, label='Open short')
+if flat_x:
+    ax.scatter(flat_x, flat_y, c='red', s=2, zorder=5, label='Flat')
 
-    time_formatter = mdates.DateFormatter('%H:%M:%S')
-    plt.gca().xaxis.set_major_formatter(time_formatter)
-    plt.gca().xaxis.set_major_locator(mdates.HourLocator(interval=1))
-    plt.gcf().autofmt_xdate()
+# Optional: mark fills from trade log (cleaner for MM)
+if trades:
+    # map trade times onto equity for y-values (nearest)
+    # simple: use equity at end of series scale — skip if too heavy
+    pass
 
-    plt.xlabel('Time (HH:MM:SS) CST')
-    plt.ylabel('Equity')
-    plt.title('MovAvgCross Equity Curve 11/5')
-    plt.grid(True, linestyle=':', alpha=0.6)
-    plt.legend()
-    plt.gca().yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.2f}'))
-    
-    print(f"-> Rendering and saving to '{OUTPUT_IMAGE_NAME}'...")
-    plt.savefig(OUTPUT_IMAGE_NAME, dpi=600, bbox_inches='tight')
-    print("-> Success! Execution completed cleanly.")
+ax.yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.2f}'))
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+fig.autofmt_xdate()
+ax.set_xlabel('Time (HH:MM:SS)')
+ax.set_ylabel('Equity')
+ax.set_title('Equity Curve')
+ax.grid(True, linestyle=':', alpha=0.6)
+ax.legend(loc='best')
 
-except FileNotFoundError:
-    print(f"\n[ERROR] Could not find the file '{CSV_FILE_NAME}'. Verify the filename match.")
-except Exception as e:
-    print(f"\n[ERROR] Script failed due to: {e}")
+# Secondary axis: inventory
+# ax2 = ax.twinx()
+# #ax2.plot(xs, qtys, color='gray', linewidth=0.6, alpha=0.5, label='Inventory')
+# ax2.step(xs, qtys, where='post', color='gray', linewidth=0.8, alpha=0.7)
+# ax2.set_ylim(-1.5, 1.5)
+# ax2.set_ylabel('Inventory (contracts)')
+# ax2.axhline(0, color='gray', linewidth=0.4, alpha=0.5)
+
+fig.tight_layout()
+fig.savefig(OUTPUT, dpi=200, bbox_inches='tight')
+print(f'Saved {OUTPUT} ({len(equity)} points after zoom)')
