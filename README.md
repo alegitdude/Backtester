@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/alegitdude/Backtester/actions/workflows/ci.yml/badge.svg)](https://github.com/alegitdude/Backtester/actions/workflows/ci.yml)
 
-A multithreaded, event-driven backtesting framework in C++20 for futures and equities strategies, built around Databento MBO (Market-By-Order) feeds. Market data is parsed on a producer thread and handed to a consumer over a lock-free SPSC ring, while replay stays bit-for-bit deterministic — the threaded output is verified byte-identical to a single-threaded reference. Reconstructs the full limit order book from order-level data, replays strategies against historical events, and produces per-trade and equity-curve reports.
+A multithreaded, event-driven backtesting framework in C++20 for futures and equities strategies, built around Databento MBO (Market-By-Order) feeds. Market data is parsed on a producer thread and handed to a consumer over a lock-free SPSC ring. The threaded output is verified byte-identical to a single-threaded reference and race-free under ThreadSanitizer. Reconstructs the full limit order book from order-level data, replays strategies against historical events, and produces per-trade and equity-curve reports.
  
-Reconstructs the full venue limit order book from MBO data at 15.9 M events/sec single-core, driven by a custom probing hash table and cache-friendly level structure (a +202% gain over the baseline, each step measured with perf + flame graphs). The multithreaded pipeline runs producer/consumer over a lock-free SPSC ring and stays bit-for-bit deterministic. Output verified byte-identical to the single-threaded reference and race-free under ThreadSanitizer.
+Reconstructs the full venue limit order book at 15.9 M events/sec single-core, driven by a custom probing hash table and cache-friendly level structure (a +202% gain over the baseline, measured with perf + flame graphs). Demo strategies include a moving-average cross and a simple inventory-aware market maker that maintains two-sided quotes, cancel/replaces on BBO moves, and exercises the shadow-book fill model and latency path.
  
 **Correctness validated against Databento MBP-10:** every reconstructed top-10 snapshot is asserted equal to the published aggregated book at the same sequence number. See [Validation](#validation).
  
@@ -27,14 +27,15 @@ Reconstructs the full venue limit order book from MBO data at 15.9 M events/sec 
  
 ## Highlights
 
-- **Custom open-addressing hash table with backshift deletion** for order-ID lookup, replacing `std::unordered_map`. Drove the orderbook hot path from 11.3 → 15.9 M events/sec (ThinkPad T1) by collapsing cache-miss-heavy chained-bucket scans into linear probes over contiguous memory.
+- **Custom open-addressing hash table with backshift deletion** for order-ID lookup, replacing `std::unordered_map` drove the orderbook hot path from 11.3 → 15.9 M events/sec (ThinkPad T1) by collapsing cache-miss-heavy chained-bucket scans into linear probes over contiguous memory.
 - **Lock-free SPSC ring on the market-data path.** A cache-line-padded, power-of-two, acquire/release single-producer/single-consumer ring hands fixed-size events from the parser thread to the book-building thread with a zero-copy peek/commit API. The producer k-way merges N sources into one timestamp-ordered stream; the consumer two-way merges that against consumer-local synthetic events. Verified race-free under ThreadSanitizer over full-day replays and byte-identical to the single-threaded loop.
 - **Order book reconstruction from MBO data.** Per-publisher books aggregated into a consolidated instrument-level BBO. Handles add / modify / cancel / clear / trade actions with F_LAST flag-driven BBO cache updates.
 - **Sorted-vector price levels stored worst→best**, searched from the back. New levels at or near the top of book are found and inserted in O(1) amortized; deep-book activity pays the linear search cost. Reduced level-search overhead vs. a `std::map`-based design and eliminated tree-rebalance cache misses.
 - **Shadow-book execution model** that tracks queue position from MBO depth at order submission and fills only when sufficient size has traded through ahead. Supports a configurable `TopOfBook` model as an optimistic-fill benchmark.
-- **Latency-aware execution.** Strategy orders are timestamped at submission but only become eligible to fill after a configurable latency offset (`execution_latency_ms`), modeling round-trip wire time to the venue.
+- **Multi-signal strategies.** `OnMarketEvent` returns a vector of signals so a strategy can cancel and post bid/ask in one step; `SimpleMarketMaker` uses this for two-sided quoting with inventory limits and requote hysteresis.
+- **Latency-aware execution.** Strategy orders are timestamped at submission, but only become eligible to fill after a configurable latency offset (`execution_latency_ms`), modeling round-trip wire time to the venue.
 - **Streaming zstd CSV reader** chunked decompression with bounded memory. Neither the compressed nor decompressed file is ever fully resident; only the current line is allocated as a string during parsing.
-- **Strategy registry with self-registering classes** via a `REGISTER_STRATEGY` macro — drop a `.cpp` into `src/strategy/user_strategies/`, no edits to manager or CMake required.
+- **Strategy registry with self-registering classes** via a `REGISTER_STRATEGY` macro — drop a `.cpp` file into `src/strategy/user_strategies/`, no edits to manager or CMake required.
 - **Per-instrument margin, tick size, and tick value** for futures contract PnL accounting. Position flip, partial close, and FIFO PnL handled correctly across long/short transitions (see `PortfolioManager_test.cpp`).
 ## Architecture
  
@@ -86,7 +87,7 @@ Reconstructs the full venue limit order book from MBO data at 15.9 M events/sec 
      │                          │  trade log
      └──────────────────────────┘
 ```
-Market data flows producer → consumer across a lock-free single-producer / single-consumer (SPSC) ring. The producer thread parses every source and k-way merges them into one globally timestamp-ordered stream; the consumer thread two-way merges that stream against the EventQueue of synthetic events (strategy signals, orders, fills, end-of-backtest), which are generated consumer-side and never cross the thread boundary.
+Market data flows producer -> consumer across a lock-free single-producer / single-consumer (SPSC) ring. The producer thread parses every source and k-way merges them into one globally timestamp-ordered stream; the consumer thread two-way merges that stream against the EventQueue of synthetic events (strategy signals, orders, fills, end-of-backtest), which are generated consumer-side and never cross the thread boundary.
 
 That split is what keeps replay bit-for-bit deterministic despite being concurrent: market events arrive in FIFO order over the ring, synthetic events are produced in a fixed order by the single consumer, and the merge is a pure function of timestamps. The threaded run's trade log, equity curve, and summary are verified byte-identical to the single-threaded reference loop, and the pipeline is verified race-free under ThreadSanitizer over full-day replays. A single-threaded loop is retained as both the determinism oracle and the performance baseline (select with the single / threaded run argument).
  
@@ -165,13 +166,16 @@ cmake --build build -j
 # Run the demo, two options:
 # (a) No download: runs on the committed 500k-message sample (overnight
 #     globex ES). Proves the pipeline end-to-end — trade log, equity curve,
-#     full metrics — but it's a sample test, not a meaningful strategy result.
+#     full metrics — not a meaningful strategy result.
 ./build/Backtester config/demo_sample.json
 
 # (b) Full session: fetch the 342 MB dataset first, then run demo.json.
 #     This is the config behind the headline performance and validation numbers.
 ./scripts/fetch_demo_data.sh
 ./build/Backtester config/demo.json
+
+# (c) Market-maker sample (two-sided quotes on the 500k overnight ES sample)
+./build/Backtester config/demo-mm-sample.json
 
 # Run the tests
 ctest --test-dir build --output-on-failure
@@ -218,13 +222,13 @@ November 5, 2025). The file is hosted on the GitHub Releases page
 and fetched by ./scripts/fetch_demo_data.sh to keep the repo lightweight.
 
 A 500k message sample dataset is also included in test/test_data for verification
-the backtester will actually run, but is not enough data to meaninfully test a strategy
+the backtester will actually run, but is not enough data to meaningfully test a strategy
 or confirm much of the backtester behavior. 
 
 ## Configuration
 
 Backtests are configured via a JSON file passed to the executable. The full
-schema — every field, its type, units, defaults, and validation rules — is
+schema - every field, its type, units, defaults, and validation rules — is
 documented in [`config/README.md`](./config/README.md).
 
 A working example lives in [`config/demo.json`](./config/demo.json), which
@@ -264,6 +268,8 @@ This is a research backtester, not a live trading system. Specifically:
 - **Multithreaded, deterministically.** Market-data parsing and book/strategy processing run on separate threads across a lock-free SPSC ring; a single-threaded reference loop is retained as the determinism oracle and baseline. Event ordering is total and replay is bit-for-bit reproducible in both modes. The end-to-end speedup is producer-bound (see Performance).
 - **MBO ingest only.** OHLCV ingest is scaffolded but not yet implemented; only CSV+zstd is supported (no DBN binary yet).
 - **Single venue per instrument** at backtest time (the framework supports multiple publishers per instrument, but consolidated-book modeling assumes a single matching engine for fill simulation).
+- **MarketMaker Demo** The included strategy is a framework exercise (two-sided quotes, cancels, inventory limits), 
+not a production MM model (no OFI/VPIN, no adverse-selection filter, no make/take rebates).
 - **No transaction-cost analysis suite** beyond per-trade commission accounting.
 ## Project Layout
  
