@@ -11,7 +11,7 @@ class IStrategy {
  public:
   virtual ~IStrategy() = default;
   virtual void Initialize(const Strategy& config) = 0;
-  virtual std::optional<StrategySignalEvent> OnMarketEvent(const MarketByOrderEvent& event) = 0;
+  virtual std::vector<StrategySignalEvent> OnMarketEvent(const MarketByOrderEvent& event) = 0;
   virtual void OnFill(const StrategyFillEvent& fill) = 0;
   virtual void OnRejection(const StrategyOrderRejectionEvent& msg) = 0;
   virtual void OnEndOfDay(uint64_t timestamp) = 0;

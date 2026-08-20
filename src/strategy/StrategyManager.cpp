@@ -38,10 +38,9 @@ std::vector<EventUnion>& StrategyManager::OnMarketEvent(const MarketByOrderEvent
   collected_signals_.clear();
 
   for (auto& strategy : active_strategies_) {
-    auto signal = strategy->OnMarketEvent(mbo_event);
-
-    if (signal) {
-      collected_signals_.push_back(EventUnion{.strat_signal_ev = *signal});
+    auto signals = strategy->OnMarketEvent(mbo_event);
+    for(auto& signal : signals){
+      collected_signals_.push_back(EventUnion{.strat_signal_ev = signal});
     }
   }
 

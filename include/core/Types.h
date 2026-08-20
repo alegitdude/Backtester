@@ -65,6 +65,8 @@ struct Strategy {
   uint32_t traded_instr_id;
   uint32_t max_lob_lvl;  // If strat only needs current price, lvl is 1,
                          // otherwise how many levels strat is doing calculations on
+  int64_t instr_tick_size = 0;
+  int64_t instr_tick_value = 0;
 };
 
 struct TradedInstrument {

@@ -327,7 +327,7 @@ EventUnion PortfolioManager::HandleCancelRequest(const StrategySignalEvent& sign
 
   return EventUnion{
       .strat_order_ev = StrategyOrderEvent{
-          .header = {.timestamp = signal.header.timestamp, .type = EventType::kStrategyOrderAdd},
+          .header = {.timestamp = signal.header.timestamp, .type = EventType::kStrategyOrderCancel},
           .strategy_id = signal.strategy_id,
           .order_id = signal.signal_id,
           .instrument_id = signal.instrument_id,
@@ -353,22 +353,25 @@ void PortfolioManager::ProcessFill(const StrategyFillEvent& fill) {
   auto pend_order =
       std::find_if(pending_orders_.begin(), pending_orders_.end(),
                    [&](PortfolioPendingOrder& order) { return order.order_id == fill.order_id; });
-  if (pend_order == pending_orders_.end())
-    throw std::runtime_error(fmt::format(R"(
-            Fill processed for unknown strategy order. Fill order id: {} )",
-                                         fill.order_id));
+ if (pend_order == pending_orders_.end()) {
+    spdlog::warn(
+        "Portfolio: Fill for order_id {} not in pending (cancel/fill race). "
+        "Updating position only.",
+        fill.order_id);
+  } else {
+    int64_t init_margin_released = fill.quantity * pend_order->per_qty_com;
+    if (instr->instrument_type == InstrumentType::FUT) {
+      init_margin_released += fill.quantity * pend_order->per_qty_margin;
+    } else {
+      init_margin_released += fill.quantity * fill.price;
+    }
+    reserved_margin_used_ -= init_margin_released;
 
-  int64_t init_margin_released = fill.quantity * pend_order->per_qty_com;
-  if (instr->instrument_type == InstrumentType::FUT) {
-    init_margin_released += fill.quantity * pend_order->per_qty_margin;
-  } else {  // STOCK price can be better than order limit
-    init_margin_released += fill.quantity * fill.price;
+    pend_order->remaining_qty -= fill.quantity;
+    if (pend_order->remaining_qty <= 0) {
+      pending_orders_.erase(pend_order);
+    }
   }
-  reserved_margin_used_ -= init_margin_released;
-
-  pend_order->remaining_qty -= fill.side == OrderSide::kBid ? fill.quantity : -(fill.quantity);
-
-  if (pend_order->remaining_qty == 0) pending_orders_.erase(pend_order);
 
   // Create Position
   Position* prev_pos = FindPosition(fill.instrument_id, fill.strategy_id);
@@ -397,15 +400,18 @@ void PortfolioManager::ProcessFill(const StrategyFillEvent& fill) {
   if (is_opening) {
     OpenOrIncrease(*prev_pos, instr, fill, fill_qty_signed);
   } else if (is_flip) {
-    // Step 1: Close the entire existing position
-    int64_t close_qty_signed = -prev_pos->quantity;  // opposite sign to close fully
+    int64_t close_qty_signed = -prev_pos->quantity;
     trade_pnl = CloseOrReduce(*prev_pos, instr, fill, close_qty_signed);
     total_realized_pnl_ += trade_pnl;
 
-    // Step 2: Open remaining quantity in opposite direction
     int64_t remaining_qty_signed = fill_qty_signed - close_qty_signed;
-    // pos.quantity is now 0 after close, safe to open
-    OpenOrIncrease(*prev_pos, instr, fill, remaining_qty_signed);
+
+    // position was erased — create a fresh one
+    positions_.emplace_back();
+    Position& new_pos = positions_.back();
+    new_pos.instrument_id = fill.instrument_id;
+    new_pos.strategy_id = fill.strategy_id;
+    OpenOrIncrease(new_pos, instr, fill, remaining_qty_signed);
   } else {
     // Pure close/reduce
     trade_pnl = CloseOrReduce(*prev_pos, instr, fill, fill_qty_signed);
