@@ -301,7 +301,7 @@ EventUnion PortfolioManager::HandleCancelRequest(const StrategySignalEvent& sign
       pending_orders_.begin(), pending_orders_.end(),
       [&](PortfolioPendingOrder& order) { return order.order_id == signal.signal_id; });
   if (prev_order == pending_orders_.end()) {
-    spdlog::warn(
+    spdlog::debug(
         "Portfolio: Cancel rejected. No pending order found for "
         "order_id {}.",
         signal.signal_id);
@@ -314,7 +314,7 @@ EventUnion PortfolioManager::HandleCancelRequest(const StrategySignalEvent& sign
                           .signal_type = signal.signal_type,
                           .price = signal.price,
                           .quantity = signal.quantity,
-                          .reason = RejectionReason::kNonTradableInstr}};
+                          .reason = RejectionReason::kNoOrderExists}};
   }
 
   OrderSide side =
@@ -353,7 +353,7 @@ void PortfolioManager::ProcessFill(const StrategyFillEvent& fill) {
   auto pend_order =
       std::find_if(pending_orders_.begin(), pending_orders_.end(),
                    [&](PortfolioPendingOrder& order) { return order.order_id == fill.order_id; });
- if (pend_order == pending_orders_.end()) {
+  if (pend_order == pending_orders_.end()) {
     spdlog::warn(
         "Portfolio: Fill for order_id {} not in pending (cancel/fill race). "
         "Updating position only.",
@@ -406,12 +406,7 @@ void PortfolioManager::ProcessFill(const StrategyFillEvent& fill) {
 
     int64_t remaining_qty_signed = fill_qty_signed - close_qty_signed;
 
-    // position was erased — create a fresh one
-    positions_.emplace_back();
-    Position& new_pos = positions_.back();
-    new_pos.instrument_id = fill.instrument_id;
-    new_pos.strategy_id = fill.strategy_id;
-    OpenOrIncrease(new_pos, instr, fill, remaining_qty_signed);
+    OpenOrIncrease(*prev_pos, instr, fill, remaining_qty_signed);
   } else {
     // Pure close/reduce
     trade_pnl = CloseOrReduce(*prev_pos, instr, fill, fill_qty_signed);
